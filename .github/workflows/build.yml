@@ -49,9 +49,13 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           CSC_SKIP_NOTARIZATION: 'true'
       - uses: actions/upload-artifact@v4
-        with: { name: mac-dmg, path: release/*.dmg, retention-days: 7 }
+        with: { name: mac-dmg-arm64, path: release/*-arm64.dmg, retention-days: 7 }
       - uses: actions/upload-artifact@v4
-        with: { name: mac-zip, path: release/*.zip, retention-days: 7 }
+        with: { name: mac-dmg-x64, path: release/*-x64.dmg, retention-days: 7 }
+      - uses: actions/upload-artifact@v4
+        with: { name: mac-zip-arm64, path: release/*-arm64.zip, retention-days: 7 }
+      - uses: actions/upload-artifact@v4
+        with: { name: mac-zip-x64, path: release/*-x64.zip, retention-days: 7 }
       - name: 上传 GitHub Release
         if: github.event_name == 'release'
         run: gh release upload ${{ github.ref_name }} release/*.dmg release/*.zip --clobber
