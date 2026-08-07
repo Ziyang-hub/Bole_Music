@@ -17,6 +17,7 @@
     "package:mac": "npm run build && electron-builder --mac"
   },
   "dependencies": {
+    "ffmpeg-static": "^5.2.0",
     "electron-store": "^8.2.0",
     "electron-updater": "^6.3.0",
     "NeteaseCloudMusicApi": "^4.32.0",

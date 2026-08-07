@@ -15,6 +15,14 @@ import * as fs from 'fs';
 
 const execFileAsync = promisify(execFile);
 
+// 内置 ffmpeg 路径
+let ffmpegPath = 'ffmpeg';
+try {
+  ffmpegPath = require('ffmpeg-static');
+} catch {
+  // 开发模式下可能没有，回退到系统 ffmpeg
+}
+
 export type AudioChunkCallback = (audioPath: string) => void;
 
 const AUDIO_DIR = path.join(os.tmpdir(), 'bole-simulator-audio');
@@ -79,30 +87,17 @@ export async function checkCaptureCapability(): Promise<{
 }> {
   const platform = process.platform;
   const needs: string[] = [];
-  let hasFfmpeg = false;
   let hasAudioDevice = false;
 
-  try { await execFileAsync('ffmpeg', ['-version'], { timeout: 3000 }); hasFfmpeg = true; } catch {}
-
+  // ffmpeg 已内置，不需要用户安装
   if (platform === 'linux') {
     try { await execFileAsync('pactl', ['info'], { timeout: 3000 }); hasAudioDevice = true; } catch {}
     if (!hasAudioDevice) needs.push('PulseAudio (sudo apt install pulseaudio-utils)');
   } else if (platform === 'win32') {
-    try {
-      const { stdout } = await execFileAsync('ffmpeg', ['-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], { timeout: 5000 });
-      hasAudioDevice = /立体声混音|Stereo Mix|CABLE/i.test(stdout + (await execFileAsync('ffmpeg', ['-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], { timeout: 5000 }).catch(() => ({ stdout: '' })).then(r => r.stdout)));
-    } catch {
-      needs.push('VB-Cable 或 Stereo Mix (https://vb-audio.com/Cable/)');
-    }
+    needs.push('VB-Cable 虚拟音频设备 (https://vb-audio.com/Cable/)');
   } else if (platform === 'darwin') {
-    try {
-      const { stdout } = await execFileAsync('ffmpeg', ['-f', 'avfoundation', '-list_devices', 'true', '-i', '""'], { timeout: 5000 });
-      hasAudioDevice = /BlackHole/i.test(stdout);
-    } catch {}
-    if (!hasAudioDevice) needs.push('BlackHole (brew install blackhole-2ch)');
+    needs.push('BlackHole 虚拟音频设备 (终端运行: brew install blackhole-2ch)');
   }
-
-  if (!hasFfmpeg) needs.push('ffmpeg (https://ffmpeg.org/download.html)');
 
   return { available: needs.length === 0, platform, needs };
 }
@@ -144,7 +139,7 @@ function splitChunk(rawFile: string): void {
 
   let ffmpeg: ReturnType<typeof spawn>;
   try {
-    ffmpeg = spawn('ffmpeg', [
+    ffmpeg = spawn(ffmpegPath, [
       '-y', '-sseof', `-${CHUNK_SEC}`, '-i', rawFile,
       '-t', String(CHUNK_SEC), '-acodec', 'copy', outFile,
     ], { stdio: 'ignore' });
@@ -170,7 +165,7 @@ function startChunkedCapture(): void {
 
     let ffmpeg: ReturnType<typeof spawn>;
     try {
-      ffmpeg = spawn('ffmpeg', args, { stdio: 'ignore' });
+      ffmpeg = spawn(ffmpegPath, args, { stdio: 'ignore' });
     } catch (err) {
       // ffmpeg 不存在或无法启动，停止采集循环
       console.error('ffmpeg 启动失败:', err);

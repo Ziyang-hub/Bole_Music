@@ -526,19 +526,20 @@ function AudioSetupGuide() {
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
           <div>📌 Windows 配置步骤：</div>
           <div>1. 下载安装 <a href="https://vb-audio.com/Cable/" style={{ color: 'var(--color-accent)' }}>VB-Cable</a>（虚拟音频设备）</div>
-          <div>2. 下载安装 <a href="https://ffmpeg.org/download.html" style={{ color: 'var(--color-accent)' }}>ffmpeg</a></div>
-          <div>3. 将系统音频输出设为 VB-Cable</div>
-          <div>4. 重启应用后开启自动采集</div>
+          <div>2. 将系统音频输出设为 VB-Cable</div>
+          <div>3. 打开自动采集开关即可使用</div>
+          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ ffmpeg 已内置，无需额外安装</div>
         </div>
       )}
 
       {capability.platform === 'darwin' && (
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
           <div>📌 macOS 配置步骤：</div>
-          <div>1. 终端运行：<code>brew install blackhole-2ch</code></div>
+          <div>1. 终端运行：<code>brew install blackhole-2ch</code>（安装虚拟音频设备）</div>
           <div>2. 打开「音频MIDI设置」→ 创建多输出设备</div>
           <div>3. 将 BlackHole 加入多输出设备</div>
-          <div>4. 重启应用后开启自动采集</div>
+          <div>4. 打开自动采集开关即可使用</div>
+          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ ffmpeg 已内置，无需额外安装</div>
         </div>
       )}
 
@@ -546,8 +547,8 @@ function AudioSetupGuide() {
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
           <div>📌 Linux 配置步骤：</div>
           <div>1. 安装 PulseAudio：<code>sudo apt install pulseaudio-utils</code></div>
-          <div>2. 安装 ffmpeg：<code>sudo apt install ffmpeg</code></div>
-          <div>3. 重启应用后开启自动采集</div>
+          <div>2. 打开自动采集开关即可使用</div>
+          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ ffmpeg 已内置，无需额外安装</div>
         </div>
       )}
 
