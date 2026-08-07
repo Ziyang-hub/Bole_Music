@@ -1,268 +1,136 @@
 name: 构建安装包
 
-# ============================================================
-# 权限（允许 Release 上传）
-# ============================================================
 permissions:
   contents: write
 
-# ============================================================
-# 触发条件
-# ============================================================
 on:
-  # 推送到 main 分支时构建（测试打包是否正常）
   push:
     branches: [main]
-  # 手动触发
   workflow_dispatch:
-  # 发布 Release 时自动构建 + 上传安装包
   release:
-    types: [published, edited]
+    types: [published]
 
-# ============================================================
-# 构建任务 - 三平台并行
-# ============================================================
 jobs:
-  # ----- Windows -----
+  # ============================================================
+  # Windows
+  # ============================================================
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: 安装依赖
-        run: npm ci
-
-      - name: 构建前端
-        run: npx vite build
-
-      - name: 编译主进程
-        run: npx tsc -p tsconfig.main.json
-
-      - name: 打包 Windows 安装程序
-        run: npx electron-builder --win --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-          # Windows 未签名（无代码签名证书），SmartScreen 会警告
-
-      - name: 上传安装包（临时存档）
-        uses: actions/upload-artifact@v4
-        with:
-          name: 伯乐模拟器-Windows
-          path: release/*.exe
-          retention-days: 7
-
-      - name: 上传到 Release
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npx vite build
+      - run: npx tsc -p tsconfig.main.json
+      - run: npx electron-builder --win --publish never
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
+      - uses: actions/upload-artifact@v4
+        with: { name: win, path: release/*.exe, retention-days: 7 }
+      - name: 上传 GitHub Release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            release/*.exe
-            release/*.yml
+        run: gh release upload ${{ github.ref_name }} release/*.exe --clobber
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
 
-  # ----- macOS -----
+  # ============================================================
+  # macOS
+  # ============================================================
   build-macos:
     runs-on: macos-latest
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: 安装依赖
-        run: npm ci
-
-      - name: 构建前端
-        run: npx vite build
-
-      - name: 编译主进程
-        run: npx tsc -p tsconfig.main.json
-
-      - name: 打包 macOS 安装包
-        run: npx electron-builder --mac --publish never
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npx vite build
+      - run: npx tsc -p tsconfig.main.json
+      - run: npx electron-builder --mac --publish never
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-          CSC_SKIP_NOTARIZATION: true
-
-      - name: 临时签名（绕过 Gatekeeper）
-        run: |
-          # 对 DMG 里的 .app 进行 ad-hoc 签名
-          APP_PATH="release/mac*/伯乐模拟器.app"
-          if [ -d "$APP_PATH" ] || [ -d "release/mac-arm64/伯乐模拟器.app" ]; then
-            for app in release/mac*/伯乐模拟器.app; do
-              if [ -d "$app" ]; then
-                echo "签名: $app"
-                codesign --force --deep --sign - "$app"
-              fi
-            done
-          fi
-          # 也对 unpacked 目录签名（如果有）
-          if [ -d "release/mac" ]; then
-            codesign --force --deep --sign - release/mac/伯乐模拟器.app 2>/dev/null || true
-          fi
-
-      - name: 上传 DMG（临时存档）
-        uses: actions/upload-artifact@v4
-        with:
-          name: 伯乐模拟器-macOS-DMG
-          path: release/*.dmg
-          retention-days: 7
-
-      - name: 上传 ZIP（临时存档）
-        uses: actions/upload-artifact@v4
-        with:
-          name: 伯乐模拟器-macOS-ZIP
-          path: release/*.zip
-          retention-days: 7
-
-      - name: 上传到 Release
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          CSC_SKIP_NOTARIZATION: 'true'
+      - uses: actions/upload-artifact@v4
+        with: { name: mac-dmg, path: release/*.dmg, retention-days: 7 }
+      - uses: actions/upload-artifact@v4
+        with: { name: mac-zip, path: release/*.zip, retention-days: 7 }
+      - name: 上传 GitHub Release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            release/*.dmg
-            release/*.zip
+        run: gh release upload ${{ github.ref_name }} release/*.dmg release/*.zip --clobber
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
 
-  # ----- Linux -----
+  # ============================================================
+  # Linux
+  # ============================================================
   build-linux:
     runs-on: ubuntu-latest
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: 安装依赖
-        run: npm ci
-
-      - name: 构建前端
-        run: npx vite build
-
-      - name: 编译主进程
-        run: npx tsc -p tsconfig.main.json
-
-      - name: 打包 Linux 安装包
-        run: npx electron-builder --linux --publish never
-
-      - name: 上传安装包（临时存档）
-        uses: actions/upload-artifact@v4
-        with:
-          name: 伯乐模拟器-Linux
-          path: release/*.AppImage
-          retention-days: 7
-
-      - name: 上传到 Release
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npx vite build
+      - run: npx tsc -p tsconfig.main.json
+      - run: npx electron-builder --linux --publish never
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: release/*.AppImage, retention-days: 7 }
+      - name: 上传 GitHub Release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            release/*.AppImage
-            release/*.yml
+        run: gh release upload ${{ github.ref_name }} release/*.AppImage --clobber
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
 
   # ============================================================
-  # 镜像到 Gitee（国内下载）
+  # 镜像到 Gitee
   # ============================================================
-  mirror-to-gitee:
+  mirror-gitee:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     steps:
-      - name: 下载 Windows 安装包
-        uses: actions/download-artifact@v4
-        with:
-          name: 伯乐模拟器-Windows
-          path: packages
-      - name: 下载 macOS DMG 安装包
-        uses: actions/download-artifact@v4
-        with:
-          name: 伯乐模拟器-macOS-DMG
-          path: packages
-      - name: 下载 macOS ZIP 安装包
-        uses: actions/download-artifact@v4
-        with:
-          name: 伯乐模拟器-macOS-ZIP
-          path: packages
-      - name: 下载 Linux 安装包
-        uses: actions/download-artifact@v4
-        with:
-          name: 伯乐模拟器-Linux
-          path: packages
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
 
-      - name: 列出 packages 目录
-        run: find packages -type f 2>/dev/null || echo "dir empty"
-
-      - name: 检出代码（用于推送 tag）
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 推送 Tag 到 Gitee
+      - name: 下载全部 artifacts
         run: |
-          git remote add gitee https://ScorchingSunnnn:${{ secrets.GITEE_TOKEN }}@gitee.com/ScorchingSunnnn/bole-simulator.git
-          git push gitee ${{ github.ref }} 2>/dev/null || echo "Tag may exist"
+          gh run download ${{ github.run_id }} --dir packages
+          echo "=== Downloaded files ==="
+          find packages -type f
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
 
-      - name: 上传到 Gitee Release
+      - name: 镜像到 Gitee
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
-          REPO_OWNER="ScorchingSunnnn"
-          REPO_NAME="bole-simulator"
+          # 推送 tag
+          git remote add gitee https://ScorchingSunnnn:$GITEE_TOKEN@gitee.com/ScorchingSunnnn/bole-simulator.git
+          git push gitee ${{ github.ref }} 2>/dev/null || true
+
           TAG="${GITHUB_REF#refs/tags/}"
-          RELEASE_NAME="Bole Simulator $TAG"
+          echo "=== Mirroring $TAG to Gitee ==="
 
-          echo "Release: $TAG"
-
-          # 获取或创建 Release
+          # 获取或创建 Gitee Release
           RELEASE_ID=$(curl -sf -H "Authorization: token $GITEE_TOKEN" \
-            "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG" \
-            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null || echo "")
+            "https://gitee.com/api/v5/repos/ScorchingSunnnn/bole-simulator/releases/tags/$TAG" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
 
           if [ -z "$RELEASE_ID" ]; then
-            echo "Creating release..."
+            echo "Creating Gitee release..."
             RESP=$(curl -sf -X POST \
               -H "Authorization: token $GITEE_TOKEN" \
               -H "Content-Type: application/json" \
-              "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases" \
-              -d "{\"tag_name\":\"$TAG\",\"name\":\"$RELEASE_NAME\",\"body\":\"Built by GitHub Actions\",\"target_commitish\":\"master\"}")
+              "https://gitee.com/api/v5/repos/ScorchingSunnnn/bole-simulator/releases" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"Bole Simulator $TAG\",\"body\":\"GitHub Actions auto-build\",\"target_commitish\":\"master\"}")
             RELEASE_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
           fi
 
           echo "Release ID: $RELEASE_ID"
 
-          if [ -z "$RELEASE_ID" ]; then
-            echo "ERROR: Cannot create Gitee release"
-            exit 1
-          fi
-
           # 上传文件
-          echo "Finding files..."
-          FILES=$(find packages -type f 2>/dev/null)
-          if [ -z "$FILES" ]; then
-            echo "No files found in packages/"
-            ls -laR packages/ 2>/dev/null
-            exit 1
-          fi
-
-          for file in $FILES; do
-            echo "Upload: $file"
-            curl -s -w "HTTP %{http_code}\n" -X POST \
+          for f in $(find packages -type f -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage'); do
+            echo "Uploading: $(basename $f)"
+            curl -sf -X POST \
               -H "Authorization: token $GITEE_TOKEN" \
-              -F "file=@$file" \
-              "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases/$RELEASE_ID/attach_files"
+              -F "file=@$f" \
+              "https://gitee.com/api/v5/repos/ScorchingSunnnn/bole-simulator/releases/$RELEASE_ID/attach_files" \
+              && echo "  OK" || echo "  FAIL"
           done
 
-          echo "Done: https://gitee.com/$REPO_OWNER/$REPO_NAME/releases/tag/$TAG"
+          echo "=== Done ==="
