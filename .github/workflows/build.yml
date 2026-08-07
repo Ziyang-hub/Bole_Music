@@ -184,7 +184,9 @@ jobs:
       - name: 下载所有安装包
         uses: actions/download-artifact@v4
         with:
+          pattern: '*'
           path: packages
+          merge-multiple: true
 
       - name: 检出代码（用于推送 tag）
         uses: actions/checkout@v4
@@ -232,7 +234,11 @@ jobs:
 
           # 上传所有安装包
           echo "📤 上传文件到 Release ID: $RELEASE_ID"
-          for file in $(find packages -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" \)); do
+          echo "📁 packages 目录内容:"
+          ls -la packages/ || echo "packages 目录为空!"
+
+          for file in packages/*.exe packages/*.dmg packages/*.AppImage 2>/dev/null; do
+            [ -f "$file" ] || continue
             fname=$(basename "$file")
             echo "  上传: $fname ($(du -h "$file" | cut -f1))"
             RESP=$(curl -s -w '\n%{http_code}' -X POST \
