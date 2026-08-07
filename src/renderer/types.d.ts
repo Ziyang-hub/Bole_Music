@@ -111,6 +111,13 @@ interface ElectronAPI {
   }>;
   onSongDetected: (callback: (result: RecognitionResult) => void) => void;
 
+  // 自动更新
+  checkForUpdate: () => Promise<UpdateInfo>;
+  downloadUpdate: () => Promise<UpdateInfo>;
+  installUpdate: () => Promise<void>;
+  getUpdateStatus: () => Promise<UpdateInfo>;
+  onUpdateStatusChanged: (callback: (info: UpdateInfo) => void) => void;
+
   // 数据
   getAllData: () => Promise<any>;
   resetAllData: () => Promise<void>;
@@ -123,6 +130,15 @@ interface RecognitionResult {
   genre?: string;
   duration?: number;
   confidence: number;
+}
+
+interface UpdateInfo {
+  status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+  version?: string;
+  releaseDate?: string;
+  releaseNotes?: string;
+  progress?: number;
+  error?: string;
 }
 
 declare global {

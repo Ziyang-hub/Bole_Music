@@ -61,6 +61,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('audio:songDetected', (_event, result) => callback(result));
   },
 
+  // ----- 自动更新 -----
+  checkForUpdate: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  getUpdateStatus: () => ipcRenderer.invoke('update:getStatus'),
+  onUpdateStatusChanged: (callback: (info: any) => void) => {
+    ipcRenderer.on('update:statusChanged', (_event, info) => callback(info));
+  },
+
   // ----- 数据管理 -----
   getAllData: () => ipcRenderer.invoke('store:getAllData'),
   resetAllData: () => ipcRenderer.invoke('store:resetAllData'),

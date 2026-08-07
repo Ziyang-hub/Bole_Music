@@ -22,6 +22,12 @@ files:
   - dist/**/*
   - package.json
 
+# ===== GitHub 发布配置（用于自动更新）=====
+publish:
+  provider: github
+  owner: scorching12
+  repo: Bole_Music
+
 # ----- Windows 配置 -----
 win:
   target:

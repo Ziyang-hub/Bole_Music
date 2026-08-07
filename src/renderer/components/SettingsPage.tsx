@@ -255,6 +255,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* 更新 */}
+      <UpdateSection />
+
       {/* 关于 */}
       <div className="section-card">
         <div className="section-header">ℹ️ 关于伯乐模拟器</div>
@@ -264,6 +267,108 @@ export default function SettingsPage() {
           <div className="about-row"><span>AI 服务</span><span>{settings.apiProvider.toUpperCase()}</span></div>
           <div className="about-row"><span>理念</span><span>高山流水遇知音 🎵</span></div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 自动更新组件
+ */
+function UpdateSection() {
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo>({ status: 'not-available' });
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    if (!window.electronAPI) return;
+
+    // 获取当前状态
+    window.electronAPI.getUpdateStatus().then(setUpdateInfo);
+
+    // 监听状态变化
+    window.electronAPI.onUpdateStatusChanged(setUpdateInfo);
+  }, []);
+
+  async function handleCheck() {
+    if (!window.electronAPI) return;
+    setChecking(true);
+    const info = await window.electronAPI.checkForUpdate();
+    setUpdateInfo(info);
+    setChecking(false);
+  }
+
+  async function handleDownload() {
+    if (!window.electronAPI) return;
+    const info = await window.electronAPI.downloadUpdate();
+    setUpdateInfo(info);
+  }
+
+  async function handleInstall() {
+    if (!window.electronAPI) return;
+    await window.electronAPI.installUpdate();
+  }
+
+  return (
+    <div className="section-card">
+      <div className="section-header">🔄 软件更新</div>
+
+      <div style={{ marginBottom: 12 }}>
+        {updateInfo.status === 'not-available' && (
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>
+            ✅ 当前已是最新版本
+          </p>
+        )}
+        {updateInfo.status === 'checking' && (
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>
+            ⏳ 正在检查更新...
+          </p>
+        )}
+        {updateInfo.status === 'available' && updateInfo.version && (
+          <div>
+            <p style={{ color: 'var(--color-accent-light)', fontSize: 13, fontWeight: 600 }}>
+              🎉 发现新版本 v{updateInfo.version}
+            </p>
+            {updateInfo.releaseNotes && (
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 4, whiteSpace: 'pre-wrap' }}>
+                {updateInfo.releaseNotes.slice(0, 200)}
+              </p>
+            )}
+          </div>
+        )}
+        {updateInfo.status === 'downloading' && (
+          <p style={{ color: 'var(--color-accent-light)', fontSize: 13 }}>
+            📥 下载中... {updateInfo.progress}%
+          </p>
+        )}
+        {updateInfo.status === 'downloaded' && (
+          <p style={{ color: '#4caf50', fontSize: 13, fontWeight: 600 }}>
+            ✅ 更新已下载，重启后生效
+          </p>
+        )}
+        {updateInfo.status === 'error' && (
+          <p style={{ color: '#f44336', fontSize: 13 }}>
+            ❌ {updateInfo.error || '检查更新失败'}
+          </p>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="send-button" onClick={handleCheck} disabled={checking}
+          style={{ fontSize: 12, padding: '6px 16px', height: 'auto' }}>
+          {checking ? '检查中...' : '检查更新'}
+        </button>
+        {updateInfo.status === 'available' && (
+          <button className="send-button" onClick={handleDownload}
+            style={{ fontSize: 12, padding: '6px 16px', height: 'auto', background: '#4caf50' }}>
+            下载更新
+          </button>
+        )}
+        {updateInfo.status === 'downloaded' && (
+          <button className="send-button" onClick={handleInstall}
+            style={{ fontSize: 12, padding: '6px 16px', height: 'auto', background: '#4caf50' }}>
+            重启安装
+          </button>
+        )}
       </div>
     </div>
   );

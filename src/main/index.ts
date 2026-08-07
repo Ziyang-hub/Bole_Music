@@ -31,6 +31,13 @@ import {
   checkCaptureCapability,
 } from './audio-capture';
 import { recognizeSong, isMaybeMusic } from './song-recognition';
+import {
+  initUpdater,
+  checkForUpdates,
+  downloadUpdate,
+  installUpdate,
+  getUpdateStatus,
+} from './updater';
 
 // ----- 窗口管理 -----
 
@@ -58,6 +65,8 @@ function createWindow(): void {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    // 生产模式下启用自动更新
+    initUpdater(mainWindow);
   }
 
   mainWindow.on('closed', () => {
@@ -217,6 +226,25 @@ ipcMain.handle('audio:checkCapability', async () => {
 ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
   const result = await recognizeSong(audioPath);
   return result;
+});
+
+// ----- 自动更新 -----
+
+ipcMain.handle('update:check', async () => {
+  return await checkForUpdates();
+});
+
+ipcMain.handle('update:download', async () => {
+  await downloadUpdate();
+  return getUpdateStatus();
+});
+
+ipcMain.handle('update:install', async () => {
+  installUpdate();
+});
+
+ipcMain.handle('update:getStatus', async () => {
+  return getUpdateStatus();
 });
 
 // ----- 数据管理 -----
