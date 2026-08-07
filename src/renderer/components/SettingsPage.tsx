@@ -524,31 +524,27 @@ function AudioSetupGuide() {
 
       {capability.platform === 'win32' && (
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
-          <div>📌 Windows 配置步骤：</div>
-          <div>1. 下载安装 <a href="https://vb-audio.com/Cable/" style={{ color: 'var(--color-accent)' }}>VB-Cable</a>（虚拟音频设备）</div>
-          <div>2. 将系统音频输出设为 VB-Cable</div>
-          <div>3. 打开自动采集开关即可使用</div>
-          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ ffmpeg 已内置，无需额外安装</div>
+          <div style={{ color: '#4caf50', fontWeight: 600 }}>🎉 Windows 零安装！</div>
+          <div>系统内置 WASAPI 音频采集，打开开关即可使用。</div>
+          <div style={{ marginTop: 4 }}>如果无法采集到声音，可安装 <a href="https://vb-audio.com/Cable/" style={{ color: 'var(--color-accent)' }}>VB-Cable</a>（免费）作为备选。</div>
         </div>
       )}
 
       {capability.platform === 'darwin' && (
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
           <div>📌 macOS 配置步骤：</div>
-          <div>1. 终端运行：<code>brew install blackhole-2ch</code>（安装虚拟音频设备）</div>
-          <div>2. 打开「音频MIDI设置」→ 创建多输出设备</div>
-          <div>3. 将 BlackHole 加入多输出设备</div>
-          <div>4. 打开自动采集开关即可使用</div>
-          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ ffmpeg 已内置，无需额外安装</div>
+          <div>1. 终端运行：<code>brew install blackhole-2ch</code></div>
+          <div>2. 打开「音频MIDI设置」→ 创建多输出设备 → 加入 BlackHole</div>
+          <div>3. 打开自动采集开关即可使用</div>
+          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ ffmpeg 已内置</div>
+          <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>⚠️ macOS 系统限制，必须安装虚拟音频设备</div>
         </div>
       )}
 
       {capability.platform === 'linux' && (
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
-          <div>📌 Linux 配置步骤：</div>
-          <div>1. 安装 PulseAudio：<code>sudo apt install pulseaudio-utils</code></div>
-          <div>2. 打开自动采集开关即可使用</div>
-          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ ffmpeg 已内置，无需额外安装</div>
+          <div style={{ color: '#4caf50', fontWeight: 600 }}>🎉 Linux 零安装！</div>
+          <div>系统内置 PulseAudio 音频采集，打开开关即可使用。</div>
         </div>
       )}
 
