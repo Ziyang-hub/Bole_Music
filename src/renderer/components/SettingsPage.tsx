@@ -448,18 +448,14 @@ function ApiKeyGuide({ type }: { type: 'ai' | 'recognition' }) {
           <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>💰 免费 300 次/月，个人使用完全够</div>
 
           <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 8, color: 'var(--color-accent-light)' }}>
-            🆓 AcoustID（开源免费，需安装 fpcalc）
+            🆓 AcoustID（开源免费，零安装）
           </div>
           <div>1. 打开 <a href="https://acoustid.org/login" target="_blank" style={{ color: 'var(--color-accent)' }}>acoustid.org</a></div>
           <div>2. 用邮箱注册（免费）</div>
           <div>3. 登录后点击「Applications」→ 创建新应用</div>
           <div>4. 复制 Client Key，粘贴到下方输入框</div>
-          <div>5. 安装 fpcalc：
-            <span style={{ color: 'var(--text-muted)' }}>
-              Mac: <code>brew install chromaprint</code> / Windows: 下载 chromaprint
-            </span>
-          </div>
-          <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>💰 完全免费，但中文歌识别率不如 AudD</div>
+          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ fpcalc 已内置，无需安装</div>
+          <div style={{ color: 'var(--text-muted)' }}>💰 完全免费，但中文歌识别率不如 AudD</div>
         </div>
       )}
     </div>
