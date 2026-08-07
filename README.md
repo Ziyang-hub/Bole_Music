@@ -8,17 +8,14 @@
 
 伯乐模拟器是一个桌面 App（支持 Windows 和 Mac），它能：
 
-- 🎵 **分析歌曲**：输入歌名，AI 自动分析歌词、曲风、情感、创作背景
-- 🔗 **打通网易云**：粘贴歌曲链接自动识别，应用内搜索歌曲，获取真实歌词
-- 💬 **陪你聊音乐**：四种 AI 人格可选（文艺青年 / 专业乐评人 / 暖心朋友 / 幽默伙伴）
-- 📊 **生成听歌报告**：日/周/月报告，AI 一键生成文字总结
-- 📝 **记录听歌日记**：自动保存每首分析过的歌曲，可编辑笔记、AI 生成小结
-- 🎧 **自动识别歌曲**：监听系统音频，自动识别播放的歌曲（需配置）
-- 🔄 **自动更新**：发布新版本后，应用自动提示更新
-- 🌓 **深色/浅色主题**：一键切换，白天晚上都舒服
-- 📤 **导出分享**：听歌报告可导出文本，一键复制分享
-- 🔔 **系统通知**：分析完成弹通知提醒
-- 🖥️ **系统托盘**：关闭窗口不退出，后台持续运行
+- 🎧 **自动识别歌曲**：打开网易云播歌 → APP 自动识别 → AI 分析 → 对话展示（全自动）
+- 🎵 **AI 分析歌曲**：输入歌名，AI 从歌词/情感/曲风/背景/感悟 5 个维度深度分析
+- 🔗 **打通网易云**：粘贴歌曲链接自动解析，应用内搜索歌曲，获取真实歌词注入分析
+- 📋 **歌单导入**：粘贴网易云歌单链接，批量获取歌曲列表并逐个 AI 分析
+- 💬 **陪你聊音乐**：四种 AI 人格可选，多轮对话记住上下文
+- 📊 **生成听歌报告**：日/周/月报告，AI 一键生成文字总结，可导出和分享
+- 📝 **记录听歌日记**：自动保存分析过的歌曲，可编辑笔记、AI 生成每日小结
+- 🎵 **个性化推荐**：说「推荐歌曲」→ AI 根据听歌历史为你推荐
 
 > 「伯乐」取自「伯乐识马」的典故，寓意 AI 能像伯乐一样，发现每首歌的闪光点，成为你的音乐知音。
 
@@ -26,14 +23,12 @@
 
 ## 界面预览
 
-应用有四个页面，侧边栏切换：
-
 | 页面 | 功能 |
 |------|------|
-| 💬 知音对话 | 输入歌名 / 粘贴网易云链接 / 点击🔍搜索歌曲，与 AI 伯乐交流 |
-| 📊 听歌报告 | 统计卡片、曲风分布、热门排行、日/周/月 AI 报告 |
-| 📝 听歌日记 | 时间线展示，可编辑笔记，AI 可生成每日小结 |
-| ⚙️ 设置 | 选择 AI 人格、配置 API 密钥、功能开关、检查更新、音频采集引导 |
+| 💬 知音对话 | 输入歌名 / 粘贴链接 / 🔍搜索 / 📋歌单 / 🎤哼歌，与 AI 伯乐交流 |
+| 📊 听歌报告 | 统计卡片、曲风分布、热门排行、日/周/月 AI 报告、导出分享 |
+| 📝 听歌日记 | 时间线展示，可编辑笔记，AI 生成每日小结 |
+| ⚙️ 设置 | 配置 API Key（含获取指引）、AI 人格、主题、识别后端、更新检查、音频采集引导 |
 
 ---
 
@@ -43,186 +38,83 @@
 
 去 [Node.js 官网](https://nodejs.org) 下载安装 **LTS 版本**。
 
-安装完后打开终端验证：
-
 ```bash
-node --version   # 应该显示 v18 或 v20 以上
-npm --version    # 应该显示 9 或 10 以上
+node --version   # 确认 >= 18
+npm --version
 ```
 
-### 第二步：下载项目
+### 第二步：下载并安装
 
 ```bash
 git clone git@github.com:scorching12/Bole_Music.git
 cd Bole_Music
-```
-
-### 第三步：安装依赖
-
-```bash
 npm install
-```
-
-### 第四步：获取 API Key
-
-推荐使用 **DeepSeek**（国内直连，便宜好用）：
-
-1. 打开 [platform.deepseek.com](https://platform.deepseek.com)
-2. 注册账号（手机号即可）
-3. 在「API Keys」页面创建一个 Key，复制备用
-
-> 💰 DeepSeek 新用户送 500 万 tokens，够用很久了。
-
-### 第五步：启动应用
-
-```bash
 npm run dev
 ```
 
-应用打开后：
-1. 去 ⚙️ **设置** → 粘贴 DeepSeek API Key
-2. 选择一个 AI 人格
-3. 回到 💬 **知音对话**，试试：
+或直接下载 GitHub Actions 构建的安装包。
 
-```
-# 方式1：直接输入歌名
-周杰伦 晴天
+### 第三步：配置 API Key
 
-# 方式2：粘贴网易云链接
-https://music.163.com/song?id=186016
+打开 APP → 设置页面，按页面上的指引注册并填入：
 
-# 方式3：点击🔍搜索歌曲
-# 方式4：输入「推荐歌曲」获取个性化推荐
-```
+| Key | 用途 | 获取地址 | 费用 |
+|-----|------|----------|:--:|
+| DeepSeek API Key | AI 分析 | platform.deepseek.com | 🆓 送500万tokens |
+| AudD API Key | 歌曲识别 | audd.io | 🆓 300次/月 |
 
----
+> 设置页每个 Key 旁边都有「📖 如何获取？」展开按钮，包含完整注册步骤。
 
-## ⚠️ 安全警告说明
+### 第四步（可选）：启用自动识别
 
-因为 App **没有花 $99/年 买代码签名证书**，各平台会提示安全警告。**这是正常的，App 本身没有病毒。**
-
-### 🍎 macOS
-
-**推荐方式：下载 ZIP 包（不是 DMG）**
-
-1. 从 Actions Artifacts 下载 `伯乐模拟器-macOS.zip`
-2. 解压 ZIP，会得到 `伯乐模拟器.app`
-3. 打开 **终端**（在「启动台→其他」里）
-4. 运行以下命令（把路径改成你的实际路径）：
-
-```bash
-# 如果 App 在「下载」文件夹
-xattr -cr ~/Downloads/伯乐模拟器.app
-codesign --force --deep --sign - ~/Downloads/伯乐模拟器.app
-open ~/Downloads/伯乐模拟器.app
-```
-
-> 这三条命令的作用：清除隔离标记 → 临时签名 → 打开应用
-
-**或者用自动安装脚本**（ZIP 包里附带 `mac-install.sh`）：
-
-```bash
-cd ~/Downloads
-bash mac-install.sh
-```
-
-**如果下载的是 DMG**：
-- 先把 App 从 DMG 拖到「应用程序」
-- 然后在终端运行：
-```bash
-xattr -cr /Applications/伯乐模拟器.app
-open /Applications/伯乐模拟器.app
-```
-
-**彻底解决**：需要 Apple Developer 账号（$99/年）。
-
-### 🪟 Windows
-
-双击安装程序时，SmartScreen 会提示「Windows 已保护你的电脑」：
-
-1. 点击 **「更多信息」**
-2. 点击 **「仍要运行」**
-3. 正常安装即可
-
-**彻底解决**：需要购买代码签名证书（~$200/年）。
-
-### 🐧 Linux
-
-AppImage 一般不会有安全警告。如果遇到，给文件加执行权限：
-
-```bash
-chmod +x 伯乐模拟器-1.0.0.AppImage
-./伯乐模拟器-1.0.0.AppImage
-```
+1. 安装虚拟音频设备：
+   - Mac: `brew install blackhole-2ch`
+   - Windows: 下载 [VB-Cable](https://vb-audio.com/Cable/)
+2. 设置页打开「自动音频采集」开关
+3. 播放音乐 → APP 自动识别和分析 🎉
 
 ---
 
 ## 怎么获取安装包？
 
-### 方式一：GitHub Actions 自动构建（推荐）
+### 方式一：GitHub Actions（推荐）
 
-推送代码后，GitHub 自动构建三平台安装包：
-
-1. 去 [Actions 页面](https://github.com/scorching12/Bole_Music/actions)
-2. 点击最新的「构建安装包」运行
-3. 拉到页面底部 Artifacts，下载对应平台安装包
+去 [Actions](https://github.com/scorching12/Bole_Music/actions) → 最新构建 → 底部 Artifacts → 下载对应平台包。
 
 ### 方式二：本地打包
 
 ```bash
 npm run package:win   # Windows .exe
-npm run package:mac   # macOS .dmg
+npm run package:mac   # macOS .dmg + .zip
 ```
+
+---
+
+## ⚠️ 安装注意事项
+
+### 🍎 macOS
+
+下载 ZIP 包解压后，打开终端运行：
+
+```bash
+xattr -cr ~/Downloads/伯乐模拟器.app
+open ~/Downloads/伯乐模拟器.app
+```
+
+> 因为没买 Apple 开发者签名（$99/年），系统会拦截。运行上述命令即可正常打开。
+
+### 🪟 Windows
+
+安装时 SmartScreen 警告 → 点击「更多信息」→「仍要运行」。
 
 ---
 
 ## 怎么发布新版本？
 
-1. 修改 `package.json` 中的 `version`（如 `1.0.1`）
-2. 提交代码并推送
-3. 在 [Releases 页面](https://github.com/scorching12/Bole_Music/releases) 创建新 Release
-   - Tag: `v1.0.1`
-   - Title: 伯乐模拟器 v1.0.1
-4. 点 Publish → GitHub Actions 自动构建 → 安装包自动出现在 Release 页面
-5. 所有用户下次打开应用时自动收到更新提示
-
----
-
-## 项目结构
-
-```
-├── 产品设计.md                 # 产品设计文档
-├── README.md                   # 本文件
-├── package.json                # 项目配置
-├── electron-builder.yml        # 打包+发布配置
-├── demo.html                   # 效果预览页面
-├── .github/workflows/
-│   └── build.yml               # GitHub Actions 自动打包
-├── scripts/
-│   └── generate-icon.js        # 图标生成脚本
-├── resources/
-│   ├── icon.png                # 应用图标
-│   └── icon-256.png
-├── src/
-│   ├── main/                   # Electron 主进程
-│   │   ├── index.ts            # 窗口管理 + IPC 路由
-│   │   ├── preload.ts          # 安全桥接层
-│   │   ├── store.ts            # 数据持久化
-│   │   ├── ai-service.ts       # AI 服务（分析/对话/报告/推荐）
-│   │   ├── audio-capture.ts    # 系统音频采集
-│   │   ├── song-recognition.ts # 歌曲指纹识别
-│   │   ├── music-platforms.ts  # 音乐平台连接器（网易云）
-│   │   ├── music-types.ts      # 音乐类型定义
-│   │   └── updater.ts          # 自动更新
-│   └── renderer/               # React 前端界面
-│       ├── App.tsx             # 主组件（页面切换+对话+链接解析）
-│       ├── App.css             # 全局样式
-│       └── components/
-│           ├── ReportPage.tsx   # 听歌报告
-│           ├── DiaryPage.tsx    # 听歌日记
-│           ├── SettingsPage.tsx # 设置+更新+音频引导
-│           └── SearchSongs.tsx  # 歌曲搜索
-```
+1. 修改 `package.json` 中的 `version`
+2. 提交推送 → GitHub Actions 自动构建
+3. 在 [Releases](https://github.com/scorching12/Bole_Music/releases) 创建 Release（Tag 如 `v1.0.1`）
+4. 安装包自动出现在 Release 页面，所有用户收到更新通知
 
 ---
 
@@ -230,13 +122,12 @@ npm run package:mac   # macOS .dmg
 
 | 层级 | 技术 |
 |------|------|
-| 桌面框架 | Electron 31.x |
-| 前端 | React 18 + TypeScript 5 |
-| 构建工具 | Vite 5 |
+| 桌面框架 | Electron 31 |
+| 前端 | React 18 + TypeScript 5 + Vite 5 |
 | 数据存储 | electron-store |
-| AI 服务 | DeepSeek（默认）/ 通义千问 / OpenAI / 自定义 |
+| AI 服务 | DeepSeek（默认）/ 通义千问 / OpenAI |
 | 音乐平台 | NeteaseCloudMusicApi |
-| 歌曲识别 | ACRCloud 框架 |
+| 歌曲识别 | AudD（商业指纹）+ AcoustID（开源指纹）双后端 |
 | 打包 | electron-builder |
 | 自动更新 | electron-updater |
 | CI/CD | GitHub Actions |
@@ -247,19 +138,15 @@ npm run package:mac   # macOS .dmg
 
 | 存档点 | 说明 |
 |:------:|------|
-| 1 | 搭好了项目骨架 |
-| 2 | 四个功能页面都能用了 |
-| 3 | AI 有脑子了，数据能记住了 |
-| 4 | 写了 README 文档 |
-| 5 | P1 全部完成（报告/日记/推荐/音频采集/歌曲识别） |
-| 6 | P2+P3 完成（打包/图标/自动更新） |
-| 7 | 更新产品设计文档和 README |
-| 8 | 打包验证通过 + 音频采集引导 |
-| 9 | 添加应用效果预览页面 |
+| 1-3 | 项目骨架 + 页面 + AI + 存储 |
+| 4-6 | README + P1/P2/P3 完成 |
+| 7-9 | 文档更新 + 打包验证 + 效果预览 |
 | 10 | 打通网易云音乐平台 |
-| 11 | 配置 GitHub Actions 自动打包 |
-| 12 | 更新产品设计文档和 README |
-| 13 | 体验增强（托盘+通知+主题+导出+分享） |
+| 11-12 | GitHub Actions + 文档 |
+| 13-14 | 体验增强（托盘/通知/主题/导出） |
+| 15-17 | macOS 安全绕过 + 打包修复 |
+| 18 | 歌单导入 + 哼歌识别 + 使用统计 |
+| 19-22 | 双后端识别 + 开箱即用 + 全自动管道 |
 
 ---
 
