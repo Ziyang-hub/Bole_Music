@@ -30,6 +30,9 @@ import {
   stopCapture,
   isCapturing,
   checkCaptureCapability,
+  diagnose,
+  registerAudioIpcHandlers,
+  requestScreenPermission,
 } from './audio-capture';
 import { recognizeSong, isMaybeMusic, checkBackends } from './song-recognition';
 import {
@@ -176,6 +179,9 @@ function showNotification(title: string, body: string): void {
 app.whenReady().then(() => {
   createWindow();
   createTray();
+
+  // 注册 macOS 音频采集的 IPC（不影响其他平台）
+  registerAudioIpcHandlers();
 
   // 恢复自动采集（如果用户之前开启过）
   const settings = getSettings();
@@ -405,19 +411,20 @@ ipcMain.handle('audio:checkBackends', async () => {
 });
 
 ipcMain.handle('audio:diagnose', async () => {
-  const issues: string[] = [];
+  // 获取平台特定的音频诊断
+  const audioDiag = await diagnose();
+
   const ok: string[] = [];
+  const issues: string[] = [];
 
-  // 1. 检查 ffmpeg（内置，总是可用）
-  ok.push('ffmpeg 已内置');
-
-  // 2. 检查音频设备
-  const cap = await checkCaptureCapability();
-  if (cap.available) {
-    ok.push('音频设备就绪');
-  } else {
-    issues.push(...cap.needs);
+  // 1. ffmpeg（非 macOS 平台显示）
+  if (process.platform !== 'darwin') {
+    ok.push('ffmpeg 已内置');
   }
+
+  // 2. 音频设备/权限诊断
+  ok.push(...audioDiag.ok);
+  issues.push(...audioDiag.issues);
 
   // 3. 检查识别后端
   const backends = await checkBackends();

@@ -3,7 +3,7 @@
  *
  * 采集系统音频输出，每10秒生成一段音频文件。
  * ffmpeg 已内置，Windows/Linux 零额外安装。
- * macOS 需要 BlackHole（系统限制），但会自动检测。
+ * macOS 使用 ScreenCaptureKit（零安装，需屏幕录制权限）。
  */
 
 import { spawn, execFile } from 'child_process';
@@ -11,6 +11,16 @@ import { promisify } from 'util';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
+import {
+  startCapture as macStartCapture,
+  stopCapture as macStopCapture,
+  isCapturing as macIsCapturing,
+  checkCaptureCapability as macCheckCaptureCapability,
+  diagnose as macDiagnose,
+  registerIpcHandlers as macRegisterIpcHandlers,
+  unregisterIpcHandlers as macUnregisterIpcHandlers,
+  requestScreenPermission as macRequestScreenPermission,
+} from './mac-audio-capture';
 
 const execFileAsync = promisify(execFile);
 
@@ -29,12 +39,20 @@ let onChunk: AudioChunkCallback | null = null;
 let chunkIndex = 0;
 let captureTimer: ReturnType<typeof setTimeout> | null = null;
 
+const isMac = process.platform === 'darwin';
+
 // ============================================================
 // 公开 API
 // ============================================================
 
 export function startCapture(callback: AudioChunkCallback): boolean {
   if (isRunning) return false;
+
+  // macOS 使用零安装的 ScreenCaptureKit 方案
+  if (isMac) {
+    return macStartCapture(callback);
+  }
+
   if (!fs.existsSync(AUDIO_DIR)) fs.mkdirSync(AUDIO_DIR, { recursive: true });
 
   onChunk = callback;
@@ -44,22 +62,30 @@ export function startCapture(callback: AudioChunkCallback): boolean {
   const platform = process.platform;
   if (platform === 'linux') startLinuxCapture();
   else if (platform === 'win32') startWindowsCapture();
-  else if (platform === 'darwin') startMacCapture();
   else startPollLoop();
 
   return true;
 }
 
 export function stopCapture(): void {
+  if (isMac) {
+    macStopCapture();
+    return;
+  }
   isRunning = false;
   if (captureTimer) { clearTimeout(captureTimer); captureTimer = null; }
 }
 
-export function isCapturing(): boolean { return isRunning; }
+export function isCapturing(): boolean {
+  if (isMac) return macIsCapturing();
+  return isRunning;
+}
 
 export async function checkCaptureCapability(): Promise<{
   available: boolean; platform: string; needs: string[];
 }> {
+  if (isMac) return macCheckCaptureCapability();
+
   const platform = process.platform;
   const needs: string[] = [];
 
@@ -67,22 +93,53 @@ export async function checkCaptureCapability(): Promise<{
     try { await execFileAsync('pactl', ['info'], { timeout: 3000 }); } catch {
       needs.push('PulseAudio (sudo apt install pulseaudio-utils)');
     }
-  } else if (platform === 'darwin') {
-    // macOS 检测 BlackHole
-    try {
-      const { stdout } = await execFileAsync(ffmpegPath, [
-        '-f', 'avfoundation', '-list_devices', 'true', '-i', '""',
-      ], { timeout: 5000 });
-      if (!/BlackHole/i.test(stdout)) {
-        needs.push('BlackHole (终端运行: brew install blackhole-2ch)');
-      }
-    } catch {
-      needs.push('BlackHole (终端运行: brew install blackhole-2ch)');
-    }
   }
   // Windows: WASAPI loopback 内置，无需任何安装
 
   return { available: needs.length === 0, platform, needs };
+}
+
+/**
+ * macOS: 请求屏幕录制权限
+ */
+export async function requestScreenPermission(): Promise<boolean> {
+  if (isMac) return macRequestScreenPermission();
+  return true; // Windows/Linux 无需
+}
+
+/**
+ * 诊断音频采集链路（macOS 用 SCK 诊断，其他平台用原有逻辑）
+ */
+export async function diagnose(): Promise<{
+  ok: string[]; issues: string[]; ready: boolean;
+}> {
+  if (isMac) return macDiagnose();
+
+  const ok: string[] = [];
+  const issues: string[] = [];
+
+  ok.push('ffmpeg 已内置');
+
+  const cap = await checkCaptureCapability();
+  if (cap.available) {
+    ok.push('音频设备就绪');
+  } else {
+    issues.push(...cap.needs);
+  }
+
+  return { ok, issues, ready: issues.length === 0 };
+}
+
+/**
+ * 注册 macOS 音频采集的 IPC 处理器
+ * 由 index.ts 在 app.whenReady 后调用
+ */
+export function registerAudioIpcHandlers(): void {
+  if (isMac) macRegisterIpcHandlers();
+}
+
+export function unregisterAudioIpcHandlers(): void {
+  if (isMac) macUnregisterIpcHandlers();
 }
 
 // ============================================================
@@ -131,19 +188,6 @@ function startWindowsCapture(): void {
 }
 
 // ============================================================
-// macOS: 自动检测 BlackHole，否则用默认设备
-// ============================================================
-
-function startMacCapture(): void {
-  execFileAsync(ffmpegPath, ['-f','avfoundation','-list_devices','true','-i','""'], { timeout: 5000 })
-    .then(({ stdout }) => {
-      const input = /BlackHole/i.test(stdout) ? ':BlackHole' : ':0';
-      startFfmpegLoop(input, 'avfoundation');
-    })
-    .catch(() => startFfmpegLoop(':0', 'avfoundation'));
-}
-
-// ============================================================
 // 通用录制循环
 // ============================================================
 
@@ -171,10 +215,9 @@ function startFfmpegLoop(input: string, format: string): void {
 }
 
 function startPollLoop(): void {
-  const p = process.platform;
   startFfmpegLoop(
-    p === 'darwin' ? ':0' : p === 'win32' ? 'audio=@default' : 'default',
-    p === 'darwin' ? 'avfoundation' : p === 'win32' ? 'dshow' : 'pulse'
+    process.platform === 'win32' ? 'audio=@default' : 'default',
+    process.platform === 'win32' ? 'dshow' : 'pulse'
   );
 }
 

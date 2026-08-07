@@ -72,7 +72,7 @@ export function installMockAPI() {
     isAudioCapturing: async () => false,
     checkCaptureCapability: async () => ({ available: false, platform: 'browser', needs: [] }),
     checkBackends: async () => [],
-    diagnoseAudio: async () => ({ ok: ['浏览器模式'], issues: [], ready: true }),
+    diagnoseAudio: async () => ({ ok: ['浏览器测试模式'], issues: [], ready: true }),
     onSongDetected: () => {},
 
     // 使用统计

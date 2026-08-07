@@ -200,7 +200,7 @@ export default function SettingsPage() {
         <div className="setting-row">
           <div className="setting-info">
             <label className="setting-label">自动音频采集</label>
-            <span className="setting-desc">自动监听电脑播放的音乐（需要安装虚拟音频设备）</span>
+            <span className="setting-desc">自动监听电脑播放的音乐（macOS 需授予屏幕录制权限）</span>
           </div>
           <button
             className={`toggle ${settings.autoListen ? 'on' : 'off'}`}
@@ -544,12 +544,14 @@ function AudioSetupGuide() {
 
       {capability.platform === 'darwin' && (
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
-          <div>📌 macOS 配置步骤：</div>
-          <div>1. 终端运行：<code>brew install blackhole-2ch</code></div>
-          <div>2. 打开「音频MIDI设置」→ 创建多输出设备 → 加入 BlackHole</div>
-          <div>3. 打开自动采集开关即可使用</div>
-          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ ffmpeg 已内置</div>
-          <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>⚠️ macOS 系统限制，必须安装虚拟音频设备</div>
+          <div style={{ color: '#4caf50', fontWeight: 600 }}>🎉 macOS 零安装！</div>
+          <div>使用 macOS 内置的 ScreenCaptureKit 采集系统音频，无需安装任何软件。</div>
+          <div style={{ marginTop: 4 }}>📌 首次使用步骤：</div>
+          <div>1. 打开自动采集开关</div>
+          <div>2. 在弹出的系统对话框中点击「允许屏幕录制」</div>
+          <div>3. 即可自动监听电脑播放的音乐</div>
+          <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>⚠️ 需要 macOS 13 (Ventura) 或更新版本</div>
+          <div style={{ color: 'var(--text-muted)' }}>⚠️ 如提示权限被拒绝，请前往 系统设置 → 隐私与安全性 → 屏幕录制 中开启</div>
         </div>
       )}
 
@@ -561,7 +563,7 @@ function AudioSetupGuide() {
       )}
 
       <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, fontStyle: 'italic' }}>
-        💡 音频采集需要配合 ACRCloud 歌曲识别服务使用。在环境变量中设置 ACRCLOUD_ACCESS_KEY 和 ACRCLOUD_ACCESS_SECRET 即可启用自动识别。
+        💡 音频采集需要配合歌曲识别服务使用。在设置页填写 AudD API Key 即可启用自动识别。
       </div>
     </div>
   );
