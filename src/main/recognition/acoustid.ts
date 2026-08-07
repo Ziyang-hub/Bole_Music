@@ -31,12 +31,12 @@ export class AcoustIDBackend implements RecognitionBackend {
       const clientKey = settings.acoustidClientKey || 'bole-simulator';
       const duration = this.getAudioDuration(audioPath);
 
-      const url = `${ACOUSTID_API}?client=${clientKey}&meta=recordings+releases&duration=${duration}&fingerprint=${fingerprint.duration}`;
+      const body = `client=${clientKey}&meta=recordings+releases&fingerprint=${encodeURIComponent(fingerprint.fingerprint)}&duration=${fingerprint.duration}`;
 
-      const response = await fetch(url, {
+      const response = await fetch(ACOUSTID_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `fingerprint=${fingerprint.fingerprint}&duration=${fingerprint.duration}`,
+        body,
       });
 
       if (!response.ok) return null;

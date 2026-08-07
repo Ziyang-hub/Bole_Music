@@ -40,6 +40,11 @@ function nowISO(): string {
   return new Date().toISOString();
 }
 
+function todayLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ============================================================
 // 主组件
 // ============================================================
@@ -233,7 +238,7 @@ export default function App() {
                 await window.electronAPI.addMessage(boleMsg);
 
                 // 日记
-                const today = new Date().toISOString().split('T')[0];
+                const today = todayLocal();
                 await window.electronAPI.addDiaryEntry({
                   date: today,
                   songs: [{ title: song.name, artist: song.artists.join('、'), time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: result.data.personalThought?.slice(0, 100) || '' }],
@@ -310,7 +315,7 @@ export default function App() {
             await window.electronAPI.addMessage(boleMsg);
 
             // 更新听歌日记
-            const today = new Date().toISOString().split('T')[0];
+            const today = todayLocal();
             await window.electronAPI.addDiaryEntry({
               date: today,
               songs: [
@@ -416,7 +421,7 @@ export default function App() {
           await window.electronAPI.addMessage(boleMsg);
 
           // 日记
-          const today = new Date().toISOString().split('T')[0];
+          const today = todayLocal();
           await window.electronAPI.addDiaryEntry({
             date: today,
             songs: [{ title: songName, artist, time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: result.data.personalThought?.slice(0, 100) || '' }],

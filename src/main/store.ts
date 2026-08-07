@@ -248,7 +248,8 @@ export function updateStats(songName: string, artist: string, genre: string): vo
   stats.artistCounts[artist] = (stats.artistCounts[artist] || 0) + 1;
 
   // 每日统计
-  const today = new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   stats.dailyCounts[today] = (stats.dailyCounts[today] || 0) + 1;
 
   // 热门歌曲
@@ -330,8 +331,16 @@ export function getUsageStats(): UsageData {
 export function resetAllData(): void {
   store.clear();
   store.set('messages', []);
-  store.set('settings', defaultSettings);
+  store.set('settings', { ...defaultSettings });
   store.set('songCache', {});
   store.set('diary', []);
-  store.set('stats', defaultStats);
+  store.set('stats', {
+    totalSongs: 0,
+    totalAnalyses: 0,
+    genreDistribution: {},
+    artistCounts: {},
+    dailyCounts: {},
+    topSongs: [],
+  });
+  store.set('usage', {});
 }

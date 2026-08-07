@@ -48,7 +48,7 @@ export default function ReportPage() {
       const now = new Date();
       let filteredSongs = songs;
       if (reportType === 'daily') {
-        const today = now.toISOString().split('T')[0];
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         filteredSongs = diary
           .filter((d) => d.date === today)
           .flatMap((d) =>
@@ -303,7 +303,9 @@ function exportReport(stats: ListeningStats, diary: DiaryEntry[], type: string) 
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `伯乐听歌${typeLabel}_${new Date().toISOString().split('T')[0]}.txt`;
+  const d = new Date();
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  a.download = `伯乐听歌${typeLabel}_${dateStr}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }

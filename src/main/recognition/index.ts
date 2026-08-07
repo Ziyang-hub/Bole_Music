@@ -40,8 +40,10 @@ export async function recognize(audioPath: string): Promise<RecognitionResult | 
     return null;
   }
 
-  // 指定后端
-  const backend = backends.find((b) => b.name.includes(preferred)) || backends[0];
+  // 指定后端：用简单字符串匹配
+  const backendMap: Record<string, number> = { audd: 0, acoustid: 1 };
+  const idx = backendMap[preferred] ?? 0;
+  const backend = backends[idx] || backends[0];
   const available = await backend.isAvailable();
   if (!available) return null;
 
