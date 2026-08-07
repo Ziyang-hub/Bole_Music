@@ -85,11 +85,25 @@ jobs:
       - name: 打包 macOS 安装包
         run: npx electron-builder --mac --publish never
         env:
-          # 使用 ad-hoc 签名（无需 Apple 开发者账号）
           CSC_IDENTITY_AUTO_DISCOVERY: false
           CSC_SKIP_NOTARIZATION: true
-          # 开启 hardened runtime（减少 Gatekeeper 拦截）
-          # 注意：ad-hoc 签名 ≠ Apple 公证，用户仍需右键打开
+
+      - name: 临时签名（绕过 Gatekeeper）
+        run: |
+          # 对 DMG 里的 .app 进行 ad-hoc 签名
+          APP_PATH="release/mac*/伯乐模拟器.app"
+          if [ -d "$APP_PATH" ] || [ -d "release/mac-arm64/伯乐模拟器.app" ]; then
+            for app in release/mac*/伯乐模拟器.app; do
+              if [ -d "$app" ]; then
+                echo "签名: $app"
+                codesign --force --deep --sign - "$app"
+              fi
+            done
+          fi
+          # 也对 unpacked 目录签名（如果有）
+          if [ -d "release/mac" ]; then
+            codesign --force --deep --sign - release/mac/伯乐模拟器.app 2>/dev/null || true
+          fi
 
       - name: 上传安装包（临时存档）
         uses: actions/upload-artifact@v4

@@ -90,18 +90,71 @@ npm run package:mac   # macOS .dmg + .zip
 
 ---
 
-## ⚠️ 安装注意事项
+## ⚠️ 安全警告说明
 
-### 🍎 macOS
+因为 App **没有购买 Apple 开发者签名（$99/年）和 Windows 代码签名证书**，
+各平台会提示安全警告。**App 本身没有病毒，以下是各平台的解决办法。**
 
-下载 ZIP 包解压后，打开终端运行：
+---
+
+### 🍎 macOS（重要！必读）
+
+> macOS Gatekeeper 会拦截所有未签名的 App。必须按以下步骤操作才能运行。
+
+#### 方式一：使用自动安装脚本（最简单）
+
+部分安装包附带 `mac-install.command` 脚本。**双击它**即可自动完成所有步骤。
+
+> 如果双击后提示「无法打开」，右键点击 → 「打开」→ 确认。
+
+#### 方式二：从 DMG 安装
+
+1. 双击 `.dmg` 挂载
+2. 把「伯乐模拟器」拖到 **Applications 文件夹**
+3. 打开 **终端**（启动台 → 其他 → 终端）
+4. 粘贴运行以下 **两条命令**（必须两条都运行）：
 
 ```bash
-xattr -cr ~/Downloads/伯乐模拟器.app
-open ~/Downloads/伯乐模拟器.app
+xattr -cr /Applications/伯乐模拟器.app
+codesign --force --deep --sign - /Applications/伯乐模拟器.app
 ```
 
-> 因为没买 Apple 开发者签名（$99/年），系统会拦截。运行上述命令即可正常打开。
+5. 然后正常双击打开，或在终端运行：
+
+```bash
+open /Applications/伯乐模拟器.app
+```
+
+#### 方式三：从 ZIP 安装
+
+1. 双击 `.zip` 解压，得到「伯乐模拟器.app」
+2. 把 `.app` 拖到桌面或 Applications
+3. 打开终端，运行（把路径改成你的实际位置）：
+
+```bash
+xattr -cr ~/Desktop/伯乐模拟器.app
+codesign --force --deep --sign - ~/Desktop/伯乐模拟器.app
+open ~/Desktop/伯乐模拟器.app
+```
+
+> ⚠️ **两条命令缺一不可！** 只在 `.app` 文件所在位置运行一次即可。
+>
+> - `xattr -cr`：清除「来自互联网」的隔离标记
+> - `codesign --force --deep --sign -`：用本地证书重新签名（免费，系统认可）
+> - `open`：正常打开
+
+#### 如果还是不行
+
+运行以下命令后重试：
+```bash
+sudo spctl --master-disable  # 允许任何来源（需管理员密码）
+```
+
+然后在「系统设置 → 隐私与安全性」中会多出「任何来源」选项。
+
+> **以后每次下载新版本**，重新运行 `xattr` + `codesign` 两条命令即可。
+
+---
 
 ### 🪟 Windows
 
