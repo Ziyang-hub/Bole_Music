@@ -71,7 +71,8 @@ mac:
 
 # macOS DMG 设置
 dmg:
-  title: Bole Simulator
+  # 加 ${arch} 避免 x64 和 arm64 同时构建时卷标冲突
+  title: Bole Simulator ${arch}
 
 # ============================================================
 # Linux
