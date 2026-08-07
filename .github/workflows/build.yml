@@ -231,16 +231,19 @@ jobs:
           fi
 
           # 上传所有安装包
-          echo "📤 上传文件..."
-          for file in $(find packages -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" \)); do
+          echo "📤 上传文件到 Release ID: $RELEASE_ID"
+          for file in $(find packages -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" \)); do
             fname=$(basename "$file")
-            echo "  上传: $fname"
-            curl -sf -X POST \
+            echo "  上传: $fname ($(du -h "$file" | cut -f1))"
+            RESP=$(curl -s -w '\n%{http_code}' -X POST \
               -H "Authorization: token $GITEE_TOKEN" \
-              -F "file=@$file" \
-              "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases/$RELEASE_ID/attach_files" \
-              > /dev/null && echo "  ✅ $fname" || echo "  ❌ $fname 上传失败"
+              -F "file=@$file;filename=$fname" \
+              "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases/$RELEASE_ID/attach_files")
+            HTTP_CODE=$(echo "$RESP" | tail -1)
+            BODY=$(echo "$RESP" | head -n -1)
+            echo "    响应: HTTP $HTTP_CODE - $BODY"
           done
 
+          echo ""
           echo "✅ Gitee 镜像完成！"
           echo "📎 下载地址: https://gitee.com/$REPO_OWNER/$REPO_NAME/releases/tag/$TAG"
