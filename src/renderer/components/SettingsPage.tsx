@@ -224,20 +224,26 @@ export default function SettingsPage() {
                       await window.electronAPI.startAudioCapture();
                       await startSystemAudioCapture();
                     } catch (err: any) {
-                      // 用户取消选择器不算错误
+                      // 用户取消不算错误
                       if (err.name === 'AbortError') {
                         updateField('autoListen', false);
                         await window.electronAPI.stopAudioCapture();
                         return;
                       }
-                      // 权限被拒绝 → 引导去系统设置
-                      const goSettings = window.confirm(
-                        '⚠️ 无法获取屏幕录制权限\n\n' +
-                        '请在系统设置中允许「伯乐模拟器」录制屏幕和音频。\n\n' +
-                        '点击「确定」打开系统设置，在隐私与安全性 → 屏幕录制 中开启。'
-                      );
-                      if (goSettings) {
-                        try { await window.electronAPI.openScreenRecordingSettings(); } catch {}
+                      // 显示真实错误，帮助排查
+                      const errMsg = err.message || err.name || '未知错误';
+                      const isDenied = err.name === 'NotAllowedError' || errMsg.includes('permission');
+                      if (isDenied) {
+                        const goSettings = window.confirm(
+                          '⚠️ 屏幕录制权限未授权\n\n' +
+                          '请前往系统设置中开启权限。\n\n' +
+                          '点击「确定」自动打开系统设置 → 隐私与安全性 → 屏幕录制 → 勾选「伯乐模拟器」'
+                        );
+                        if (goSettings) {
+                          try { await window.electronAPI.openScreenRecordingSettings(); } catch {}
+                        }
+                      } else {
+                        alert('❌ 采集启动失败:\n\n' + errMsg);
                       }
                       updateField('autoListen', false);
                       await window.electronAPI.stopAudioCapture();

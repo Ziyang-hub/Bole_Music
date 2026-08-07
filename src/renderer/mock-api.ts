@@ -75,6 +75,7 @@ export function installMockAPI() {
     diagnoseAudio: async () => ({ ok: ['浏览器测试模式'], issues: [], ready: true }),
     openScreenRecordingSettings: async () => {},
     onSongDetected: () => {},
+    getScreenSources: async () => [],
     onRequestCapture: () => {},
     onStopCaptureRenderer: () => {},
     sendAudioChunk: () => {},

@@ -2,7 +2,7 @@
  * 伯乐模拟器 - Preload 脚本
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, desktopCapturer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openScreenRecordingSettings: () => ipcRenderer.invoke('audio:openScreenSettings'),
 
   // macOS 系统音频采集（渲染进程 ↔ 主进程通信）
+  getScreenSources: () => desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } }),
   onRequestCapture: (callback: () => void) => {
     ipcRenderer.on('audio:requestCapture', () => callback());
   },
