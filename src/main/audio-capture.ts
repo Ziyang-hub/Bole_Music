@@ -140,9 +140,7 @@ function splitLatestChunk(rawFile: string): void {
       `ffmpeg -y -sseof -${CHUNK_SEC} -i "${rawFile}" -t ${CHUNK_SEC} -acodec copy "${outFile}" 2>/dev/null`,
       { timeout: 5000 }
     );
-    if (fs.existsSync(outFile) && fs.statSync(outFile).size > 1000 && onChunk) {
-      onChunk(outFile);
-    }
+    emitIfValid(outFile);
   } catch {
     // 切分失败，跳过
   }
@@ -214,9 +212,7 @@ function startFfmpegLoop(inputDevice: string, format: string): void {
 
     const proc = spawn('ffmpeg', args, { stdio: 'ignore' });
     proc.on('close', (code) => {
-      if (code === 0 && fs.existsSync(outFile) && fs.statSync(outFile).size > 1000 && onChunk) {
-        onChunk(outFile);
-      }
+      if (code === 0) emitIfValid(outFile);
       if (isRunning) setTimeout(loop, 500);
     });
     proc.on('error', () => {
@@ -250,6 +246,12 @@ function getPulseMonitor(): string | null {
     return result.trim() || null;
   } catch {
     return null;
+  }
+}
+
+function emitIfValid(path: string): void {
+  if (fs.existsSync(path) && fs.statSync(path).size > 1000 && onChunk) {
+    onChunk(path);
   }
 }
 

@@ -122,10 +122,6 @@ interface ElectronAPI {
   isPlaylistUrl: (text: string) => Promise<boolean>;
   getPlaylist: (url: string) =>
     Promise<{ success: boolean; data?: { name: string; songs: SongInfo[] }; error?: string }>;
-  batchAnalyze: (songs: { name: string; artist: string }[]) =>
-    Promise<{ success: boolean; data?: any[]; error?: string }>;
-  onBatchProgress: (callback: (p: { current: number; total: number; song: string }) => void) => void;
-
   // 使用统计
   trackUsage: (event: string, data?: any) => Promise<void>;
   getUsageStats: () => Promise<UsageData>;

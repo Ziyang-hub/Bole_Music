@@ -243,12 +243,8 @@ export default function App() {
         }
 
         // 判断用户意图
-        const isRecommendQuery =
-          text.includes('推荐') || text.includes('推荐歌曲') ||
-          text.includes('推荐一首') || text.includes('有什么好听的');
-
-        const isSongQuery =
-          text.length < 100 && !text.includes('?') && !text.includes('？') && !isRecommendQuery;
+        const isRecommendQuery = looksLikeRecommend(text);
+        const isSongQuery = looksLikeSongQuery(text);
 
         if (isRecommendQuery) {
           // ---- 推荐模式 ----
@@ -628,6 +624,16 @@ function formatAnalysis(a: SongAnalysis): string {
   return text;
 }
 
+/** 是否是推荐请求 */
+function looksLikeRecommend(text: string): boolean {
+  return text.includes('推荐') || text.includes('有什么好听的');
+}
+
+/** 是否像是要分析一首歌（而非聊天） */
+function looksLikeSongQuery(text: string): boolean {
+  return text.length < 100 && !text.includes('?') && !text.includes('？') && !looksLikeRecommend(text);
+}
+
 /**
  * 格式化推荐结果
  */
@@ -647,11 +653,8 @@ function formatRecommendations(data: RecommendData): string {
 function diaryEntriesFromMessages(messages: ChatMessage[]): { title: string; artist: string }[] {
   const songs: { title: string; artist: string }[] = [];
   for (const msg of messages) {
-    if (msg.role === 'user') {
-      const text = msg.content.trim();
-      if (text.length < 100 && !text.includes('?') && !text.includes('？') && !text.includes('推荐')) {
-        songs.push({ title: text, artist: '' });
-      }
+    if (msg.role === 'user' && looksLikeSongQuery(msg.content.trim())) {
+      songs.push({ title: msg.content.trim(), artist: '' });
     }
   }
   return songs.slice(-10);

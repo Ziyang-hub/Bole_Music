@@ -80,11 +80,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('music:isPlaylistUrl', text),
   getPlaylist: (url: string) =>
     ipcRenderer.invoke('music:getPlaylist', url),
-  batchAnalyze: (songs: { name: string; artist: string }[]) =>
-    ipcRenderer.invoke('ai:batchAnalyze', songs),
-  onBatchProgress: (callback: (p: any) => void) => {
-    ipcRenderer.on('batch:progress', (_e, p) => callback(p));
-  },
 
   // ----- 使用统计 -----
   trackUsage: (event: string, data?: any) =>

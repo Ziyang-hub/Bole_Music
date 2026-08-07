@@ -256,6 +256,9 @@ ipcMain.handle(
       // 更新统计数据
       updateStats(songName, artist || result.artist || '未知', result.genre || '未知');
 
+      // 追踪使用
+      trackUsage('analysis');
+
       return { success: true, data: result };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -268,6 +271,7 @@ ipcMain.handle(
   async (_e, history: { role: string; content: string }[]) => {
     try {
       const reply = await chat(history);
+      trackUsage('chat');
       return { success: true, data: reply };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -426,28 +430,6 @@ ipcMain.handle('music:getPlaylist', async (_e, url: string) => {
   } catch (error: any) {
     return { success: false, error: error.message };
   }
-});
-
-// 批量分析 IPC
-ipcMain.handle('ai:batchAnalyze', async (_e, songs: { name: string; artist: string }[]) => {
-  const results: any[] = [];
-  for (const song of songs) {
-    try {
-      const result = await analyzeSong(song.name, song.artist);
-      results.push({ success: true, data: result });
-      // 更新进度
-      if (mainWindow) {
-        mainWindow.webContents.send('batch:progress', {
-          current: results.length,
-          total: songs.length,
-          song: result.songName,
-        });
-      }
-    } catch (err: any) {
-      results.push({ success: false, error: err.message, song: song.name });
-    }
-  }
-  return { success: true, data: results };
 });
 
 // 使用统计 IPC

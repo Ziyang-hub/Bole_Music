@@ -50,32 +50,16 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
     }
   }
 
-  async function recognizeAudio(blob: Blob) {
+  async function recognizeAudio(_blob: Blob) {
     setRecognizing(true);
-    setResult(null);
-
-    try {
-      // 将音频转为 base64 发送到主进程
-      const buffer = await blob.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-
-      // 使用 ACRCloud 识别（通过主进程）
-      if (window.electronAPI) {
-        // 先保存为临时文件再识别
-        // 简化：直接提示用户当前状态
-        setResult(
-          '🎵 哼歌识别需要配置 ACRCloud 服务。\n\n' +
-          '当前已录制音频片段，可在以下服务中识别：\n' +
-          '- ACRCloud Audio Search（设置 ACRCLOUD_ACCESS_KEY）\n' +
-          '- 或者直接输入你哼的歌名让 AI 分析\n\n' +
-          '💡 提示：直接告诉伯乐「我在哼一首歌，旋律大概是...」也可以哦'
-        );
-      }
-    } catch (err) {
-      setResult('识别失败：' + (err as Error).message);
-    }
+    await new Promise((r) => setTimeout(r, 800));
+    setResult(
+      '🎵 哼歌识别需要配置识别服务。\n\n' +
+      '当前已录制音频片段。推荐方式：\n' +
+      '- AudD：在设置页填入 API Key（免费300次/月）\n' +
+      '- 或者直接输入你哼的歌名让 AI 分析\n\n' +
+      '💡 提示：告诉伯乐「我在哼一首歌，旋律大概是...」也可以哦'
+    );
     setRecognizing(false);
   }
 

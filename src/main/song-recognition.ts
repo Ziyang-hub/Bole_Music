@@ -21,26 +21,6 @@ export async function recognizeSong(
 }
 
 /**
- * 批量识别
- */
-export async function recognizeMultiple(
-  audioPaths: string[]
-): Promise<RecognitionResult[]> {
-  const results: RecognitionResult[] = [];
-  const seen = new Set<string>();
-
-  for (const path of audioPaths) {
-    const result = await recognizeSong(path);
-    if (result && !seen.has(result.title + result.artist)) {
-      results.push(result);
-      seen.add(result.title + result.artist);
-    }
-  }
-
-  return results;
-}
-
-/**
  * 获取后端状态
  */
 export async function checkBackends(): Promise<

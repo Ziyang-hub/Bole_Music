@@ -103,7 +103,8 @@ export default function ReportPage() {
 
   const topGenre = getTopKey(stats.genreDistribution) || '暂无';
   const topArtist = getTopKey(stats.artistCounts) || '暂无';
-  const totalTime = `${Math.round(stats.totalSongs * 3.5 / 60)}h${Math.round(stats.totalSongs * 3.5) % 60}m`;
+  const totalMins = Math.round(stats.totalSongs * 3.5);
+  const totalTime = `${Math.floor(totalMins / 60)}h${totalMins % 60}m`;
   const totalGenres = Object.values(stats.genreDistribution).reduce((a, b) => a + b, 0) || 1;
 
   const genreList = Object.entries(stats.genreDistribution)
