@@ -1,0 +1,138 @@
+name: 构建安装包
+
+# ============================================================
+# 触发条件
+# ============================================================
+on:
+  # 推送到 main 分支时构建（测试打包是否正常）
+  push:
+    branches: [main]
+  # 手动触发
+  workflow_dispatch:
+  # 发布 Release 时自动构建 + 上传安装包
+  release:
+    types: [published]
+
+# ============================================================
+# 构建任务 - 三平台并行
+# ============================================================
+jobs:
+  # ----- Windows -----
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建前端
+        run: npx vite build
+
+      - name: 编译主进程
+        run: npx tsc -p tsconfig.main.json
+
+      - name: 打包 Windows 安装程序
+        run: npx electron-builder --win --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: 上传安装包（临时存档）
+        uses: actions/upload-artifact@v4
+        with:
+          name: 伯乐模拟器-Windows
+          path: release/*.exe
+          retention-days: 7
+
+      - name: 上传到 Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.exe
+
+  # ----- macOS -----
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建前端
+        run: npx vite build
+
+      - name: 编译主进程
+        run: npx tsc -p tsconfig.main.json
+
+      - name: 打包 macOS 安装包
+        run: npx electron-builder --mac --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # 如果不需要签名，跳过
+          CSC_SKIP_NOTARIZATION: true
+
+      - name: 上传安装包（临时存档）
+        uses: actions/upload-artifact@v4
+        with:
+          name: 伯乐模拟器-macOS
+          path: release/*.dmg
+          retention-days: 7
+
+      - name: 上传到 Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.dmg
+
+  # ----- Linux -----
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建前端
+        run: npx vite build
+
+      - name: 编译主进程
+        run: npx tsc -p tsconfig.main.json
+
+      - name: 打包 Linux 安装包
+        run: npx electron-builder --linux --publish never
+
+      - name: 上传安装包（临时存档）
+        uses: actions/upload-artifact@v4
+        with:
+          name: 伯乐模拟器-Linux
+          path: release/*.AppImage
+          retention-days: 7
+
+      - name: 上传到 Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.AppImage
