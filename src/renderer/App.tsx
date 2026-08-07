@@ -1,15 +1,19 @@
 /**
  * 伯乐模拟器 - 主应用组件
  *
- * 这是整个应用的根组件，包含应用的总体布局和状态管理
+ * 包含应用的总体布局、侧边栏导航和页面切换
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import ReportPage from './components/ReportPage';
+import DiaryPage from './components/DiaryPage';
+import SettingsPage from './components/SettingsPage';
 
-// 类型定义
+// ----- 类型定义 -----
+
 interface Message {
   id: string;
-  role: 'user' | 'bole';  // bole = 伯乐（AI）
+  role: 'user' | 'bole';
   content: string;
   timestamp: Date;
 }
@@ -22,20 +26,38 @@ interface AppInfo {
   nodeVersion: string;
 }
 
-/**
- * 生成唯一 ID
- */
+// 当前显示的页面
+type View = 'chat' | 'report' | 'diary' | 'settings';
+
+// 导航配置
+const NAV_ITEMS: { view: View; icon: string; label: string }[] = [
+  { view: 'chat', icon: '💬', label: '知音对话' },
+  { view: 'report', icon: '📊', label: '听歌报告' },
+  { view: 'diary', icon: '📝', label: '听歌日记' },
+  { view: 'settings', icon: '⚙️', label: '设置' },
+];
+
+// 每个页面的顶栏标题
+const VIEW_TITLES: Record<View, string> = {
+  chat: '知音对话',
+  report: '听歌报告',
+  diary: '听歌日记',
+  settings: '设置',
+};
+
+// ----- 工具函数 -----
+
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-/**
- * 应用主组件
- */
-export default function App() {
-  // ----- 状态管理 -----
+// ----- 主组件 -----
 
-  // 对话消息列表
+export default function App() {
+  // 当前显示的页面
+  const [currentView, setCurrentView] = useState<View>('chat');
+
+  // 对话相关状态
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -44,43 +66,34 @@ export default function App() {
       timestamp: new Date(),
     },
   ]);
-
-  // 输入框内容
   const [inputValue, setInputValue] = useState('');
-
-  // 是否正在加载（等待AI回复）
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 应用信息
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
 
-  // 消息列表的引用，用于自动滚动
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
   // ----- 初始化 -----
 
   useEffect(() => {
-    // 从 Electron 主进程获取应用信息
     if (window.electronAPI) {
       window.electronAPI.getAppInfo().then(setAppInfo);
     }
   }, []);
 
-  // 新消息时自动滚动到底部
+  // 新消息时自动滚动
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ----- 处理发送消息 -----
+  // ----- 消息处理 -----
 
   async function handleSend() {
     const text = inputValue.trim();
     if (!text || isLoading) return;
 
-    // 清空输入框
     setInputValue('');
 
-    // 添加用户消息
     const userMsg: Message = {
       id: generateId(),
       role: 'user',
@@ -89,12 +102,9 @@ export default function App() {
     };
     setMessages((prev) => [...prev, userMsg]);
 
-    // 开始加载
     setIsLoading(true);
 
     try {
-      // TODO: 这里后续接入真实的 AI API
-      // 目前使用模拟回复来展示界面效果
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       const boleMsg: Message = {
@@ -104,7 +114,7 @@ export default function App() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, boleMsg]);
-    } catch (error) {
+    } catch (_error) {
       const errorMsg: Message = {
         id: generateId(),
         role: 'bole',
@@ -117,131 +127,146 @@ export default function App() {
     }
   }
 
-  // ----- 键盘事件 -----
-
   function handleKeyDown(e: React.KeyboardEvent) {
-    // Enter 发送，Shift+Enter 换行
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   }
 
-  // ----- 渲染 -----
+  // ----- 渲染：侧边栏（所有页面共用）-----
+
+  const sidebar = (
+    <aside className="sidebar">
+      <div className="sidebar-header">
+        <div className="logo">🐴</div>
+        <h1>伯乐模拟器</h1>
+      </div>
+
+      <nav className="sidebar-nav">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.view}
+            className={`nav-item ${currentView === item.view ? 'active' : ''}`}
+            onClick={() => setCurrentView(item.view)}
+          >
+            <span className="nav-icon">{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {appInfo && (
+        <div className="sidebar-footer">
+          <span>v{appInfo.version}</span>
+        </div>
+      )}
+    </aside>
+  );
+
+  // ----- 渲染：主内容区（根据当前页面切换）-----
+
+  function renderMainContent() {
+    switch (currentView) {
+      case 'report':
+        return <ReportPage />;
+
+      case 'diary':
+        return <DiaryPage />;
+
+      case 'settings':
+        return <SettingsPage />;
+
+      case 'chat':
+      default:
+        return (
+          <>
+            {/* 消息区域 */}
+            <div className="messages-container">
+              {messages.map((msg) => (
+                <div key={msg.id} className={`message ${msg.role}`}>
+                  <div className="message-avatar">
+                    {msg.role === 'bole' ? '🐴' : '👤'}
+                  </div>
+                  <div className="message-bubble">
+                    <div className="message-text">
+                      {msg.content.split('\n').map((line, i) => (
+                        <React.Fragment key={i}>
+                          {line}
+                          {i < msg.content.split('\n').length - 1 && <br />}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <div className="message-time">
+                      {msg.timestamp.toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {isLoading && (
+                <div className="message bole">
+                  <div className="message-avatar">🐴</div>
+                  <div className="message-bubble typing">
+                    <span className="dot"></span>
+                    <span className="dot"></span>
+                    <span className="dot"></span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* 底部输入区 */}
+            <div className="input-area">
+              <div className="input-wrapper">
+                <textarea
+                  className="input-field"
+                  placeholder="输入歌名或想说的话... (Enter 发送，Shift+Enter 换行)"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  rows={1}
+                  disabled={isLoading}
+                />
+                <button
+                  className="send-button"
+                  onClick={handleSend}
+                  disabled={!inputValue.trim() || isLoading}
+                >
+                  发送
+                </button>
+              </div>
+              <div className="input-hint">
+                💡 试试输入：周杰伦 晴天 ｜ Coldplay Yellow ｜ 推荐一首开心的歌
+              </div>
+            </div>
+          </>
+        );
+    }
+  }
+
+  // ----- 完整页面 -----
 
   return (
     <div className="app">
-      {/* 侧边栏 */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="logo">🐴</div>
-          <h1>伯乐模拟器</h1>
-        </div>
+      {sidebar}
 
-        <nav className="sidebar-nav">
-          <button className="nav-item active">
-            <span className="nav-icon">💬</span>
-            <span>知音对话</span>
-          </button>
-          <button className="nav-item" disabled>
-            <span className="nav-icon">📊</span>
-            <span>听歌报告</span>
-          </button>
-          <button className="nav-item" disabled>
-            <span className="nav-icon">📝</span>
-            <span>听歌日记</span>
-          </button>
-          <button className="nav-item" disabled>
-            <span className="nav-icon">⚙️</span>
-            <span>设置</span>
-          </button>
-        </nav>
-
-        {/* 底部应用信息 */}
-        {appInfo && (
-          <div className="sidebar-footer">
-            <span>v{appInfo.version}</span>
-          </div>
-        )}
-      </aside>
-
-      {/* 主内容区 */}
       <main className="main">
         {/* 顶部状态栏 */}
         <header className="topbar">
-          <div className="topbar-title">知音对话</div>
+          <div className="topbar-title">{VIEW_TITLES[currentView]}</div>
           <div className="topbar-status">
             <span className="status-dot"></span>
             <span>在线</span>
           </div>
         </header>
 
-        {/* 消息区域 */}
-        <div className="messages-container">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`message ${msg.role}`}>
-              <div className="message-avatar">
-                {msg.role === 'bole' ? '🐴' : '👤'}
-              </div>
-              <div className="message-bubble">
-                <div className="message-text">
-                  {msg.content.split('\n').map((line, i) => (
-                    <React.Fragment key={i}>
-                      {line}
-                      {i < msg.content.split('\n').length - 1 && <br />}
-                    </React.Fragment>
-                  ))}
-                </div>
-                <div className="message-time">
-                  {msg.timestamp.toLocaleTimeString('zh-CN', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {/* 加载动画 */}
-          {isLoading && (
-            <div className="message bole">
-              <div className="message-avatar">🐴</div>
-              <div className="message-bubble typing">
-                <span className="dot"></span>
-                <span className="dot"></span>
-                <span className="dot"></span>
-              </div>
-            </div>
-          )}
-
-          {/* 自动滚动锚点 */}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* 底部输入区 */}
-        <div className="input-area">
-          <div className="input-wrapper">
-            <textarea
-              className="input-field"
-              placeholder="输入歌名或想说的话... (Enter 发送，Shift+Enter 换行)"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-              disabled={isLoading}
-            />
-            <button
-              className="send-button"
-              onClick={handleSend}
-              disabled={!inputValue.trim() || isLoading}
-            >
-              发送
-            </button>
-          </div>
-          <div className="input-hint">
-            💡 试试输入：周杰伦 晴天 ｜ Coldplay Yellow ｜ 推荐一首开心的歌
-          </div>
-        </div>
+        {renderMainContent()}
       </main>
     </div>
   );

@@ -483,3 +483,577 @@ textarea {
     padding: var(--space-sm);
   }
 }
+
+/* ============================================================
+   通用页面样式（听歌报告 / 听歌日记 / 设置共用）
+   ============================================================ */
+
+.page {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg);
+}
+
+.page::-webkit-scrollbar {
+  width: 6px;
+}
+.page::-webkit-scrollbar-track {
+  background: transparent;
+}
+.page::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-light);
+  border-radius: 3px;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-xl);
+}
+
+/* ----- 区块卡片（各页面通用）----- */
+.section-card {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+.section-header {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-md);
+}
+
+.section-desc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-md);
+}
+
+/* ============================================================
+   听歌报告页面
+   ============================================================ */
+
+/* 统计卡片网格 */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.stat-card {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.stat-card:hover {
+  border-color: var(--color-accent);
+}
+
+.stat-icon {
+  font-size: 28px;
+  margin-bottom: var(--space-sm);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-accent-light);
+  margin-bottom: var(--space-xs);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* 情绪总结卡片 */
+.mood-card {
+  background: linear-gradient(135deg, #1e1e35, #2a2040);
+  border-color: var(--color-accent-dark);
+}
+
+.mood-summary {
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--color-accent-light);
+  text-align: center;
+  padding: var(--space-sm) 0;
+}
+
+/* 柱状图 */
+.chart-bar-container {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 200px;
+  padding: var(--space-md) 0;
+}
+
+.chart-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.chart-bar-value {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.chart-bar {
+  width: 36px;
+  min-height: 4px;
+  background: linear-gradient(180deg, var(--color-accent), var(--color-accent-dark));
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height 0.4s ease;
+}
+
+.chart-bar-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-xs);
+}
+
+.chart-bar-mood {
+  font-size: 11px;
+  color: var(--color-accent-light);
+}
+
+/* 曲风分布 */
+.genre-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.genre-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.genre-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.genre-bar-bg {
+  height: 8px;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.genre-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-light));
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+/* AI 洞察列表 */
+.insight-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.insight-item {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-accent);
+}
+
+/* 热门歌曲 */
+.top-songs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.top-song-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.top-song-rank {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--color-accent-bg);
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.top-song-name {
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+/* ============================================================
+   听歌日记页面 - 时间线
+   ============================================================ */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-day {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.timeline-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 24px;
+  min-width: 24px;
+  padding-top: 4px;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+  box-shadow: 0 0 8px rgba(240, 160, 80, 0.4);
+  flex-shrink: 0;
+}
+
+.timeline-line {
+  width: 2px;
+  flex: 1;
+  background: linear-gradient(180deg, var(--color-accent-dark), var(--color-border));
+  margin-top: 4px;
+}
+
+.timeline-content {
+  flex: 1;
+  padding-bottom: var(--space-xl);
+}
+
+/* 日记头部 */
+.diary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.diary-date {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.diary-day {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.diary-weekday {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.diary-mood-badge {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background-color: var(--color-accent-bg);
+  color: var(--color-accent-light);
+}
+
+/* 歌曲列表 */
+.diary-songs {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--space-md);
+}
+
+.diary-song-item {
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.diary-song-item:last-child {
+  border-bottom: none;
+}
+
+.diary-song-info {
+  margin-bottom: var(--space-xs);
+}
+
+.diary-song-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.diary-song-artist {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.diary-song-time {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-left: var(--space-sm);
+}
+
+.diary-song-note {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* 伯乐小结 */
+.diary-summary {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: linear-gradient(135deg, #1e1e35, #2a2040);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-accent-bg);
+}
+
+.diary-summary-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.diary-summary p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.diary-more-hint {
+  text-align: center;
+  padding: var(--space-xl);
+}
+
+.diary-more-hint p {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+   设置页面
+   ============================================================ */
+
+/* AI 人格选择网格 */
+.persona-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+
+.persona-card {
+  background-color: var(--color-bg-tertiary);
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.persona-card:hover {
+  border-color: var(--color-border-light);
+  transform: translateY(-2px);
+}
+
+.persona-card.selected {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent-bg);
+}
+
+.persona-icon {
+  font-size: 32px;
+  margin-bottom: var(--space-sm);
+}
+
+.persona-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.persona-desc {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.persona-example {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-style: italic;
+  line-height: 1.5;
+  padding: var(--space-sm);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.persona-check {
+  margin-top: var(--space-sm);
+  font-size: 13px;
+  color: var(--color-accent-light);
+  font-weight: 600;
+}
+
+/* 设置行 */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setting-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.setting-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.setting-hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+  display: block;
+}
+
+/* 输入框和下拉框 */
+.setting-input,
+.setting-select {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  min-width: 180px;
+}
+
+.setting-input:focus,
+.setting-select:focus {
+  border-color: var(--color-accent);
+}
+
+/* 开关按钮 */
+.toggle {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 20px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 72px;
+}
+
+.toggle.on {
+  background-color: var(--color-accent-bg);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent-dark);
+}
+
+.toggle.off {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.toggle:hover {
+  transform: scale(1.05);
+}
+
+/* 关于信息 */
+.about-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.about-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-sm) 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.about-row:last-child {
+  border-bottom: none;
+}
+
+/* ============================================================
+   小屏适配（设置页面）
+   ============================================================ */
+
+@media (max-width: 800px) {
+  .stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .persona-grid {
+    grid-template-columns: 1fr;
+  }
+}
