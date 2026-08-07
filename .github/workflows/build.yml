@@ -180,37 +180,61 @@ jobs:
         with:
           path: packages
 
+      - name: 检出代码（用于推送 tag）
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 推送 Tag 到 Gitee
+        run: |
+          git remote add gitee https://ScorchingSunnnn:${{ secrets.GITEE_TOKEN }}@gitee.com/ScorchingSunnnn/bole-simulator.git
+          git push gitee ${{ github.ref }} 2>/dev/null || echo "Tag 可能已存在"
+
       - name: 上传到 Gitee Release
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
-          # Gitee Release API
           REPO_OWNER="ScorchingSunnnn"
           REPO_NAME="bole-simulator"
           TAG="${GITHUB_REF#refs/tags/}"
+          RELEASE_NAME="伯乐模拟器 $TAG"
+          RELEASE_BODY="🤖 由 GitHub Actions 自动构建并镜像到 Gitee。\n\n> 国内用户可从下方直接下载安装包。\n\n---\n原 GitHub Release: https://github.com/scorching12/Bole_Music/releases/tag/$TAG"
 
-          # 获取或创建 Release
-          RELEASE_ID=$(curl -s -H "Authorization: token $GITEE_TOKEN" \
+          echo "📦 处理 Release: $TAG"
+
+          # 先尝试获取已有 Release
+          RELEASE_ID=$(curl -sf -H "Authorization: token $GITEE_TOKEN" \
             "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null || echo "")
 
+          # 如果没有就创建
           if [ -z "$RELEASE_ID" ]; then
-            RELEASE_ID=$(curl -s -X POST \
+            echo "创建新 Release..."
+            RESP=$(curl -sf -X POST \
               -H "Authorization: token $GITEE_TOKEN" \
               -H "Content-Type: application/json" \
               "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases" \
-              -d "{\"tag_name\":\"$TAG\",\"name\":\"伯乐模拟器 $TAG\",\"body\":\"自动构建，从 GitHub Actions 镜像。\"}" \
-              | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"$RELEASE_NAME\",\"body\":\"$RELEASE_BODY\",\"target_commitish\":\"master\"}")
+            RELEASE_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+            echo "Release ID: $RELEASE_ID"
+          fi
+
+          if [ -z "$RELEASE_ID" ]; then
+            echo "❌ 无法创建 Gitee Release（检查 GITEE_TOKEN 权限）"
+            exit 1
           fi
 
           # 上传所有安装包
+          echo "📤 上传文件..."
           for file in $(find packages -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" \)); do
-            echo "Uploading: $file"
-            curl -X POST \
+            fname=$(basename "$file")
+            echo "  上传: $fname"
+            curl -sf -X POST \
               -H "Authorization: token $GITEE_TOKEN" \
               -F "file=@$file" \
               "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases/$RELEASE_ID/attach_files" \
-              2>/dev/null || echo "Failed: $file"
+              > /dev/null && echo "  ✅ $fname" || echo "  ❌ $fname 上传失败"
           done
 
-          echo "✅ Gitee 镜像完成"
+          echo "✅ Gitee 镜像完成！"
+          echo "📎 下载地址: https://gitee.com/$REPO_OWNER/$REPO_NAME/releases/tag/$TAG"
