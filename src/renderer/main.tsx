@@ -8,6 +8,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './App.css';
+import { installMockAPI } from './mock-api';
+
+// 浏览器模式：安装 Mock API
+if (!(window as any).electronAPI) {
+  installMockAPI();
+}
 
 // 挂载 React 应用到 HTML 中的 <div id="root">
 const rootElement = document.getElementById('root');
