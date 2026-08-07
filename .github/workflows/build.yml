@@ -166,3 +166,51 @@ jobs:
           files: |
             release/*.AppImage
             release/*.yml
+
+  # ============================================================
+  # 镜像到 Gitee（国内下载）
+  # ============================================================
+  mirror-to-gitee:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - name: 下载所有安装包
+        uses: actions/download-artifact@v4
+        with:
+          path: packages
+
+      - name: 上传到 Gitee Release
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          # Gitee Release API
+          REPO_OWNER="ScorchingSunnnn"
+          REPO_NAME="bole-simulator"
+          TAG="${GITHUB_REF#refs/tags/}"
+
+          # 获取或创建 Release
+          RELEASE_ID=$(curl -s -H "Authorization: token $GITEE_TOKEN" \
+            "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+
+          if [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(curl -s -X POST \
+              -H "Authorization: token $GITEE_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"伯乐模拟器 $TAG\",\"body\":\"自动构建，从 GitHub Actions 镜像。\"}" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
+          fi
+
+          # 上传所有安装包
+          for file in $(find packages -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" \)); do
+            echo "Uploading: $file"
+            curl -X POST \
+              -H "Authorization: token $GITEE_TOKEN" \
+              -F "file=@$file" \
+              "https://gitee.com/api/v5/repos/$REPO_OWNER/$REPO_NAME/releases/$RELEASE_ID/attach_files" \
+              2>/dev/null || echo "Failed: $file"
+          done
+
+          echo "✅ Gitee 镜像完成"
