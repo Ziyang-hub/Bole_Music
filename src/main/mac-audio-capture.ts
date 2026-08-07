@@ -18,12 +18,12 @@ import { ipcMain, systemPreferences } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
+import { cleanupOldChunks } from './audio-capture';
 
 export type AudioChunkCallback = (audioPath: string) => void;
 
 const AUDIO_DIR = path.join(os.tmpdir(), 'bole-simulator-audio');
 const CHUNK_SEC = 10;
-const MAX_CHUNKS = 10;
 
 let isRunning = false;
 let onChunk: AudioChunkCallback | null = null;
@@ -133,14 +133,12 @@ export function registerIpcHandlers(): void {
   ipcMain.on('audio:chunk', (_event, data: Buffer) => {
     if (!isRunning || !onChunk) return;
 
-    try {
-      const tmpWebm = path.join(AUDIO_DIR, `chunk_${chunkIndex}.webm`);
-      const tmpWav = path.join(AUDIO_DIR, `chunk_${chunkIndex}.wav`);
-      chunkIndex++;
+    // 用时间戳避免跨 session 冲突（CR#7）
+    const id = `${Date.now()}_${chunkIndex++}`;
+    const tmpWebm = path.join(AUDIO_DIR, `chunk_${id}.webm`);
+    const tmpWav = path.join(AUDIO_DIR, `chunk_${id}.wav`);
 
-      fs.writeFileSync(tmpWebm, data);
-
-      // ffmpeg 转码：webm → wav
+    fs.promises.writeFile(tmpWebm, data).then(() => {
       const { spawn } = require('child_process');
       let ffmpegPath = 'ffmpeg';
       try { ffmpegPath = require('ffmpeg-static'); } catch {}
@@ -152,17 +150,21 @@ export function registerIpcHandlers(): void {
       ], { stdio: 'ignore' });
 
       p.on('close', (code: number) => {
-        try { fs.unlinkSync(tmpWebm); } catch {}
-        if (code === 0 && fs.existsSync(tmpWav) && fs.statSync(tmpWav).size > 1000) {
-          if (onChunk) onChunk(tmpWav);
+        fs.promises.unlink(tmpWebm).catch(() => {});
+        if (code === 0) {
+          fs.promises.stat(tmpWav).then(s => {
+            if (s.size > 1000 && onChunk) onChunk(tmpWav);
+            cleanupOldChunks();
+          }).catch(() => {});
+        } else {
+          cleanupOldChunks();
         }
-        _cleanupOldChunks();
       });
 
       p.on('error', () => {
-        try { fs.unlinkSync(tmpWebm); } catch {}
+        fs.promises.unlink(tmpWebm).catch(() => {});
       });
-    } catch {}
+    }).catch(() => {});
   });
 
   // 接收捕获错误
@@ -191,28 +193,17 @@ export function unregisterIpcHandlers(): void {
   ipcMain.removeAllListeners('audio:captureStopped');
 }
 
-// ============================================================
-// 工具
-// ============================================================
-
-function _cleanupOldChunks(): void {
-  try {
-    const files = fs.readdirSync(AUDIO_DIR)
-      .filter(f => f.startsWith('chunk_'))
-      .map(f => ({ n: f, t: fs.statSync(path.join(AUDIO_DIR, f)).mtimeMs }))
-      .sort((a, b) => b.t - a.t);
-    for (let i = MAX_CHUNKS; i < files.length; i++) {
-      fs.unlinkSync(path.join(AUDIO_DIR, files[i].n));
-    }
-  } catch {}
-}
+// macOS 版本缓存（避免每次 spawn sw_vers）
+let _cachedMacVersion: number | null = null;
 
 async function _macosMajorVersion(): Promise<number> {
+  if (_cachedMacVersion !== null) return _cachedMacVersion;
   try {
     const { execFile } = require('child_process');
     const { promisify } = require('util');
     const { stdout } = await promisify(execFile)('sw_vers', ['-productVersion'], { timeout: 3000 });
-    return parseInt(stdout.trim().split('.')[0], 10);
+    _cachedMacVersion = parseInt(stdout.trim().split('.')[0], 10);
+    return _cachedMacVersion!;
   } catch {
     return 0;
   }

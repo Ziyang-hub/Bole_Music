@@ -167,11 +167,16 @@ export default function App() {
       }
     });
 
-    // 定期检查采集状态
+    // 定期检查采集状态（macOS 额外检查渲染进程侧 MediaRecorder）
     const interval = setInterval(async () => {
       if (window.electronAPI) {
         try {
-          const capturing = await window.electronAPI.isAudioCapturing();
+          let capturing = await window.electronAPI.isAudioCapturing();
+          // macOS: 主进程 isRunning 可能滞后，同时检查渲染进程侧
+          if (window.electronAPI.platform === 'darwin') {
+            const { isSystemAudioCapturing } = await import('./system-audio-capture');
+            capturing = capturing || isSystemAudioCapturing();
+          }
           if (capturing !== isListening) {
             setIsListening(capturing);
             // 状态变化时在对话中提示

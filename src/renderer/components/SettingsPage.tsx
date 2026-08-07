@@ -210,15 +210,26 @@ export default function SettingsPage() {
 
               if (window.electronAPI) {
                 if (newVal) {
-                  // 诊断（只做提示，不阻塞——getDisplayMedia 会触发权限弹窗）
+                  // 诊断
                   const diag = await window.electronAPI.diagnoseAudio();
-                  if (diag.issues.length > 0) {
-                    // 有警告但不阻止，让 getDisplayMedia 触发系统弹窗
+                  const isMacOS = window.electronAPI.platform === 'darwin';
+
+                  // 非 macOS：诊断不通过就阻止（Linux 无 PulseAudio 等硬问题）
+                  if (!isMacOS && !diag.ready) {
+                    const msg = '⚠️ 自动采集无法启动：\n\n' +
+                      diag.issues.map((i: string) => '• ' + i).join('\n') +
+                      '\n\n✅ 已就绪：\n' + diag.ok.map((o: string) => '• ' + o).join('\n');
+                    alert(msg);
+                    updateField('autoListen', false);
+                    return;
+                  }
+                  // macOS：权限问题不阻塞，getDisplayMedia 会触发系统弹窗
+                  if (isMacOS && diag.issues.length > 0) {
                     console.log('采集诊断警告:', diag.issues.join(', '));
                   }
 
                   // macOS：调用 getDisplayMedia 触发系统权限弹窗
-                  if (window.electronAPI.platform === 'darwin') {
+                  if (isMacOS) {
                     try {
                       const { startSystemAudioCapture } = await import('../system-audio-capture');
                       await window.electronAPI.startAudioCapture();

@@ -218,7 +218,8 @@ function emitIfValid(p: string): void {
   if (fs.existsSync(p) && fs.statSync(p).size > 1000 && onChunk) onChunk(p);
 }
 
-function cleanupOldChunks(): void {
+// 导出供 mac-audio-capture.ts 复用，避免两套清理逻辑竞态
+export function cleanupOldChunks(): void {
   try {
     const files = fs.readdirSync(AUDIO_DIR)
       .filter(f => f.startsWith('chunk_'))
