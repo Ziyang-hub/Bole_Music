@@ -1,12 +1,6 @@
 declare module 'st-shazam' {
-  interface SongInfo {
-    title?: string;
-    artist?: string;
-    album?: string;
-    genre?: string;
-    cover?: string;
-  }
-
-  export function recognizeSong(filePath: string): Promise<SongInfo | null>;
-  export function processAudio(filePath: string): Promise<any>;
+  /** 返回 Shazam /match/v2 的原始 HTTP 响应体 JSON */
+  export function recognizeSong(filePath: string): Promise<any>;
+  /** 将音频文件转为 Int16Array 样本 */
+  export function processAudio(filePath: string): Promise<Int16Array>;
 }

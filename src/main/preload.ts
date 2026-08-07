@@ -66,21 +66,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopAudioCapture: () => ipcRenderer.invoke('audio:stopCapture'),
   isAudioCapturing: () => ipcRenderer.invoke('audio:isCapturing'),
   checkCaptureCapability: () => ipcRenderer.invoke('audio:checkCapability'),
-  checkBackends: () => ipcRenderer.invoke('audio:checkBackends'),
   diagnoseAudio: () => ipcRenderer.invoke('audio:diagnose'),
   openScreenRecordingSettings: () => ipcRenderer.invoke('audio:openScreenSettings'),
 
-  // macOS 系统音频采集（渲染进程 ↔ 主进程通信）
+  // macOS 系统音频采集（renderer ↔ main IPC）
   getScreenSources: () => ipcRenderer.invoke('desktop-capturer:getSources'),
-  onRequestCapture: (callback: () => void) => {
-    ipcRenderer.on('audio:requestCapture', () => callback());
-  },
-  onStopCaptureRenderer: (callback: () => void) => {
-    ipcRenderer.on('audio:stopCaptureRenderer', () => callback());
-  },
-  sendAudioChunk: (data: ArrayBuffer) => {
-    ipcRenderer.send('audio:chunk', Buffer.from(data));
-  },
+  sendAudioChunk: (data: ArrayBuffer) =>
+    ipcRenderer.send('audio:chunk', Buffer.from(data)),
   notifyCaptureStarted: () => ipcRenderer.send('audio:captureStarted'),
   notifyCaptureStopped: () => ipcRenderer.send('audio:captureStopped'),
   notifyCaptureError: (msg: string) => ipcRenderer.send('audio:captureError', msg),

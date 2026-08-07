@@ -2,26 +2,23 @@
  * 伯乐模拟器 - 系统音频采集（渲染进程）
  *
  * 使用 Electron 原生 desktopCapturer API 获取系统音频流。
- * 比 getDisplayMedia 更可靠，不需要用户选屏幕。
- *
- * 原理：
- *   1. desktopCapturer.getSources({ types: ['screen'] }) 获取屏幕源
- *   2. getUserMedia 使用 chromeMediaSource: 'desktop' 捕获
- *   3. macOS 首次调用会自动弹出系统权限对话框
- *   4. 权限通过后获取音频流 → MediaRecorder → IPC 发送到主进程
  */
 
 let mediaRecorder: MediaRecorder | null = null;
 let stream: MediaStream | null = null;
+let _started = false;
 const CHUNK_SEC = 10;
 
 export async function startSystemAudioCapture(): Promise<void> {
+  // 先清理上一次可能残留的采集
+  stopSystemAudioCapture();
+
   try {
     if (!window.electronAPI) {
       throw new Error('Electron API not available');
     }
 
-    // 1. 获取屏幕源（Electron 原生 API）
+    // 1. 获取屏幕源（通过主进程 desktopCapturer）
     const sources = await window.electronAPI.getScreenSources();
     if (!sources || sources.length === 0) {
       throw new Error('未找到可录制的屏幕');
@@ -29,8 +26,7 @@ export async function startSystemAudioCapture(): Promise<void> {
 
     const sourceId = sources[0].id;
 
-    // 2. 使用 getUserMedia + chromeMediaSource 捕获桌面（含系统音频）
-    //    首次调用会触发 macOS 权限对话框
+    // 2. 捕获桌面（含系统音频）
     stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         mandatory: {
@@ -50,11 +46,13 @@ export async function startSystemAudioCapture(): Promise<void> {
     });
 
     // 3. 停止视频轨道（只要音频）
-    const videoTracks = stream.getVideoTracks();
-    videoTracks.forEach((t) => t.stop());
+    stream.getVideoTracks().forEach((t) => t.stop());
 
     const audioTracks = stream.getAudioTracks();
     if (audioTracks.length === 0) {
+      // 清理失败的流
+      stream.getTracks().forEach((t) => t.stop());
+      stream = null;
       throw new Error(
         '未获取到系统音频轨道。\n\n请确认：\n' +
         '1. macOS 版本 ≥ 13 (Ventura)\n' +
@@ -63,11 +61,19 @@ export async function startSystemAudioCapture(): Promise<void> {
       );
     }
 
+    // 4. 监听流结束（权限撤回、其他 App 抢占等）
+    audioTracks.forEach((t) => {
+      t.onended = () => {
+        console.log('[system-audio] Audio track ended unexpectedly');
+        stopSystemAudioCapture();
+      };
+    });
+
     // 创建纯音频流
     const audioStream = new MediaStream(audioTracks);
     stream = audioStream;
 
-    // 4. MediaRecorder 录制
+    // 5. MediaRecorder 录制
     const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
       ? 'audio/webm;codecs=opus'
       : 'audio/webm';
@@ -88,13 +94,31 @@ export async function startSystemAudioCapture(): Promise<void> {
       }
     };
 
+    // 监听 recorder 意外停止
+    mediaRecorder.onstop = () => {
+      // 非主动停止 → 通知主进程
+      if (_started && window.electronAPI) {
+        window.electronAPI.notifyCaptureStopped();
+      }
+      _started = false;
+    };
+
     mediaRecorder.start(CHUNK_SEC * 1000);
+    _started = true;
     console.log('[system-audio] Capture started, chunk=' + CHUNK_SEC + 's');
 
     if (window.electronAPI) {
       window.electronAPI.notifyCaptureStarted();
     }
   } catch (err: any) {
+    // 确保失败时清理所有轨道
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+      stream = null;
+    }
+    mediaRecorder = null;
+    _started = false;
+
     console.error('[system-audio] Failed to start:', err.name, err.message);
     if (window.electronAPI) {
       window.electronAPI.notifyCaptureError(err.message);
@@ -104,6 +128,7 @@ export async function startSystemAudioCapture(): Promise<void> {
 }
 
 export function stopSystemAudioCapture(): void {
+  _started = false;
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     try { mediaRecorder.stop(); } catch (e) {}
     mediaRecorder = null;
@@ -119,5 +144,5 @@ export function stopSystemAudioCapture(): void {
 }
 
 export function isSystemAudioCapturing(): boolean {
-  return mediaRecorder !== null && mediaRecorder.state === 'recording';
+  return _started && mediaRecorder !== null && mediaRecorder.state === 'recording';
 }

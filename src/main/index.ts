@@ -32,11 +32,9 @@ import {
   checkCaptureCapability,
   diagnose,
   registerAudioIpcHandlers,
-  requestScreenPermission,
-  setMainWindow as setAudioMainWindow,
   openScreenRecordingSettings,
 } from './audio-capture';
-import { recognizeSong, isMaybeMusic, checkBackends } from './song-recognition';
+import { recognizeSong, isMaybeMusic } from './song-recognition';
 import {
   initUpdater,
   checkForUpdates,
@@ -181,9 +179,6 @@ function showNotification(title: string, body: string): void {
 app.whenReady().then(() => {
   createWindow();
   createTray();
-
-  // macOS 音频采集需要主窗口引用
-  if (mainWindow) setAudioMainWindow(mainWindow);
 
   // 注册 macOS 音频采集的 IPC
   registerAudioIpcHandlers();
@@ -409,10 +404,6 @@ ipcMain.handle('audio:checkCapability', async () => {
 ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
   const result = await recognizeSong(audioPath);
   return result;
-});
-
-ipcMain.handle('audio:checkBackends', async () => {
-  return await checkBackends();
 });
 
 ipcMain.handle('audio:openScreenSettings', async () => {

@@ -14,7 +14,7 @@
  *   5. 已有识别流程处理 WAV 文件
  */
 
-import { ipcMain, systemPreferences, BrowserWindow } from 'electron';
+import { ipcMain, systemPreferences } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -28,15 +28,10 @@ const MAX_CHUNKS = 10;
 let isRunning = false;
 let onChunk: AudioChunkCallback | null = null;
 let chunkIndex = 0;
-let mainWindow: BrowserWindow | null = null;
 
 // ============================================================
 // 公开 API
 // ============================================================
-
-export function setMainWindow(win: BrowserWindow): void {
-  mainWindow = win;
-}
 
 export function startCapture(callback: AudioChunkCallback): boolean {
   if (isRunning) return false;
@@ -45,20 +40,12 @@ export function startCapture(callback: AudioChunkCallback): boolean {
   onChunk = callback;
   isRunning = true;
   chunkIndex = 0;
-
-  // 通知渲染进程准备采集（渲染进程会调用 getDisplayMedia）
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('audio:requestCapture');
-  }
-
+  // 渲染进程通过 SettingsPage 直接调用 startSystemAudioCapture()
   return true;
 }
 
 export function stopCapture(): void {
   isRunning = false;
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('audio:stopCaptureRenderer');
-  }
 }
 
 export function isCapturing(): boolean { return isRunning; }

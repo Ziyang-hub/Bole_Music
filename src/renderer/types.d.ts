@@ -134,17 +134,12 @@ interface ElectronAPI {
     platform: string;
     needs: string[];
   }>;
-  checkBackends: () => Promise<
-    { name: string; available: boolean; description: string }[]
-  >;
   diagnoseAudio: () => Promise<{ ok: string[]; issues: string[]; ready: boolean }>;
   openScreenRecordingSettings: () => Promise<void>;
   onSongDetected: (callback: (result: RecognitionResult) => void) => void;
 
-  // macOS 系统音频采集（渲染进程 ↔ 主进程通信）
+  // macOS 系统音频采集
   getScreenSources: () => Promise<{ id: string; name: string }[]>;
-  onRequestCapture: (callback: () => void) => void;
-  onStopCaptureRenderer: (callback: () => void) => void;
   sendAudioChunk: (data: ArrayBuffer) => void;
   notifyCaptureStarted: () => void;
   notifyCaptureStopped: () => void;

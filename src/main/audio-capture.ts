@@ -18,9 +18,6 @@ import {
   checkCaptureCapability as macCheckCaptureCapability,
   diagnose as macDiagnose,
   registerIpcHandlers as macRegisterIpcHandlers,
-  unregisterIpcHandlers as macUnregisterIpcHandlers,
-  requestScreenPermission as macRequestScreenPermission,
-  setMainWindow as macSetMainWindow,
   openScreenRecordingSettings as macOpenScreenSettings,
 } from './mac-audio-capture';
 
@@ -102,14 +99,6 @@ export async function checkCaptureCapability(): Promise<{
 }
 
 /**
- * macOS: 请求屏幕录制权限
- */
-export async function requestScreenPermission(): Promise<boolean> {
-  if (isMac) return macRequestScreenPermission();
-  return true; // Windows/Linux 无需
-}
-
-/**
  * 诊断音频采集链路（macOS 用 SCK 诊断，其他平台用原有逻辑）
  */
 export async function diagnose(): Promise<{
@@ -133,13 +122,6 @@ export async function diagnose(): Promise<{
 }
 
 /**
- * 设置主窗口引用（macOS 需要用于通知渲染进程）
- */
-export function setMainWindow(win: any): void {
-  if (isMac) macSetMainWindow(win);
-}
-
-/**
  * 打开 macOS 屏幕录制权限设置（由 renderer 调用）
  */
 export async function openScreenRecordingSettings(): Promise<void> {
@@ -147,10 +129,6 @@ export async function openScreenRecordingSettings(): Promise<void> {
 }
 export function registerAudioIpcHandlers(): void {
   if (isMac) macRegisterIpcHandlers();
-}
-
-export function unregisterAudioIpcHandlers(): void {
-  if (isMac) macUnregisterIpcHandlers();
 }
 
 // ============================================================
