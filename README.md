@@ -67,11 +67,13 @@ npm run dev
 
 ### 第四步（可选）：启用自动识别
 
-1. 安装虚拟音频设备：
-   - Mac: `brew install blackhole-2ch`
-   - Windows: 下载 [VB-Cable](https://vb-audio.com/Cable/)
-2. 设置页打开「自动音频采集」开关
-3. 播放音乐 → APP 自动识别和分析 🎉
+**🎉 macOS 13+ 和 Windows 零安装！** 无需安装任何虚拟音频设备。
+
+- **macOS**: 打开「自动音频采集」→ 弹出屏幕选择器 → 选择屏幕并允许音频 → 自动开始采集
+- **Windows**: 打开「自动音频采集」→ 系统内置 WASAPI 直接采集 → 自动开始识别
+- **Linux**: 系统内置 PulseAudio 直接采集
+
+> 💡 macOS 首次使用时需在系统弹出框中点击「允许」授予屏幕录制权限。之后无需任何操作。
 
 ---
 

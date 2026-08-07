@@ -20,6 +20,7 @@ import {
   registerIpcHandlers as macRegisterIpcHandlers,
   unregisterIpcHandlers as macUnregisterIpcHandlers,
   requestScreenPermission as macRequestScreenPermission,
+  setMainWindow as macSetMainWindow,
 } from './mac-audio-capture';
 
 const execFileAsync = promisify(execFile);
@@ -128,6 +129,13 @@ export async function diagnose(): Promise<{
   }
 
   return { ok, issues, ready: issues.length === 0 };
+}
+
+/**
+ * 设置主窗口引用（macOS 需要用于通知渲染进程）
+ */
+export function setMainWindow(win: any): void {
+  if (isMac) macSetMainWindow(win);
 }
 
 /**

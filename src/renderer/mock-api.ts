@@ -74,6 +74,12 @@ export function installMockAPI() {
     checkBackends: async () => [],
     diagnoseAudio: async () => ({ ok: ['浏览器测试模式'], issues: [], ready: true }),
     onSongDetected: () => {},
+    onRequestCapture: () => {},
+    onStopCaptureRenderer: () => {},
+    sendAudioChunk: () => {},
+    notifyCaptureStarted: () => {},
+    notifyCaptureStopped: () => {},
+    notifyCaptureError: () => {},
 
     // 使用统计
     trackUsage: async () => {},

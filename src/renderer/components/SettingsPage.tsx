@@ -219,8 +219,31 @@ export default function SettingsPage() {
                     updateField('autoListen', false);
                     return;
                   }
-                  await window.electronAPI.startAudioCapture();
+
+                  // macOS：需要调用 getDisplayMedia 触发系统权限
+                  if (window.electronAPI.platform === 'darwin') {
+                    try {
+                      // 动态导入避免循环依赖
+                      const { startSystemAudioCapture } = await import('../system-audio-capture');
+                      await window.electronAPI.startAudioCapture(); // 通知主进程
+                      await startSystemAudioCapture();              // 渲染进程调用 getDisplayMedia
+                    } catch (err: any) {
+                      if (err.name !== 'AbortError') {
+                        alert('采集启动失败: ' + (err.message || '未知错误'));
+                      }
+                      updateField('autoListen', false);
+                      await window.electronAPI.stopAudioCapture();
+                      return;
+                    }
+                  } else {
+                    await window.electronAPI.startAudioCapture();
+                  }
                 } else {
+                  // 停止采集
+                  if (window.electronAPI.platform === 'darwin') {
+                    const { stopSystemAudioCapture } = await import('../system-audio-capture');
+                    stopSystemAudioCapture();
+                  }
                   await window.electronAPI.stopAudioCapture();
                 }
               }

@@ -142,6 +142,14 @@ interface ElectronAPI {
   diagnoseAudio: () => Promise<{ ok: string[]; issues: string[]; ready: boolean }>;
   onSongDetected: (callback: (result: RecognitionResult) => void) => void;
 
+  // macOS 系统音频采集（渲染进程 ↔ 主进程通信）
+  onRequestCapture: (callback: () => void) => void;
+  onStopCaptureRenderer: (callback: () => void) => void;
+  sendAudioChunk: (data: ArrayBuffer) => void;
+  notifyCaptureStarted: () => void;
+  notifyCaptureStopped: () => void;
+  notifyCaptureError: (msg: string) => void;
+
   // 自动更新
   checkForUpdate: () => Promise<UpdateInfo>;
   downloadUpdate: () => Promise<UpdateInfo>;

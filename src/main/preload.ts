@@ -69,6 +69,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkBackends: () => ipcRenderer.invoke('audio:checkBackends'),
   diagnoseAudio: () => ipcRenderer.invoke('audio:diagnose'),
 
+  // macOS 系统音频采集（渲染进程 ↔ 主进程通信）
+  onRequestCapture: (callback: () => void) => {
+    ipcRenderer.on('audio:requestCapture', () => callback());
+  },
+  onStopCaptureRenderer: (callback: () => void) => {
+    ipcRenderer.on('audio:stopCaptureRenderer', () => callback());
+  },
+  sendAudioChunk: (data: ArrayBuffer) => {
+    ipcRenderer.send('audio:chunk', Buffer.from(data));
+  },
+  notifyCaptureStarted: () => ipcRenderer.send('audio:captureStarted'),
+  notifyCaptureStopped: () => ipcRenderer.send('audio:captureStopped'),
+  notifyCaptureError: (msg: string) => ipcRenderer.send('audio:captureError', msg),
+
   // ----- 音乐平台 -----
   searchSongs: (keyword: string, limit?: number) =>
     ipcRenderer.invoke('music:search', keyword, limit),

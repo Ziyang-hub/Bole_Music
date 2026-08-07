@@ -33,6 +33,7 @@ import {
   diagnose,
   registerAudioIpcHandlers,
   requestScreenPermission,
+  setMainWindow as setAudioMainWindow,
 } from './audio-capture';
 import { recognizeSong, isMaybeMusic, checkBackends } from './song-recognition';
 import {
@@ -180,7 +181,10 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
 
-  // 注册 macOS 音频采集的 IPC（不影响其他平台）
+  // macOS 音频采集需要主窗口引用
+  if (mainWindow) setAudioMainWindow(mainWindow);
+
+  // 注册 macOS 音频采集的 IPC
   registerAudioIpcHandlers();
 
   // 恢复自动采集（如果用户之前开启过）
