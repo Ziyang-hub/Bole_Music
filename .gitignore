@@ -5,6 +5,10 @@ node_modules/
 dist/
 release/
 
+# 临时文件
+tmp/
+*.tmp
+
 # IDE
 .vscode/
 .idea/

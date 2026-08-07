@@ -215,6 +215,9 @@ export default function SettingsPage() {
           </button>
         </div>
 
+        {/* 音频采集配置引导 */}
+        {settings.autoListen && <AudioSetupGuide />}
+
         <div className="setting-row">
           <div className="setting-info">
             <label className="setting-label">分析完成通知</label>
@@ -267,6 +270,84 @@ export default function SettingsPage() {
           <div className="about-row"><span>AI 服务</span><span>{settings.apiProvider.toUpperCase()}</span></div>
           <div className="about-row"><span>理念</span><span>高山流水遇知音 🎵</span></div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 音频采集配置引导组件
+ */
+function AudioSetupGuide() {
+  const [capability, setCapability] = useState<any>(null);
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.checkCaptureCapability().then(setCapability);
+    }
+  }, []);
+
+  if (!capability) return null;
+
+  return (
+    <div style={{
+      margin: '12px 0',
+      padding: 16,
+      background: 'var(--color-bg-tertiary)',
+      borderRadius: 'var(--radius-md)',
+      border: '1px solid var(--color-border)',
+    }}>
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--color-accent-light)' }}>
+        🎧 音频采集配置指南
+      </div>
+
+      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+        当前平台：<strong>{capability.platform === 'win32' ? 'Windows' : capability.platform === 'darwin' ? 'macOS' : 'Linux'}</strong>
+        {capability.available ? ' ✅ 环境就绪' : ' ⚠️ 需要配置'}
+      </div>
+
+      {capability.needs.length > 0 && (
+        <div style={{ fontSize: 12, lineHeight: 1.8 }}>
+          <div style={{ color: 'var(--color-text-secondary)', marginBottom: 4 }}>需要安装：</div>
+          {capability.needs.map((need: string, i: number) => (
+            <div key={i} style={{ color: 'var(--color-text-muted)', paddingLeft: 12 }}>
+              {i + 1}. {need}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {capability.platform === 'win32' && (
+        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
+          <div>📌 Windows 配置步骤：</div>
+          <div>1. 下载安装 <a href="https://vb-audio.com/Cable/" style={{ color: 'var(--color-accent)' }}>VB-Cable</a>（虚拟音频设备）</div>
+          <div>2. 下载安装 <a href="https://ffmpeg.org/download.html" style={{ color: 'var(--color-accent)' }}>ffmpeg</a></div>
+          <div>3. 将系统音频输出设为 VB-Cable</div>
+          <div>4. 重启应用后开启自动采集</div>
+        </div>
+      )}
+
+      {capability.platform === 'darwin' && (
+        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
+          <div>📌 macOS 配置步骤：</div>
+          <div>1. 终端运行：<code>brew install blackhole-2ch</code></div>
+          <div>2. 打开「音频MIDI设置」→ 创建多输出设备</div>
+          <div>3. 将 BlackHole 加入多输出设备</div>
+          <div>4. 重启应用后开启自动采集</div>
+        </div>
+      )}
+
+      {capability.platform === 'linux' && (
+        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
+          <div>📌 Linux 配置步骤：</div>
+          <div>1. 安装 PulseAudio：<code>sudo apt install pulseaudio-utils</code></div>
+          <div>2. 安装 ffmpeg：<code>sudo apt install ffmpeg</code></div>
+          <div>3. 重启应用后开启自动采集</div>
+        </div>
+      )}
+
+      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, fontStyle: 'italic' }}>
+        💡 音频采集需要配合 ACRCloud 歌曲识别服务使用。在环境变量中设置 ACRCLOUD_ACCESS_KEY 和 ACRCLOUD_ACCESS_SECRET 即可启用自动识别。
       </div>
     </div>
   );
