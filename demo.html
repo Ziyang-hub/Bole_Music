@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>伯乐模拟器 - 效果预览</title>
+<style>
+  :root {
+    --bg-primary: #0f0f1a;
+    --bg-secondary: #1a1a2e;
+    --bg-tertiary: #25253e;
+    --text-primary: #e8e8f0;
+    --text-secondary: #9898b0;
+    --text-muted: #686880;
+    --accent: #f0a050;
+    --accent-light: #f5c080;
+    --border: #2a2a45;
+    --font: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: var(--font);
+    background: #0a0a14;
+    color: var(--text-primary);
+    padding: 24px;
+  }
+
+  .demo-header {
+    text-align: center;
+    padding: 32px 0;
+  }
+  .demo-header h1 { font-size: 28px; }
+  .demo-header p { color: var(--text-muted); margin-top: 8px; font-size: 14px; }
+  .demo-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    background: rgba(240,160,80,0.15);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    color: var(--accent-light);
+    font-size: 12px;
+    margin-top: 12px;
+  }
+
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .demo-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .demo-card-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .demo-card-body {
+    padding: 20px;
+    max-height: 480px;
+    overflow-y: auto;
+  }
+
+  /* Chat */
+  .msg { display:flex; gap:12px; margin-bottom:16px; max-width:90%; }
+  .msg.user { margin-left:auto; flex-direction:row-reverse; }
+  .msg-avatar {
+    width:36px; height:36px; border-radius:50%;
+    background:var(--bg-tertiary); display:flex;
+    align-items:center; justify-content:center; font-size:18px; flex-shrink:0;
+  }
+  .msg-bubble {
+    padding:12px 16px; border-radius:16px; font-size:13px; line-height:1.7;
+  }
+  .msg.bole .msg-bubble {
+    background:var(--bg-tertiary); border:1px solid var(--border);
+    border-bottom-left-radius:4px;
+  }
+  .msg.user .msg-bubble {
+    background:#2a3a5c; border-bottom-right-radius:4px;
+  }
+  .msg-time { font-size:11px; color:var(--text-muted); margin-top:4px; text-align:right; }
+  .typing { display:flex; gap:4px; padding:14px 20px; }
+  .typing span { width:6px; height:6px; border-radius:50%; background:var(--text-muted); animation:dot 1.4s infinite; }
+  .typing span:nth-child(2) { animation-delay:0.2s; }
+  .typing span:nth-child(3) { animation-delay:0.4s; }
+  @keyframes dot { 0%,60%,100%{opacity:0.3;transform:scale(0.8)} 30%{opacity:1;transform:scale(1.2)} }
+
+  /* Stats */
+  .stat-row { display:flex; gap:12px; margin-bottom:16px; }
+  .stat-item {
+    flex:1; background:var(--bg-tertiary); border-radius:12px;
+    padding:16px; text-align:center;
+  }
+  .stat-icon { font-size:24px; margin-bottom:4px; }
+  .stat-val { font-size:18px; font-weight:700; color:var(--accent-light); }
+  .stat-lbl { font-size:11px; color:var(--text-muted); }
+
+  /* Genre */
+  .genre-row { display:flex; align-items:center; margin-bottom:10px; gap:10px; }
+  .genre-name { font-size:12px; width:70px; color:var(--text-secondary); text-align:right; }
+  .genre-bar { flex:1; height:8px; background:var(--bg-tertiary); border-radius:4px; overflow:hidden; }
+  .genre-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--accent),var(--accent-light)); }
+
+  /* Top songs */
+  .song-row { display:flex; align-items:center; gap:12px; padding:8px 12px; background:var(--bg-tertiary); border-radius:8px; margin-bottom:6px; font-size:13px; }
+  .song-rank { width:22px; height:22px; border-radius:50%; background:rgba(240,160,80,0.15); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; }
+
+  /* Diary timeline */
+  .tl-item { display:flex; gap:12px; margin-bottom:8px; }
+  .tl-dot { width:12px; height:12px; border-radius:50%; background:var(--accent); flex-shrink:0; margin-top:4px; box-shadow:0 0 8px rgba(240,160,80,0.3); }
+  .tl-line { width:2px; flex:1; min-height:20px; margin-left:5px; background:linear-gradient(180deg,var(--accent),transparent); }
+  .tl-content { flex:1; padding-bottom:16px; }
+  .tl-date { font-size:14px; font-weight:600; margin-bottom:8px; }
+  .tl-mood { font-size:11px; padding:2px 10px; border-radius:10px; background:rgba(240,160,80,0.15); color:var(--accent-light); margin-left:8px; }
+  .tl-song { font-size:13px; padding:8px 12px; background:var(--bg-tertiary); border-radius:8px; margin-bottom:6px; border-left:3px solid var(--accent); }
+  .tl-note { font-size:12px; color:var(--text-muted); margin-top:4px; }
+
+  /* Settings */
+  .set-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
+  .set-row:last-child { border:none; }
+  .set-label { font-size:13px; font-weight:600; }
+  .set-desc { font-size:11px; color:var(--text-muted); }
+  .toggle-on, .toggle-off {
+    padding:5px 14px; border-radius:16px; font-size:12px; border:none; cursor:default;
+  }
+  .toggle-on { background:rgba(240,160,80,0.15); color:var(--accent); border:1px solid var(--accent); }
+  .toggle-off { background:var(--bg-tertiary); color:var(--text-muted); border:1px solid var(--border); }
+
+  .persona-grid {
+    display: grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;
+  }
+  .persona-card {
+    padding:14px; border-radius:12px; border:2px solid transparent;
+    background:var(--bg-tertiary); cursor:default; font-size:12px;
+  }
+  .persona-card.sel { border-color:var(--accent); background:rgba(240,160,80,0.08); }
+  .persona-card .pi { font-size:22px; margin-bottom:4px; }
+  .persona-card .pn { font-weight:600; font-size:13px; }
+  .persona-card .pd { color:var(--text-muted); margin-top:2px; }
+
+  /* Report AI card */
+  .ai-card {
+    background:linear-gradient(135deg,#1e1e35,#2a2040);
+    border:1px solid var(--accent); border-radius:12px;
+    padding:16px; margin-bottom:16px;
+  }
+  .ai-card-header { display:flex; justify-content:space-between; font-weight:600; font-size:14px; color:var(--accent-light); }
+  .ai-card-body { font-size:13px; line-height:1.8; color:var(--text-secondary); margin-top:8px; }
+  .keywords { display:flex; gap:8px; margin-top:8px; }
+  .kw { padding:3px 12px; background:var(--bg-tertiary); border-radius:12px; font-size:11px; color:var(--accent-light); }
+
+  .input-bar {
+    display:flex; gap:8px; padding:12px 0 0 0;
+    border-top:1px solid var(--border); margin-top:12px;
+  }
+  .input-fake {
+    flex:1; padding:10px 14px; border-radius:10px;
+    background:var(--bg-secondary); border:1px solid var(--border);
+    font-size:13px; color:var(--text-muted);
+  }
+  .send-fake {
+    padding:10px 22px; border-radius:10px; border:none;
+    background:linear-gradient(135deg,var(--accent),#d08030);
+    color:#fff; font-weight:600; font-size:13px; cursor:default;
+  }
+
+  @media (max-width:800px) { .demo-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="demo-header">
+  <h1>🐴 伯乐模拟器</h1>
+  <p>效果预览 — 所有数据均为演示数据</p>
+  <span class="demo-badge">v1.0.0 即将发布</span>
+</div>
+
+<div class="demo-grid">
+
+  <!-- ===== 知音对话 ===== -->
+  <div class="demo-card">
+    <div class="demo-card-header">💬 知音对话 <span style="font-size:11px;color:var(--text-muted);margin-left:auto;">🟢 在线</span></div>
+    <div class="demo-card-body">
+      <div class="msg bole">
+        <div class="msg-avatar">🐴</div>
+        <div class="msg-bubble">
+          你好，我是伯乐 🎵<br><br>
+          我是你的AI音乐知音。当你听到一首好歌，输入歌名告诉我，我来帮你分析和品味。<br><br>
+          比如你可以试试输入：「周杰伦 晴天」
+        </div>
+      </div>
+
+      <div class="msg user">
+        <div class="msg-avatar">👤</div>
+        <div class="msg-bubble">周杰伦 晴天</div>
+      </div>
+
+      <div class="msg bole">
+        <div class="msg-avatar">🐴</div>
+        <div class="msg-bubble">
+          🎵 <strong>晴天</strong> — 周杰伦<br><br>
+          📝 <strong>歌词主题</strong><br>
+          这是一首关于青春回忆和时光流逝的歌曲。歌词通过"晴天"与"雨天"的意象对比，讲述了失去后才懂得珍惜的心情。周杰伦用细腻的笔触描绘了校园时光的点滴，让人不自觉陷入对过去的怀念之中。<br><br>
+          💗 <strong>情感色彩</strong><br>
+          温暖中带着淡淡的忧伤。前奏一响就能把人拉回学生时代，那种简单纯粹的美好和无法挽回的遗憾交织在一起。<br><br>
+          🎼 <strong>音乐风格</strong><br>
+          流行 + 民谣元素，以钢琴和吉他为主要伴奏乐器，BPM在80左右，中速节奏。旋律简单但极其抓耳，是周杰伦早期的代表作。<br><br>
+          💭 <strong>伯乐感悟</strong><br>
+          这首歌诞生于2003年，二十年过去了，每次听到前奏，依然能感受到那个夏天教室里的风扇声、操场上的蝉鸣、和那些没说出口的话。也许这就是好歌的魔力——它不是让你怀念某个人，而是让你怀念那时的自己。
+        </div>
+      </div>
+
+      <div class="msg user">
+        <div class="msg-avatar">👤</div>
+        <div class="msg-bubble">推荐歌曲</div>
+      </div>
+
+      <div class="msg bole">
+        <div class="msg-avatar">🐴</div>
+        <div class="msg-bubble">
+          🎵 <strong>伯乐为你推荐</strong><br><br>
+          🎶 <strong>七里香</strong> — 周杰伦<br>
+          > 你最近听了不少周杰伦的歌，这首和晴天一样是经典回忆杀，夏天必听曲目<br><br>
+          🎶 <strong>好久不见</strong> — 陈奕迅<br>
+          > 你的歌单偏向温暖怀旧风，陈奕迅的嗓音很适合你此刻的心境<br><br>
+          🎶 <strong>后来</strong> — 刘若英<br>
+          > 你对青春主题的歌曲有共鸣，这首歌会用另一种方式打动你<br><br>
+          💭 根据你最近爱听怀旧华语流行，我觉得这些歌会成为你的心头好。试试看吧！
+        </div>
+      </div>
+
+      <div class="msg bole">
+        <div class="msg-avatar">🐴</div>
+        <div class="msg-bubble typing"><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="input-bar">
+        <div class="input-fake">输入歌名或想说的话...</div>
+        <div class="send-fake">发送</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 听歌报告 ===== -->
+  <div class="demo-card">
+    <div class="demo-card-header">📊 听歌报告 <span style="font-size:11px;color:var(--accent-light);margin-left:8px;">|</span>
+      <span style="font-size:12px;margin-left:8px;padding:2px 12px;border-radius:12px;background:rgba(240,160,80,0.15);color:var(--accent-light);">📅 日报</span>
+      <span style="font-size:12px;margin-left:4px;padding:2px 12px;border-radius:12px;color:var(--text-muted);">📈 周报</span>
+      <span style="font-size:12px;margin-left:4px;padding:2px 12px;border-radius:12px;color:var(--text-muted);">📊 月报</span>
+    </div>
+    <div class="demo-card-body">
+
+      <div class="ai-card">
+        <div class="ai-card-header">
+          <span>🐴 伯乐今日报告</span>
+          <span style="font-size:12px;padding:2px 10px;background:rgba(240,160,80,0.15);border-radius:10px;">情绪：温暖怀旧</span>
+        </div>
+        <div class="ai-card-body">
+          今天你听了5首歌，旋律中都带着一丝怀念的味道。从周杰伦的青春印记到陈奕迅的深沉低语，每一首歌都像是在翻阅一本旧相册。你今天的音乐关键词是"回忆"和"温暖"，说明你此刻的心境是柔软而细腻的。
+        </div>
+        <div class="keywords">
+          <span class="kw">怀旧</span><span class="kw">青春</span><span class="kw">温暖</span><span class="kw">华语经典</span>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-item"><div class="stat-icon">🎵</div><div class="stat-val">127</div><div class="stat-lbl">累计听歌</div></div>
+        <div class="stat-item"><div class="stat-icon">⏱️</div><div class="stat-val">7h25m</div><div class="stat-lbl">估算时长</div></div>
+        <div class="stat-item"><div class="stat-icon">🎸</div><div class="stat-val">华语流行</div><div class="stat-lbl">最爱曲风</div></div>
+        <div class="stat-item"><div class="stat-icon">👨‍🎤</div><div class="stat-val">周杰伦</div><div class="stat-lbl">最爱歌手</div></div>
+      </div>
+
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">🎼 曲风分布</div>
+      <div class="genre-row"><span class="genre-name">华语流行</span><div class="genre-bar"><div class="genre-fill" style="width:45%"></div></div><span style="font-size:11px;color:var(--text-muted)">45%</span></div>
+      <div class="genre-row"><span class="genre-name">独立民谣</span><div class="genre-bar"><div class="genre-fill" style="width:20%"></div></div><span style="font-size:11px;color:var(--text-muted)">20%</span></div>
+      <div class="genre-row"><span class="genre-name">摇滚</span><div class="genre-bar"><div class="genre-fill" style="width:15%"></div></div><span style="font-size:11px;color:var(--text-muted)">15%</span></div>
+      <div class="genre-row"><span class="genre-name">R&B</span><div class="genre-bar"><div class="genre-fill" style="width:12%"></div></div><span style="font-size:11px;color:var(--text-muted)">12%</span></div>
+
+      <div style="font-size:13px;font-weight:600;margin:12px 0 8px;">🏆 热门 Top 5</div>
+      <div class="song-row"><span class="song-rank">1</span>晴天 - 周杰伦 <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">23次</span></div>
+      <div class="song-row"><span class="song-rank">2</span>平凡之路 - 朴树 <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">18次</span></div>
+      <div class="song-row"><span class="song-rank">3</span>Yellow - Coldplay <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">15次</span></div>
+      <div class="song-row"><span class="song-rank">4</span>七里香 - 周杰伦 <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">14次</span></div>
+      <div class="song-row"><span class="song-rank">5</span>夜曲 - 周杰伦 <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">11次</span></div>
+    </div>
+  </div>
+
+  <!-- ===== 听歌日记 ===== -->
+  <div class="demo-card">
+    <div class="demo-card-header">📝 听歌日记</div>
+    <div class="demo-card-body">
+      <div class="tl-item">
+        <div><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-content">
+          <div class="tl-date">2026-08-07 <span class="tl-mood">怀旧温暖</span></div>
+          <div class="tl-song">
+            <strong>晴天</strong> — 周杰伦 <span style="font-size:11px;color:var(--text-muted)">14:30</span>
+            <div class="tl-note">💭 下午工作时听到的，旋律一响起就让我想起大学时光</div>
+          </div>
+          <div class="tl-song">
+            <strong>平凡之路</strong> — 朴树 <span style="font-size:11px;color:var(--text-muted)">16:45</span>
+            <div class="tl-note">💭 工作累了，需要一首歌来放松心情</div>
+          </div>
+          <div class="tl-song">
+            <strong>七里香</strong> — 周杰伦 <span style="font-size:11px;color:var(--text-muted)">20:10</span>
+            <div class="tl-note" style="color:var(--accent-light);cursor:default;">💬 点击添加笔记...</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;padding:10px 14px;background:linear-gradient(135deg,#1e1e35,#2a2040);border-radius:10px;">
+            <span>🐴</span>
+            <span style="font-size:12px;color:var(--text-secondary);">今天听的歌都围绕着「回忆」这个主题，也许你最近在整理旧照片或者思考过去的事情。音乐是你最好的陪伴。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-content">
+          <div class="tl-date">2026-08-06 <span class="tl-mood">轻松愉快</span></div>
+          <div class="tl-song">
+            <strong>Yellow</strong> — Coldplay <span style="font-size:11px;color:var(--text-muted)">10:15</span>
+            <div class="tl-note">💭 早上听的英文歌，开始新的一天</div>
+          </div>
+          <div class="tl-song">
+            <strong>Shape of You</strong> — Ed Sheeran <span style="font-size:11px;color:var(--text-muted)">15:20</span>
+            <div class="tl-note">💭 节奏感很强，适合下午提神</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div><div class="tl-dot"></div></div>
+        <div class="tl-content">
+          <div class="tl-date">2026-08-05 <span class="tl-mood">安静感伤</span></div>
+          <div class="tl-song">
+            <strong>夜曲</strong> — 周杰伦 <span style="font-size:11px;color:var(--text-muted)">21:30</span>
+            <div class="tl-note">💭 深夜一个人听的，周杰伦的歌就是有一种魔力</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 设置 ===== -->
+  <div class="demo-card">
+    <div class="demo-card-header">⚙️ 设置</div>
+    <div class="demo-card-body">
+
+      <div style="font-size:14px;font-weight:600;margin-bottom:10px;">🤖 AI 伯乐人格</div>
+      <div class="persona-grid">
+        <div class="persona-card sel">
+          <div class="pi">🎨</div><div class="pn">文艺青年</div>
+          <div class="pd">用诗意的语言分析音乐，充满文学气息</div>
+          <div style="color:var(--accent-light);font-size:11px;margin-top:4px;">✅ 当前选择</div>
+        </div>
+        <div class="persona-card">
+          <div class="pi">🎼</div><div class="pn">专业乐评人</div>
+          <div class="pd">从专业角度分析编曲、作词、演唱技巧</div>
+        </div>
+        <div class="persona-card">
+          <div class="pi">💛</div><div class="pn">暖心朋友</div>
+          <div class="pd">像朋友一样聊天，关注你的感受和情绪</div>
+        </div>
+        <div class="persona-card">
+          <div class="pi">😄</div><div class="pn">幽默伙伴</div>
+          <div class="pd">用轻松幽默的方式点评音乐</div>
+        </div>
+      </div>
+
+      <div style="font-size:14px;font-weight:600;margin:16px 0 10px;">🎛️ 功能设置</div>
+      <div class="set-row">
+        <div><div class="set-label">自动音频采集</div><div class="set-desc">自动监听电脑播放的音乐</div></div>
+        <span class="toggle-off">已关闭</span>
+      </div>
+      <div class="set-row">
+        <div><div class="set-label">分析完成通知</div><div class="set-desc">分析完成后弹出通知</div></div>
+        <span class="toggle-on">已开启</span>
+      </div>
+      <div class="set-row">
+        <div><div class="set-label">每日听歌小结</div><div class="set-desc">自动生成今日小结</div></div>
+        <span class="toggle-on">已开启</span>
+      </div>
+      <div class="set-row">
+        <div><div class="set-label">每周听歌报告</div><div class="set-desc">自动生成每周报告</div></div>
+        <span class="toggle-on">已开启</span>
+      </div>
+
+      <div style="font-size:14px;font-weight:600;margin:16px 0 10px;">🔄 软件更新</div>
+      <div style="font-size:12px;color:var(--text-muted);">✅ 当前已是最新版本</div>
+      <div style="margin-top:8px;">
+        <span style="padding:6px 14px;border-radius:8px;background:var(--accent);color:#fff;font-size:12px;cursor:default;">检查更新</span>
+      </div>
+
+      <div style="font-size:14px;font-weight:600;margin:16px 0 10px;">ℹ️ 关于</div>
+      <div class="set-row"><span>版本</span><span>1.0.0</span></div>
+      <div class="set-row"><span>技术栈</span><span>Electron + React + TypeScript</span></div>
+      <div class="set-row"><span>AI 服务</span><span>DeepSeek</span></div>
+      <div class="set-row"><span>理念</span><span>高山流水遇知音 🎵</span></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="demo-header" style="padding:20px 0;color:var(--text-muted);font-size:12px;">
+  在真实应用中，填入 API Key 后所有分析均由 AI 实时生成。本站仅为界面效果预览。
+</div>
+
+</body>
+</html>

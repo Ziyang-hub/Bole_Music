@@ -8,6 +8,7 @@ release/
 # 临时文件
 tmp/
 *.tmp
+!demo.html
 
 # IDE
 .vscode/
