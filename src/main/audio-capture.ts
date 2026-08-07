@@ -117,7 +117,13 @@ function startLinuxCapture(): void {
     if (!monitor) { startChunkedCapture(); return; }
 
     const rawFile = path.join(AUDIO_DIR, 'capture.wav');
-    const parec = spawn('parec', ['-d', monitor, '--file-format=wav', rawFile]);
+    let parec: ReturnType<typeof spawn>;
+    try {
+      parec = spawn('parec', ['-d', monitor, '--file-format=wav', rawFile], { stdio: 'ignore' });
+    } catch {
+      startChunkedCapture();
+      return;
+    }
 
     parec.on('error', () => startChunkedCapture());
 
@@ -136,10 +142,15 @@ function splitChunk(rawFile: string): void {
   if (!fs.existsSync(rawFile)) return;
   const outFile = path.join(AUDIO_DIR, `chunk_${chunkIndex++}.wav`);
 
-  const ffmpeg = spawn('ffmpeg', [
-    '-y', '-sseof', `-${CHUNK_SEC}`, '-i', rawFile,
-    '-t', String(CHUNK_SEC), '-acodec', 'copy', outFile,
-  ]);
+  let ffmpeg: ReturnType<typeof spawn>;
+  try {
+    ffmpeg = spawn('ffmpeg', [
+      '-y', '-sseof', `-${CHUNK_SEC}`, '-i', rawFile,
+      '-t', String(CHUNK_SEC), '-acodec', 'copy', outFile,
+    ], { stdio: 'ignore' });
+  } catch {
+    return;
+  }
   ffmpeg.on('close', (code) => {
     if (code === 0) emitIfValid(outFile);
     cleanupOldChunks();
@@ -157,13 +168,23 @@ function startChunkedCapture(): void {
     const outFile = path.join(AUDIO_DIR, `chunk_${chunkIndex++}.wav`);
     const args = buildFfmpegArgs(outFile);
 
-    const ffmpeg = spawn('ffmpeg', args);
+    let ffmpeg: ReturnType<typeof spawn>;
+    try {
+      ffmpeg = spawn('ffmpeg', args, { stdio: 'ignore' });
+    } catch (err) {
+      // ffmpeg 不存在或无法启动，停止采集循环
+      console.error('ffmpeg 启动失败:', err);
+      isRunning = false;
+      return;
+    }
+
     ffmpeg.on('close', (code) => {
       if (code === 0) emitIfValid(outFile);
       cleanupOldChunks();
       if (isRunning) captureTimer = setTimeout(loop, 500);
     });
-    ffmpeg.on('error', () => {
+    ffmpeg.on('error', (err) => {
+      console.error('ffmpeg 错误:', err.message);
       if (isRunning) captureTimer = setTimeout(loop, 2000);
     });
   };

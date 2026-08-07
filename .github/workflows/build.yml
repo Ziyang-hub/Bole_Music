@@ -105,13 +105,18 @@ jobs:
             codesign --force --deep --sign - release/mac/伯乐模拟器.app 2>/dev/null || true
           fi
 
-      - name: 上传安装包（临时存档）
+      - name: 上传 DMG（临时存档）
         uses: actions/upload-artifact@v4
         with:
-          name: 伯乐模拟器-macOS
-          path: |
-            release/*.dmg
-            release/*.zip
+          name: 伯乐模拟器-macOS-DMG
+          path: release/*.dmg
+          retention-days: 7
+
+      - name: 上传 ZIP（临时存档）
+        uses: actions/upload-artifact@v4
+        with:
+          name: 伯乐模拟器-macOS-ZIP
+          path: release/*.zip
           retention-days: 7
 
       - name: 上传到 Release
