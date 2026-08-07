@@ -188,10 +188,33 @@ export function addDiaryEntry(entry: DiaryEntry): void {
   const existing = diary.find((d) => d.date === entry.date);
   if (existing) {
     existing.songs.push(...entry.songs);
+    // 更新 mood 和 summary（如果有新内容）
+    if (entry.mood && entry.mood !== '未知') existing.mood = entry.mood;
+    if (entry.summary) existing.summary = entry.summary;
   } else {
     diary.push(entry);
   }
   store.set('diary', diary);
+}
+
+export function updateDiaryEntry(
+  date: string,
+  partial: Partial<DiaryEntry>
+): void {
+  const diary = store.get('diary', []);
+  const entry = diary.find((d) => d.date === date);
+  if (entry) {
+    Object.assign(entry, partial);
+    store.set('diary', diary);
+  }
+}
+
+export function deleteDiaryEntry(date: string): void {
+  const diary = store.get('diary', []);
+  store.set(
+    'diary',
+    diary.filter((d) => d.date !== date)
+  );
 }
 
 // ============================================================

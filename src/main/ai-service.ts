@@ -144,24 +144,142 @@ export async function chat(
 }
 
 /**
- * 生成每日听歌小结
+ * 生成听歌报告（日报/周报/月报）
  */
-export async function generateDailySummary(
-  songs: { title: string; artist: string; note?: string }[]
-): Promise<string> {
-  if (songs.length === 0) return '今天还没有听歌记录。';
+export async function generateReport(
+  type: 'daily' | 'weekly' | 'monthly',
+  songs: { title: string; artist: string; genre?: string; emotion?: string }[],
+  stats: {
+    totalSongs: number;
+    topGenre: string;
+    topArtist: string;
+    genreDistribution: Record<string, number>;
+    topSongs: { title: string; artist: string; count: number }[];
+  }
+): Promise<{
+  summary: string;       // 文字总结
+  mood: string;          // 整体情绪
+  keywords: string[];    // 关键词
+  highlights: string[];  // 亮点
+}> {
+  if (songs.length === 0) {
+    return {
+      summary: '暂无听歌记录。',
+      mood: '无',
+      keywords: [],
+      highlights: [],
+    };
+  }
 
   const settings = getSettings();
-  const songList = songs.map((s) => `- ${s.title} (${s.artist})`).join('\n');
+  const songList = songs
+    .slice(0, 20)
+    .map((s) => `- ${s.title} (${s.artist})${s.genre ? ` [${s.genre}]` : ''}${s.emotion ? ` 情绪:${s.emotion}` : ''}`)
+    .join('\n');
 
-  const systemPrompt = `你是伯乐，一个温暖的音乐知音。用户今天听了几首歌，请根据歌单生成一段温馨的每日小结（100-200字），总结今天的音乐心情。用中文回复，不要用JSON格式。`;
+  const genreInfo = Object.entries(stats.genreDistribution)
+    .sort(([, a], [, b]) => b - a)
+    .map(([g, c]) => `${g}: ${c}首`)
+    .join(', ');
 
-  const userMessage = `今天听的歌：\n${songList}\n\n请给我一个温暖的今日听歌小结。`;
+  const topSongsInfo = stats.topSongs
+    .slice(0, 5)
+    .map((s, i) => `${i + 1}. ${s.title} - ${s.artist} (${s.count}次)`)
+    .join('\n');
+
+  const typeLabel = type === 'daily' ? '每日' : type === 'weekly' ? '每周' : '每月';
+
+  const systemPrompt = `你是伯乐，一个温暖的音乐知音。请根据用户的听歌数据，生成一份${typeLabel}听歌报告。
+
+返回JSON格式（严格JSON，不要其他文字）：
+{
+  "summary": "300-500字的文字总结，分析用户的音乐口味、情绪变化、听歌习惯，语言温暖有深度",
+  "mood": "这${type === 'daily' ? '天' : type === 'weekly' ? '周' : '月'}的整体情绪（1-3个词，如：温暖怀旧、活力满满、安静沉思）",
+  "keywords": ["3-5个音乐关键词"],
+  "highlights": ["2-3个有趣的发现或亮点"]
+}`;
+
+  const userMessage = `请生成${typeLabel}报告。
+
+听歌数量：${stats.totalSongs}首
+最爱曲风：${stats.topGenre}
+最爱歌手：${stats.topArtist}
+曲风分布：${genreInfo}
+热门歌曲：\n${topSongsInfo}
+最近歌曲：\n${songList}`;
 
   try {
-    return await callAI(systemPrompt, userMessage, settings);
+    const text = await callAI(systemPrompt, userMessage, settings);
+    try {
+      return JSON.parse(text);
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+      throw new Error('JSON解析失败');
+    }
   } catch {
-    return `今天你听了 ${songs.length} 首歌，音乐陪伴着你的每一天 🎵`;
+    return {
+      summary: `这${type === 'daily' ? '天' : type === 'weekly' ? '周' : '月'}你听了 ${stats.totalSongs} 首歌，最爱的是 ${stats.topArtist} 的歌曲，曲风以 ${stats.topGenre} 为主。音乐是你生活中美好的陪伴 🎵`,
+      mood: '丰富多彩',
+      keywords: [stats.topGenre],
+      highlights: [`累计听歌 ${stats.totalSongs} 首`, `最爱歌手: ${stats.topArtist}`],
+    };
+  }
+}
+
+/**
+ * 根据听歌历史推荐歌曲
+ */
+export async function recommendSongs(
+  recentSongs: { title: string; artist: string; genre?: string; emotion?: string }[],
+  topGenres: string[],
+  topArtists: string[]
+): Promise<{
+  recommendations: { songName: string; artist: string; reason: string }[];
+  comment: string;
+}> {
+  const settings = getSettings();
+  const recentList = recentSongs.slice(0, 10).map((s) => `${s.title} - ${s.artist}`).join('、');
+
+  const systemPrompt = `你是伯乐，一个懂音乐的好朋友。根据用户最近的听歌记录，推荐3-5首他们可能会喜欢的歌曲。
+
+返回JSON格式（严格JSON）：
+{
+  "recommendations": [
+    { "songName": "歌名", "artist": "歌手", "reason": "推荐理由（30-50字，结合用户的听歌偏好）" }
+  ],
+  "comment": "一段温暖的话（50-100字），说说为什么推荐这些歌"
+}
+
+注意：
+- 推荐的歌曲要真实存在的
+- 推荐理由要个性化，结合用户的听歌历史
+- 优先推荐中文歌曲（除非用户明显偏好英文）
+- 风格上可以和用户现有偏好相似或适当拓展`;
+
+  const userMessage = `用户最近听的歌：${recentList}
+最爱曲风：${topGenres.join('、')}
+最爱歌手：${topArtists.join('、')}
+
+请推荐一些歌。`;
+
+  try {
+    const text = await callAI(systemPrompt, userMessage, settings);
+    try {
+      return JSON.parse(text);
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+      throw new Error('JSON解析失败');
+    }
+  } catch {
+    return {
+      recommendations: [
+        { songName: '晴天', artist: '周杰伦', reason: '你的歌单里有不少经典华语流行，这首歌是必听的青春回忆' },
+        { songName: '平凡之路', artist: '朴树', reason: '你的听歌风格偏温暖治愈，这首歌能给你力量' },
+      ],
+      comment: '根据你的听歌口味，我觉得这些歌会很对你的胃口。试试看吧！',
+    };
   }
 }
 

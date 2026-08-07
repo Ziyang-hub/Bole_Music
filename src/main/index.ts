@@ -16,11 +16,21 @@ import {
   updateSettings,
   getDiary,
   addDiaryEntry,
+  updateDiaryEntry,
+  deleteDiaryEntry,
   getStats,
+  updateStats,
   getAllData,
   resetAllData,
 } from './store';
-import { analyzeSong, chat, generateDailySummary } from './ai-service';
+import { analyzeSong, chat, generateReport, recommendSongs } from './ai-service';
+import {
+  startCapture,
+  stopCapture,
+  isCapturing,
+  checkCaptureCapability,
+} from './audio-capture';
+import { recognizeSong, isMaybeMusic } from './song-recognition';
 
 // ----- 窗口管理 -----
 
@@ -130,10 +140,84 @@ ipcMain.handle('store:getDiary', async () => getDiary());
 ipcMain.handle('store:addDiaryEntry', async (_e, entry) =>
   addDiaryEntry(entry)
 );
+ipcMain.handle('store:updateDiaryEntry', async (_e, date, entry) =>
+  updateDiaryEntry(date, entry)
+);
+ipcMain.handle('store:deleteDiaryEntry', async (_e, date) =>
+  deleteDiaryEntry(date)
+);
 
 // ----- 统计 -----
 
 ipcMain.handle('store:getStats', async () => getStats());
+ipcMain.handle('store:updateStats', async (_e, songName, artist, genre) =>
+  updateStats(songName, artist, genre)
+);
+
+// ----- AI 报告和推荐 -----
+
+ipcMain.handle(
+  'ai:generateReport',
+  async (_e, type, songs, stats) => {
+    try {
+      const result = await generateReport(type, songs, stats);
+      return { success: true, data: result };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+);
+
+ipcMain.handle(
+  'ai:recommendSongs',
+  async (_e, recentSongs, topGenres, topArtists) => {
+    try {
+      const result = await recommendSongs(recentSongs, topGenres, topArtists);
+      return { success: true, data: result };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+);
+
+// ----- 音频采集 -----
+
+ipcMain.handle('audio:startCapture', async () => {
+  const onChunk = async (audioPath: string) => {
+    // 检测是否为音乐
+    if (!isMaybeMusic(audioPath)) return;
+
+    // 尝试识别歌曲
+    const result = await recognizeSong(audioPath);
+    if (result && result.confidence > 50) {
+      // 通知渲染进程
+      if (mainWindow) {
+        mainWindow.webContents.send('audio:songDetected', result);
+      }
+    }
+  };
+
+  startCapture(onChunk);
+  return { success: true };
+});
+
+ipcMain.handle('audio:stopCapture', async () => {
+  stopCapture();
+  return { success: true };
+});
+
+ipcMain.handle('audio:isCapturing', async () => {
+  return isCapturing();
+});
+
+ipcMain.handle('audio:checkCapability', async () => {
+  return checkCaptureCapability();
+});
+
+ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
+  const result = await recognizeSong(audioPath);
+  return result;
+});
 
 // ----- 数据管理 -----
 

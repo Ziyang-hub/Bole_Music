@@ -137,10 +137,45 @@ export default function App() {
       if (window.electronAPI) {
         // ---- 真实 AI 模式 ----
 
-        // 判断用户是否在问关于歌曲的问题
-        const isSongQuery = text.length < 100 && !text.includes('?') && !text.includes('？');
+        // 判断用户意图
+        const isRecommendQuery =
+          text.includes('推荐') || text.includes('推荐歌曲') ||
+          text.includes('推荐一首') || text.includes('有什么好听的');
 
-        if (isSongQuery) {
+        const isSongQuery =
+          text.length < 100 && !text.includes('?') && !text.includes('？') && !isRecommendQuery;
+
+        if (isRecommendQuery) {
+          // ---- 推荐模式 ----
+          const stats = await window.electronAPI.getStats();
+          const topGenres = Object.entries(stats.genreDistribution)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 3)
+            .map(([g]) => g);
+          const topArtists = Object.entries(stats.artistCounts)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 3)
+            .map(([a]) => a);
+
+          const recentSongs = diaryEntriesFromMessages(messages);
+
+          const result = await window.electronAPI.recommendSongs(
+            recentSongs,
+            topGenres,
+            topArtists
+          );
+
+          if (result.success && result.data) {
+            const text = formatRecommendations(result.data);
+            const boleMsg: ChatMessage = {
+              id: generateId(), role: 'bole', content: text, timestamp: nowISO(),
+            };
+            setMessages((prev) => [...prev, boleMsg]);
+            await window.electronAPI.addMessage(boleMsg);
+          } else {
+            throw new Error(result.error || '推荐失败');
+          }
+        } else if (isSongQuery) {
           // 尝试歌曲分析
           const result = await window.electronAPI.analyzeSong(text);
 
@@ -361,7 +396,7 @@ export default function App() {
                 </button>
               </div>
               <div className="input-hint">
-                💡 试试输入歌名让伯乐分析 ｜ 也可以随便聊聊音乐
+                💡 输入歌名让伯乐分析 ｜ 输入「推荐歌曲」获取个性化推荐 ｜ 也可以随便聊聊音乐
               </div>
             </div>
           </>
@@ -406,15 +441,41 @@ function formatAnalysis(a: SongAnalysis): string {
 }
 
 /**
+ * 格式化推荐结果
+ */
+function formatRecommendations(data: RecommendData): string {
+  let text = '🎵 **伯乐为你推荐**\n\n';
+  for (const r of data.recommendations) {
+    text += `🎶 **${r.songName}** — ${r.artist}\n`;
+    text += `> ${r.reason}\n\n`;
+  }
+  text += `💭 ${data.comment}`;
+  return text;
+}
+
+/**
+ * 从聊天记录中提取歌曲信息
+ */
+function diaryEntriesFromMessages(messages: ChatMessage[]): { title: string; artist: string }[] {
+  const songs: { title: string; artist: string }[] = [];
+  for (const msg of messages) {
+    if (msg.role === 'user') {
+      const text = msg.content.trim();
+      if (text.length < 100 && !text.includes('?') && !text.includes('？') && !text.includes('推荐')) {
+        songs.push({ title: text, artist: '' });
+      }
+    }
+  }
+  return songs.slice(-10);
+}
+
+/**
  * 模拟回复（离线/开发模式使用）
  */
 function getMockReply(input: string): string {
-  const replies = [
-    `🎵 关于「${input}」的分析（离线模式）...
+  return `🎵 关于「${input}」的分析（离线模式）...
 
 这是一首动人的歌曲。在离线模式下我无法进行真正的 AI 分析。
 
-请在 Electron 环境中运行并配置 API Key 以获得真实的音乐分析体验。`,
-  ];
-  return replies[0];
+请在 Electron 环境中运行并配置 API Key 以获得真实的音乐分析体验。`;
 }

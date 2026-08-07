@@ -1,85 +1,164 @@
 /**
  * 伯乐模拟器 - 听歌报告页面
  *
- * 从本地存储读取真实听歌数据，展示分析报告
+ * 日报/周报/月报切换，AI 生成报告，统计数据可视化
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+
+type ReportType = 'daily' | 'weekly' | 'monthly';
 
 export default function ReportPage() {
+  const [reportType, setReportType] = useState<ReportType>('daily');
   const [stats, setStats] = useState<ListeningStats | null>(null);
+  const [diary, setDiary] = useState<DiaryEntry[]>([]);
+  const [report, setReport] = useState<ReportData | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
-  useEffect(() => {
-    async function load() {
-      if (!window.electronAPI) {
-        setLoaded(true);
-        return;
-      }
-      try {
-        const s = await window.electronAPI.getStats();
-        setStats(s);
-      } catch (err) {
-        console.error('加载统计数据失败:', err);
-      }
-      setLoaded(true);
-    }
-    load();
+  // 加载数据
+  const loadData = useCallback(async () => {
+    if (!window.electronAPI) { setLoaded(true); return; }
+    const [s, d] = await Promise.all([
+      window.electronAPI.getStats(),
+      window.electronAPI.getDiary(),
+    ]);
+    setStats(s);
+    setDiary(d);
+    setLoaded(true);
   }, []);
 
-  // 加载中
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // 生成报告
+  async function handleGenerate() {
+    if (!window.electronAPI || !stats) return;
+    setGenerating(true);
+    try {
+      // 收集歌曲数据
+      const songs = diary.flatMap((d) =>
+        d.songs.map((s) => ({
+          title: s.title,
+          artist: s.artist,
+          emotion: d.mood,
+        }))
+      );
+
+      // 筛选对应时间范围
+      const now = new Date();
+      let filteredSongs = songs;
+      if (reportType === 'daily') {
+        const today = now.toISOString().split('T')[0];
+        filteredSongs = diary
+          .filter((d) => d.date === today)
+          .flatMap((d) =>
+            d.songs.map((s) => ({ title: s.title, artist: s.artist, emotion: d.mood }))
+          );
+      }
+
+      const result = await window.electronAPI.generateReport(
+        reportType,
+        filteredSongs,
+        {
+          totalSongs: stats.totalSongs,
+          topGenre: getTopKey(stats.genreDistribution) || '未知',
+          topArtist: getTopKey(stats.artistCounts) || '未知',
+          genreDistribution: stats.genreDistribution,
+          topSongs: stats.topSongs,
+        }
+      );
+      if (result.success && result.data) {
+        setReport(result.data);
+      }
+    } catch (err) {
+      console.error('生成报告失败:', err);
+    }
+    setGenerating(false);
+  }
+
   if (!loaded) {
     return <div className="page report-page"><p className="page-subtitle">加载中...</p></div>;
   }
 
-  // 没有数据
   if (!stats || stats.totalSongs === 0) {
     return (
       <div className="page report-page">
         <h2 className="page-title">📊 听歌报告</h2>
-        <p className="page-subtitle">基于你的听歌记录，AI 伯乐为你生成的分析报告</p>
-        <div className="section-card" style={{ textAlign: 'center', padding: 48 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎵</div>
+        <div className="report-tabs">
+          {(['daily', 'weekly', 'monthly'] as ReportType[]).map((t) => (
+            <button key={t} className={`report-tab ${reportType === t ? 'active' : ''}`}
+              onClick={() => setReportType(t)}>
+              {{ daily: '📅 日报', weekly: '📈 周报', monthly: '📊 月报' }[t]}
+            </button>
+          ))}
+        </div>
+        <div className="section-card empty-state">
+          <div className="empty-icon">🎵</div>
           <div className="section-header">还没有听歌数据</div>
-          <p style={{ color: 'var(--color-text-muted)', marginTop: 8 }}>
-            去「知音对话」页面输入歌名，让伯乐帮你分析歌曲吧！
-            <br />
-            分析越多，报告越丰富。
-          </p>
+          <p>去「知音对话」分析歌曲后，这里会自动生成报告。</p>
         </div>
       </div>
     );
   }
 
-  // 计算统计
-  const totalTime = `${Math.round(stats.totalSongs * 3.5 / 60)}小时${Math.round(stats.totalSongs * 3.5) % 60}分钟`;
   const topGenre = getTopKey(stats.genreDistribution) || '暂无';
   const topArtist = getTopKey(stats.artistCounts) || '暂无';
-  const topSong = stats.topSongs[0] ? `${stats.topSongs[0].title}` : '暂无';
-
-  // 模拟每日数据（后续替换为真实数据）
-  const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-  const weeklyData = weekDays.map((day, i) => ({
-    day,
-    songs: Object.values(stats.dailyCounts)[i] || 0,
-    mood: ['轻松', '温暖', '怀旧', '快乐', '平静', '感伤', '放松'][i],
-  }));
-  const maxSongs = Math.max(1, ...weeklyData.map((d) => d.songs));
-
-  // 曲风分布
+  const totalTime = `${Math.round(stats.totalSongs * 3.5 / 60)}h${Math.round(stats.totalSongs * 3.5) % 60}m`;
   const totalGenres = Object.values(stats.genreDistribution).reduce((a, b) => a + b, 0) || 1;
+
   const genreList = Object.entries(stats.genreDistribution)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
-    .map(([genre, count]) => ({
-      genre,
-      percent: Math.round((count / totalGenres) * 100),
-    }));
+    .map(([genre, count]) => ({ genre, percent: Math.round((count / totalGenres) * 100) }));
 
   return (
     <div className="page report-page">
       <h2 className="page-title">📊 听歌报告</h2>
-      <p className="page-subtitle">基于你的听歌记录，AI 伯乐为你生成的分析报告</p>
+
+      {/* 报告类型切换 */}
+      <div className="report-tabs">
+        {(['daily', 'weekly', 'monthly'] as ReportType[]).map((t) => (
+          <button
+            key={t}
+            className={`report-tab ${reportType === t ? 'active' : ''}`}
+            onClick={() => { setReportType(t); setReport(null); }}
+          >
+            {{ daily: '📅 日报', weekly: '📈 周报', monthly: '📊 月报' }[t]}
+          </button>
+        ))}
+        <button
+          className="report-generate-btn"
+          onClick={handleGenerate}
+          disabled={generating}
+        >
+          {generating ? '⏳ 生成中...' : '🤖 AI 生成报告'}
+        </button>
+      </div>
+
+      {/* AI 生成的报告 */}
+      {report && (
+        <div className="section-card ai-report-card">
+          <div className="ai-report-header">
+            <span>🐴 伯乐{reportType === 'daily' ? '今日' : reportType === 'weekly' ? '本周' : '本月'}报告</span>
+            <span className="ai-report-mood">情绪：{report.mood}</span>
+          </div>
+          <p className="ai-report-summary">{report.summary}</p>
+          {report.keywords.length > 0 && (
+            <div className="ai-report-keywords">
+              {report.keywords.map((kw, i) => (
+                <span key={i} className="keyword-tag">{kw}</span>
+              ))}
+            </div>
+          )}
+          {report.highlights.length > 0 && (
+            <ul className="ai-report-highlights">
+              {report.highlights.map((h, i) => (
+                <li key={i}>✨ {h}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* 统计卡片 */}
       <div className="stat-cards">
@@ -96,28 +175,14 @@ export default function ReportPage() {
         <div className="stat-card">
           <div className="stat-icon">🎸</div>
           <div className="stat-value">{topGenre}</div>
-          <div className="stat-label">最爱的曲风</div>
+          <div className="stat-label">最爱曲风</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">👨‍🎤</div>
           <div className="stat-value">{topArtist}</div>
-          <div className="stat-label">最爱的歌手</div>
+          <div className="stat-label">最爱歌手</div>
         </div>
       </div>
-
-      {/* 情绪总结 */}
-      {stats.totalSongs > 0 && (
-        <div className="section-card mood-card">
-          <div className="section-header">🌈 情绪总结</div>
-          <p className="mood-summary">
-            {stats.totalSongs < 5
-              ? '你刚开始使用伯乐，多分析几首歌后，我会为你总结音乐心情变化。'
-              : stats.totalSongs < 20
-              ? `你已经听了 ${stats.totalSongs} 首歌，音乐口味正在逐渐清晰。继续听下去，我会发现更多关于你的音乐秘密。`
-              : `你已经分析了 ${stats.totalSongs} 首歌！你的音乐世界丰富多彩，从曲风来看，你偏爱 ${topGenre}，这反映了你内心${Math.random() > 0.5 ? '丰富而细腻' : '温暖而深邃'}的一面。`}
-          </p>
-        </div>
-      )}
 
       {/* 曲风分布 */}
       {genreList.length > 0 && (
@@ -127,8 +192,7 @@ export default function ReportPage() {
             {genreList.map((item) => (
               <div key={item.genre} className="genre-item">
                 <div className="genre-label">
-                  <span>{item.genre}</span>
-                  <span>{item.percent}%</span>
+                  <span>{item.genre}</span><span>{item.percent}%</span>
                 </div>
                 <div className="genre-bar-bg">
                   <div className="genre-bar-fill" style={{ width: `${item.percent}%` }} />
@@ -142,35 +206,40 @@ export default function ReportPage() {
       {/* 热门歌曲 */}
       {stats.topSongs.length > 0 && (
         <div className="section-card">
-          <div className="section-header">🏆 热门歌曲 Top 5</div>
+          <div className="section-header">🏆 热门歌曲 Top 10</div>
           <div className="top-songs">
-            {stats.topSongs.slice(0, 5).map((song, i) => (
+            {stats.topSongs.slice(0, 10).map((song, i) => (
               <div key={i} className="top-song-item">
                 <span className="top-song-rank">{i + 1}</span>
-                <span className="top-song-name">
-                  {song.title} - {song.artist}
-                </span>
-                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  {song.count}次
-                </span>
+                <span className="top-song-name">{song.title} - {song.artist}</span>
+                <span className="top-song-count">{song.count}次</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* 本周趋势（简易版） */}
-      {Object.keys(stats.dailyCounts).length > 0 && (
+      {/* 歌手偏好 */}
+      {Object.keys(stats.artistCounts).length > 0 && (
         <div className="section-card">
-          <div className="section-header">📈 听歌趋势</div>
-          <div className="chart-bar-container">
-            {weeklyData.map((item) => (
-              <div key={item.day} className="chart-bar-group">
-                <div className="chart-bar-value">{item.songs}首</div>
-                <div className="chart-bar" style={{ height: `${(item.songs / maxSongs) * 120}px` }} />
-                <div className="chart-bar-label">{item.day}</div>
-              </div>
-            ))}
+          <div className="section-header">👨‍🎤 歌手偏好</div>
+          <div className="genre-list">
+            {Object.entries(stats.artistCounts)
+              .sort(([, a], [, b]) => b - a)
+              .slice(0, 5)
+              .map(([artist, count]) => (
+                <div key={artist} className="genre-item">
+                  <div className="genre-label">
+                    <span>{artist}</span><span>{count}首</span>
+                  </div>
+                  <div className="genre-bar-bg">
+                    <div
+                      className="genre-bar-fill"
+                      style={{ width: `${(count / Math.max(...Object.values(stats.artistCounts))) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
       )}
@@ -178,15 +247,11 @@ export default function ReportPage() {
   );
 }
 
-/** 获取 Record 中值最大的 key */
 function getTopKey(record: Record<string, number>): string | null {
   let topKey: string | null = null;
   let topVal = 0;
   for (const [key, val] of Object.entries(record)) {
-    if (val > topVal) {
-      topVal = val;
-      topKey = key;
-    }
+    if (val > topVal) { topVal = val; topKey = key; }
   }
   return topKey;
 }
