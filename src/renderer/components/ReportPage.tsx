@@ -114,6 +114,14 @@ export default function ReportPage() {
   return (
     <div className="page report-page">
       <h2 className="page-title">📊 听歌报告</h2>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+        <button className="report-export-btn" onClick={() => exportReport(stats, diary, reportType)}>
+          📥 导出文本
+        </button>
+        <button className="report-export-btn" onClick={() => shareReport(stats)}>
+          📤 复制分享
+        </button>
+      </div>
 
       {/* 报告类型切换 */}
       <div className="report-tabs">
@@ -254,4 +262,62 @@ function getTopKey(record: Record<string, number>): string | null {
     if (val > topVal) { topVal = val; topKey = key; }
   }
   return topKey;
+}
+
+/** 导出听歌报告为文本 */
+function exportReport(stats: ListeningStats, diary: DiaryEntry[], type: string) {
+  const topGenre = getTopKey(stats.genreDistribution) || '暂无';
+  const topArtist = getTopKey(stats.artistCounts) || '暂无';
+  const typeLabel = type === 'daily' ? '日报' : type === 'weekly' ? '周报' : '月报';
+
+  let text = `🐴 伯乐模拟器 - 听歌${typeLabel}\n`;
+  text += `${'='.repeat(40)}\n\n`;
+  text += `📊 数据概览\n`;
+  text += `  累计听歌：${stats.totalSongs} 首\n`;
+  text += `  最爱曲风：${topGenre}\n`;
+  text += `  最爱歌手：${topArtist}\n\n`;
+
+  if (stats.topSongs.length > 0) {
+    text += `🏆 热门歌曲 Top 5\n`;
+    stats.topSongs.slice(0, 5).forEach((s, i) => {
+      text += `  ${i + 1}. ${s.title} - ${s.artist} (${s.count}次)\n`;
+    });
+    text += '\n';
+  }
+
+  if (Object.keys(stats.genreDistribution).length > 0) {
+    text += `🎼 曲风分布\n`;
+    Object.entries(stats.genreDistribution)
+      .sort(([, a], [, b]) => b - a)
+      .forEach(([genre, count]) => {
+        text += `  ${genre}: ${count}首\n`;
+      });
+    text += '\n';
+  }
+
+  text += `---\n由伯乐模拟器生成 | https://github.com/scorching12/Bole_Music\n`;
+
+  // 创建 Blob 下载
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `伯乐听歌${typeLabel}_${new Date().toISOString().split('T')[0]}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** 复制分享文本 */
+async function shareReport(stats: ListeningStats) {
+  const topGenre = getTopKey(stats.genreDistribution) || '暂无';
+  const topArtist = getTopKey(stats.artistCounts) || '暂无';
+
+  const text = `🐴 伯乐模拟器 听歌报告\n\n📊 累计听歌 ${stats.totalSongs} 首\n🎸 最爱曲风：${topGenre}\n👨‍🎤 最爱歌手：${topArtist}\n\n—— 来自「伯乐模拟器」你的AI音乐知音`;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('已复制到剪贴板！可以粘贴分享给朋友 🎉');
+  } catch {
+    alert('复制失败，请手动复制');
+  }
 }

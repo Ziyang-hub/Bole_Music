@@ -220,6 +220,19 @@ export default function SettingsPage() {
 
         <div className="setting-row">
           <div className="setting-info">
+            <label className="setting-label">界面主题</label>
+            <span className="setting-desc">切换深色/浅色主题</span>
+          </div>
+          <button
+            className={`toggle ${settings.theme === 'dark' ? 'on' : 'off'}`}
+            onClick={() => updateField('theme', settings.theme === 'dark' ? 'light' : 'dark')}
+          >
+            {settings.theme === 'dark' ? '🌙 深色' : '☀️ 浅色'}
+          </button>
+        </div>
+
+        <div className="setting-row">
+          <div className="setting-info">
             <label className="setting-label">分析完成通知</label>
             <span className="setting-desc">歌曲分析完成后弹出系统通知</span>
           </div>

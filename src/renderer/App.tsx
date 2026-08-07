@@ -55,6 +55,9 @@ export default function App() {
   // 搜索面板
   const [showSearch, setShowSearch] = useState(false);
 
+  // 主题
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
   // 应用信息
   const [appInfo, setAppInfo] = useState<any>(null);
 
@@ -65,6 +68,15 @@ export default function App() {
       if (!window.electronAPI) return;
 
       try {
+        // 加载主题
+        const t = await window.electronAPI.getTheme();
+        setTheme(t as 'dark' | 'light');
+
+        // 监听托盘导航
+        window.electronAPI.onNavigate((view: string) => {
+          setCurrentView(view as View);
+        });
+
         // 加载应用信息
         const info = await window.electronAPI.getAppInfo();
         setAppInfo(info);
@@ -264,6 +276,14 @@ export default function App() {
             const analysis = result.data;
             const boleContent = formatAnalysis(analysis);
 
+            // 发送系统通知
+            if (window.electronAPI) {
+              window.electronAPI.showNotification(
+                '伯乐分析完成 🎵',
+                `${analysis.songName} - ${analysis.artist}`
+              ).catch(() => {});
+            }
+
             const boleMsg: ChatMessage = {
               id: generateId(),
               role: 'bole',
@@ -418,7 +438,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app" data-theme={theme}>
       {/* 侧边栏 */}
       <aside className="sidebar">
         <div className="sidebar-header">

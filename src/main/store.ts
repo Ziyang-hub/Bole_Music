@@ -54,6 +54,8 @@ export interface UserSettings {
   dailyReport: boolean;
   /** 每周报告 */
   weeklyReport: boolean;
+  /** 主题 */
+  theme: 'dark' | 'light';
 }
 
 export interface SongAnalysis {
@@ -99,6 +101,7 @@ const defaultSettings: UserSettings = {
   notifyOnAnalysis: true,
   dailyReport: true,
   weeklyReport: true,
+  theme: 'dark',
 };
 
 const defaultStats: ListeningStats = {

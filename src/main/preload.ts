@@ -10,6 +10,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ----- 应用信息 -----
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
 
+  // ----- 系统功能 -----
+  showNotification: (title: string, body: string) =>
+    ipcRenderer.invoke('app:showNotification', title, body),
+  getTheme: () => ipcRenderer.invoke('app:getTheme'),
+  onNavigate: (callback: (view: string) => void) => {
+    ipcRenderer.on('navigate', (_e, view) => callback(view));
+  },
+
   // ----- 消息存储 -----
   getMessages: () => ipcRenderer.invoke('store:getMessages'),
   addMessage: (msg: any) => ipcRenderer.invoke('store:addMessage', msg),

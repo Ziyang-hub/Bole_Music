@@ -20,6 +20,7 @@ interface UserSettings {
   notifyOnAnalysis: boolean;
   dailyReport: boolean;
   weeklyReport: boolean;
+  theme: 'dark' | 'light';
 }
 
 interface SongAnalysis {
@@ -70,6 +71,11 @@ interface ElectronAPI {
     name: string; version: string; platform: string;
     electronVersion: string; nodeVersion: string;
   }>;
+
+  // 系统
+  showNotification: (title: string, body: string) => Promise<void>;
+  getTheme: () => Promise<string>;
+  onNavigate: (callback: (view: string) => void) => void;
 
   // 消息
   getMessages: () => Promise<ChatMessage[]>;

@@ -4,8 +4,9 @@
  * 负责：窗口管理、IPC 通信、调用存储服务和 AI 服务
  */
 
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 
 // 导入服务模块
 import {
@@ -51,6 +52,8 @@ import { getCachedAnalysis, cacheAnalysis } from './store';
 // ----- 窗口管理 -----
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -74,29 +77,118 @@ function createWindow(): void {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-    // 生产模式下启用自动更新
     initUpdater(mainWindow);
   }
+
+  // 关闭窗口 → 隐藏到托盘（而不是退出）
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
+// ----- 系统托盘 -----
+
+function createTray(): void {
+  // 使用 PNG 图标
+  const iconPath = path.join(__dirname, '../../resources/icon-256.png');
+  let trayIcon: Electron.NativeImage;
+
+  if (fs.existsSync(iconPath)) {
+    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  } else {
+    // 备用：创建简单的 16x16 图标
+    trayIcon = nativeImage.createEmpty();
+  }
+
+  tray = new Tray(trayIcon);
+  tray.setToolTip('伯乐模拟器');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示窗口',
+      click: () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+      },
+    },
+    {
+      label: '知音对话',
+      click: () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+        mainWindow?.webContents.send('navigate', 'chat');
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // 点击托盘图标显示窗口
+  tray.on('click', () => {
+    mainWindow?.show();
+    mainWindow?.focus();
+  });
+}
+
+// ----- 系统通知 -----
+
+function showNotification(title: string, body: string): void {
+  if (!Notification.isSupported()) return;
+
+  const notification = new Notification({
+    title,
+    body,
+    icon: path.join(__dirname, '../../resources/icon-256.png'),
+  });
+
+  notification.on('click', () => {
+    mainWindow?.show();
+    mainWindow?.focus();
+  });
+
+  notification.show();
+}
+
+// ----- 应用生命周期 -----
+
 app.whenReady().then(() => {
   createWindow();
+  createTray();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+    } else {
+      mainWindow?.show();
     }
   });
-});
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // 所有窗口关闭时隐藏到托盘（不退出）
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      // Windows/Linux: 不退出，留在托盘
+    }
+  });
+
+  // 真正退出前清理
+  app.on('before-quit', () => {
+    isQuitting = true;
+  });
 });
 
 // ============================================================
@@ -112,6 +204,16 @@ ipcMain.handle('get-app-info', async () => ({
   electronVersion: process.versions.electron,
   nodeVersion: process.versions.node,
 }));
+
+// ----- 系统功能 -----
+
+ipcMain.handle('app:showNotification', async (_e, title: string, body: string) => {
+  showNotification(title, body);
+});
+
+ipcMain.handle('app:getTheme', async () => {
+  return getSettings().theme || 'dark';
+});
 
 // ----- 消息存储 -----
 
