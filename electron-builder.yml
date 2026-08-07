@@ -1,0 +1,60 @@
+# ============================================================
+# 伯乐模拟器 - Electron Builder 打包配置
+#
+# electron-builder 负责将应用打包成可安装的桌面应用
+# Windows: .exe 安装程序
+# macOS: .dmg 安装包
+# ============================================================
+
+# 应用标识符（唯一标识你的应用）
+appId: com.bole.simulator
+
+# 应用名称
+productName: 伯乐模拟器
+
+# 要打包的目录
+directories:
+  output: release        # 安装包输出目录
+  buildResources: resources  # 图标等资源目录
+
+# 要打包的文件
+files:
+  - dist/**/*
+  - package.json
+
+# ----- Windows 配置 -----
+win:
+  target:
+    - target: nsis        # NSIS 安装程序（.exe）
+      arch:
+        - x64             # 64位
+  icon: resources/icon.png
+  artifactName: ${productName}-${version}-Setup.${ext}
+
+# Windows NSIS 安装程序设置
+nsis:
+  oneClick: false         # 不使用一键安装
+  perMachine: false       # 按用户安装（不需要管理员权限）
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: 伯乐模拟器
+
+# ----- macOS 配置 -----
+mac:
+  target:
+    - target: dmg         # DMG 安装包
+      arch:
+        - x64             # Intel Mac
+        - arm64           # Apple Silicon (M1/M2/M3)
+  icon: resources/icon.icns
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  category: public.app-category.music
+
+# ----- Linux 配置（可选）-----
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: resources/icon.png
+  category: Audio
