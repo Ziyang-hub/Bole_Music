@@ -1,35 +1,18 @@
 /**
  * 伯乐模拟器 - 主应用组件
  *
- * 包含应用的总体布局、侧边栏导航和页面切换
+ * 知音对话 + 页面切换 + 真实 AI + 数据持久化
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReportPage from './components/ReportPage';
 import DiaryPage from './components/DiaryPage';
 import SettingsPage from './components/SettingsPage';
 
-// ----- 类型定义 -----
+// ----- 类型 -----
 
-interface Message {
-  id: string;
-  role: 'user' | 'bole';
-  content: string;
-  timestamp: Date;
-}
-
-interface AppInfo {
-  name: string;
-  version: string;
-  platform: string;
-  electronVersion: string;
-  nodeVersion: string;
-}
-
-// 当前显示的页面
 type View = 'chat' | 'report' | 'diary' | 'settings';
 
-// 导航配置
 const NAV_ITEMS: { view: View; icon: string; label: string }[] = [
   { view: 'chat', icon: '💬', label: '知音对话' },
   { view: 'report', icon: '📊', label: '听歌报告' },
@@ -37,7 +20,6 @@ const NAV_ITEMS: { view: View; icon: string; label: string }[] = [
   { view: 'settings', icon: '⚙️', label: '设置' },
 ];
 
-// 每个页面的顶栏标题
 const VIEW_TITLES: Record<View, string> = {
   chat: '知音对话',
   report: '听歌报告',
@@ -45,88 +27,216 @@ const VIEW_TITLES: Record<View, string> = {
   settings: '设置',
 };
 
-// ----- 工具函数 -----
+// ----- 工具 -----
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-// ----- 主组件 -----
+function nowISO(): string {
+  return new Date().toISOString();
+}
+
+// ============================================================
+// 主组件
+// ============================================================
 
 export default function App() {
-  // 当前显示的页面
   const [currentView, setCurrentView] = useState<View>('chat');
 
-  // 对话相关状态
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'bole',
-      content: '你好，我是伯乐 🎵\n\n我是你的AI音乐知音。当你听到一首好歌，输入歌名告诉我，我来帮你分析和品味。\n\n比如你可以试试输入：「周杰伦 晴天」 或者 「Coldplay Yellow」',
-      timestamp: new Date(),
-    },
-  ]);
+  // 对话
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 应用信息
-  const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+  const [appInfo, setAppInfo] = useState<any>(null);
 
-  // ----- 初始化 -----
+  // ----- 初始化：加载数据 -----
 
   useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.getAppInfo().then(setAppInfo);
+    async function init() {
+      if (!window.electronAPI) return;
+
+      try {
+        // 加载应用信息
+        const info = await window.electronAPI.getAppInfo();
+        setAppInfo(info);
+
+        // 加载聊天记录
+        const saved = await window.electronAPI.getMessages();
+        if (saved && saved.length > 0) {
+          setMessages(saved);
+        } else {
+          // 首次使用，显示欢迎消息
+          const welcome: ChatMessage = {
+            id: 'welcome',
+            role: 'bole',
+            content:
+              '你好，我是伯乐 🎵\n\n我是你的AI音乐知音。当你听到一首好歌，输入歌名告诉我，我来帮你分析和品味。\n\n比如你可以试试输入：「周杰伦 晴天」 或者 「Coldplay Yellow」\n\n💡 提示：在使用之前，请先去「设置」页面配置 AI 服务的 API Key。',
+            timestamp: nowISO(),
+          };
+          setMessages([welcome]);
+          await window.electronAPI.addMessage(welcome);
+        }
+      } catch (err) {
+        // Electron API 不可用时（浏览器开发模式）使用模拟数据
+        console.warn('Electron API 不可用，使用离线模式:', err);
+        setMessages([
+          {
+            id: 'welcome',
+            role: 'bole',
+            content: '你好，我是伯乐 🎵\n\n离线模式：请在 Electron 环境中运行以连接 AI 服务。',
+            timestamp: nowISO(),
+          },
+        ]);
+      }
+
+      setMessagesLoaded(true);
     }
+
+    init();
   }, []);
 
-  // 新消息时自动滚动
+  // 自动滚动
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ----- 消息处理 -----
+  // ----- 发送消息 -----
 
-  async function handleSend() {
+  const handleSend = useCallback(async () => {
     const text = inputValue.trim();
     if (!text || isLoading) return;
 
     setInputValue('');
 
-    const userMsg: Message = {
+    // 添加用户消息
+    const userMsg: ChatMessage = {
       id: generateId(),
       role: 'user',
       content: text,
-      timestamp: new Date(),
+      timestamp: nowISO(),
     };
     setMessages((prev) => [...prev, userMsg]);
+
+    // 保存到存储
+    if (window.electronAPI) {
+      try {
+        await window.electronAPI.addMessage(userMsg);
+      } catch (err) {
+        console.error('保存消息失败:', err);
+      }
+    }
 
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (window.electronAPI) {
+        // ---- 真实 AI 模式 ----
 
-      const boleMsg: Message = {
+        // 判断用户是否在问关于歌曲的问题
+        const isSongQuery = text.length < 100 && !text.includes('?') && !text.includes('？');
+
+        if (isSongQuery) {
+          // 尝试歌曲分析
+          const result = await window.electronAPI.analyzeSong(text);
+
+          if (result.success && result.data) {
+            const analysis = result.data;
+            const boleContent = formatAnalysis(analysis);
+
+            const boleMsg: ChatMessage = {
+              id: generateId(),
+              role: 'bole',
+              content: boleContent,
+              timestamp: nowISO(),
+            };
+            setMessages((prev) => [...prev, boleMsg]);
+            await window.electronAPI.addMessage(boleMsg);
+
+            // 更新听歌日记
+            const today = new Date().toISOString().split('T')[0];
+            await window.electronAPI.addDiaryEntry({
+              date: today,
+              songs: [
+                {
+                  title: analysis.songName,
+                  artist: analysis.artist,
+                  time: new Date().toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  }),
+                  note: analysis.personalThought?.slice(0, 100) || '',
+                },
+              ],
+              mood: analysis.emotion || '未知',
+              summary: '',
+            });
+          } else {
+            // AI 分析失败，显示错误
+            const errorMsg: ChatMessage = {
+              id: generateId(),
+              role: 'bole',
+              content: `😅 ${result.error || '分析过程中出了点问题'}\n\n请确认：\n1. 去「设置」页面填入了正确的 API Key\n2. 网络连接正常\n3. API 账户余额充足`,
+              timestamp: nowISO(),
+            };
+            setMessages((prev) => [...prev, errorMsg]);
+            await window.electronAPI.addMessage(errorMsg);
+          }
+        } else {
+          // 自由对话模式
+          const history = messages.slice(-10).map((m) => ({
+            role: m.role === 'bole' ? 'assistant' : 'user',
+            content: m.content,
+          }));
+          history.push({ role: 'user', content: text });
+
+          const result = await window.electronAPI.chat(history);
+
+          if (result.success && result.data) {
+            const boleMsg: ChatMessage = {
+              id: generateId(),
+              role: 'bole',
+              content: result.data,
+              timestamp: nowISO(),
+            };
+            setMessages((prev) => [...prev, boleMsg]);
+            await window.electronAPI.addMessage(boleMsg);
+          } else {
+            throw new Error(result.error || '对话失败');
+          }
+        }
+      } else {
+        // ---- 离线/开发模式：模拟回复 ----
+        await new Promise((r) => setTimeout(r, 1500));
+        const boleMsg: ChatMessage = {
+          id: generateId(),
+          role: 'bole',
+          content: getMockReply(text),
+          timestamp: nowISO(),
+        };
+        setMessages((prev) => [...prev, boleMsg]);
+      }
+    } catch (err: any) {
+      const errorMsg: ChatMessage = {
         id: generateId(),
         role: 'bole',
-        content: getMockReply(text),
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, boleMsg]);
-    } catch (_error) {
-      const errorMsg: Message = {
-        id: generateId(),
-        role: 'bole',
-        content: '抱歉，分析过程中出现了一些问题。请稍后再试 🙏',
-        timestamp: new Date(),
+        content: `抱歉，出了点问题 🙏\n\n${err.message || '未知错误'}\n\n请检查网络连接和 API 配置后重试。`,
+        timestamp: nowISO(),
       };
       setMessages((prev) => [...prev, errorMsg]);
+      if (window.electronAPI) {
+        await window.electronAPI.addMessage(errorMsg).catch(() => {});
+      }
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [inputValue, isLoading, messages]);
 
+  // 键盘事件
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -134,54 +244,64 @@ export default function App() {
     }
   }
 
-  // ----- 渲染：侧边栏（所有页面共用）-----
+  // ----- 渲染 -----
 
-  const sidebar = (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <div className="logo">🐴</div>
-        <h1>伯乐模拟器</h1>
-      </div>
-
-      <nav className="sidebar-nav">
-        {NAV_ITEMS.map((item) => (
-          <button
-            key={item.view}
-            className={`nav-item ${currentView === item.view ? 'active' : ''}`}
-            onClick={() => setCurrentView(item.view)}
-          >
-            <span className="nav-icon">{item.icon}</span>
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </nav>
-
-      {appInfo && (
-        <div className="sidebar-footer">
-          <span>v{appInfo.version}</span>
+  if (!messagesLoaded) {
+    return (
+      <div className="app">
+        <div className="loading-screen">
+          <div className="loading-logo">🐴</div>
+          <div className="loading-text">伯乐模拟器加载中...</div>
         </div>
-      )}
-    </aside>
-  );
+      </div>
+    );
+  }
 
-  // ----- 渲染：主内容区（根据当前页面切换）-----
+  return (
+    <div className="app">
+      {/* 侧边栏 */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="logo">🐴</div>
+          <h1>伯乐模拟器</h1>
+        </div>
 
-  function renderMainContent() {
-    switch (currentView) {
-      case 'report':
-        return <ReportPage />;
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.view}
+              className={`nav-item ${currentView === item.view ? 'active' : ''}`}
+              onClick={() => setCurrentView(item.view)}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
 
-      case 'diary':
-        return <DiaryPage />;
+        {appInfo && (
+          <div className="sidebar-footer">
+            <span>v{appInfo.version}</span>
+          </div>
+        )}
+      </aside>
 
-      case 'settings':
-        return <SettingsPage />;
+      {/* 主内容区 */}
+      <main className="main">
+        <header className="topbar">
+          <div className="topbar-title">{VIEW_TITLES[currentView]}</div>
+          <div className="topbar-status">
+            <span className="status-dot"></span>
+            <span>在线</span>
+          </div>
+        </header>
 
-      case 'chat':
-      default:
-        return (
+        {currentView === 'report' && <ReportPage />}
+        {currentView === 'diary' && <DiaryPage />}
+        {currentView === 'settings' && <SettingsPage />}
+
+        {currentView === 'chat' && (
           <>
-            {/* 消息区域 */}
             <div className="messages-container">
               {messages.map((msg) => (
                 <div key={msg.id} className={`message ${msg.role}`}>
@@ -198,7 +318,7 @@ export default function App() {
                       ))}
                     </div>
                     <div className="message-time">
-                      {msg.timestamp.toLocaleTimeString('zh-CN', {
+                      {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
@@ -221,7 +341,6 @@ export default function App() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* 底部输入区 */}
             <div className="input-area">
               <div className="input-wrapper">
                 <textarea
@@ -242,65 +361,60 @@ export default function App() {
                 </button>
               </div>
               <div className="input-hint">
-                💡 试试输入：周杰伦 晴天 ｜ Coldplay Yellow ｜ 推荐一首开心的歌
+                💡 试试输入歌名让伯乐分析 ｜ 也可以随便聊聊音乐
               </div>
             </div>
           </>
-        );
-    }
-  }
-
-  // ----- 完整页面 -----
-
-  return (
-    <div className="app">
-      {sidebar}
-
-      <main className="main">
-        {/* 顶部状态栏 */}
-        <header className="topbar">
-          <div className="topbar-title">{VIEW_TITLES[currentView]}</div>
-          <div className="topbar-status">
-            <span className="status-dot"></span>
-            <span>在线</span>
-          </div>
-        </header>
-
-        {renderMainContent()}
+        )}
       </main>
     </div>
   );
 }
 
+// ============================================================
+// 辅助函数
+// ============================================================
+
 /**
- * 模拟 AI 回复（后续替换为真实 AI API 调用）
+ * 格式化 AI 分析结果为好看的聊天文本
+ */
+function formatAnalysis(a: SongAnalysis): string {
+  let text = '';
+  text += `🎵 **${a.songName}**`;
+  if (a.artist && a.artist !== '未知') {
+    text += ` — ${a.artist}`;
+  }
+  text += '\n\n';
+
+  if (a.lyrics) {
+    text += `📝 **歌词主题**\n${a.lyrics}\n\n`;
+  }
+  if (a.emotion) {
+    text += `💗 **情感色彩**\n${a.emotion}\n\n`;
+  }
+  if (a.genre) {
+    text += `🎼 **音乐风格**\n${a.genre}\n\n`;
+  }
+  if (a.story && a.story !== '暂无相关信息') {
+    text += `📖 **创作背景**\n${a.story}\n\n`;
+  }
+  if (a.personalThought) {
+    text += `💭 **伯乐感悟**\n${a.personalThought}`;
+  }
+
+  return text;
+}
+
+/**
+ * 模拟回复（离线/开发模式使用）
  */
 function getMockReply(input: string): string {
   const replies = [
-    `🎵 让我来分析一下「${input}」...
+    `🎵 关于「${input}」的分析（离线模式）...
 
-这是一首非常动人的歌曲。从旋律上看，它的编曲层次丰富，前奏的钢琴引子营造了温柔的氛围，随后加入的弦乐让情感层层递进。
+这是一首动人的歌曲。在离线模式下我无法进行真正的 AI 分析。
 
-歌词方面，它讲述了一个关于时光和回忆的故事。歌者用细腻的笔触描绘了那些微小而珍贵的瞬间，让人不禁想起自己的经历。
-
-你觉得这首歌最打动你的是哪个部分？是旋律、歌词，还是它唤起的某个回忆？`,
-
-    `听完「${input}」，我有一些感悟想和你分享...
-
-这首歌的节奏很有特点，BPM大约在90左右，属于中速歌曲。这种节奏既不会太急促，也不会太拖沓，恰好适合表达一种深沉的思考状态。
-
-我注意到歌曲中反复出现的意象——「路」和「远方」，这似乎暗示着歌者内心的某种追寻。也许是对自由的向往，也许是对过去的释怀。
-
-你有这样的感受吗？`,
-
-    `关于「${input}」，让我换个角度来聊聊...
-
-这首歌的制作水准很不错。人声的处理非常自然，没有过多的修音痕迹，保留了歌手声音中的质感和情感。混音也很干净，每个乐器的位置都很清晰。
-
-从风格上来说，它融合了流行和民谣的元素，这类风格近几年的受众越来越广。如果你喜欢这首歌，可能也会喜欢一些独立民谣歌手的作品。
-
-想让我推荐一些类似风格的歌曲吗？`,
+请在 Electron 环境中运行并配置 API Key 以获得真实的音乐分析体验。`,
   ];
-
-  return replies[Math.floor(Math.random() * replies.length)];
+  return replies[0];
 }

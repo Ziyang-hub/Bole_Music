@@ -1,45 +1,43 @@
 /**
  * 伯乐模拟器 - Preload 脚本
  *
- * Preload 脚本是主进程和渲染进程之间的"桥梁"。
- * 它在渲染进程加载前执行，可以安全地暴露
- * 有限的 Node.js/Electron API 给前端使用。
- *
- * contextBridge.exposeInMainWorld() 将 API 暴露到
- * 前端的 window.electronAPI 对象上。
+ * 安全地将主进程 API 暴露给渲染进程（前端）
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
 
-/**
- * 暴露给渲染进程（前端）的安全 API
- *
- * 前端可以通过 window.electronAPI 访问这些方法
- * 例如：window.electronAPI.greet('小明')
- */
 contextBridge.exposeInMainWorld('electronAPI', {
-  /**
-   * 发送问候并获取回复
-   */
-  greet: (name: string): Promise<string> => {
-    return ipcRenderer.invoke('greet', name);
-  },
-
-  /**
-   * 获取应用信息
-   */
-  getAppInfo: (): Promise<{
-    name: string;
-    version: string;
-    platform: string;
-    electronVersion: string;
-    nodeVersion: string;
-  }> => {
-    return ipcRenderer.invoke('get-app-info');
-  },
-
-  /**
-   * 获取当前平台（'win32' | 'darwin' | 'linux'）
-   */
+  // ----- 应用信息 -----
   platform: process.platform,
+
+  getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+
+  // ----- 消息存储 -----
+  getMessages: () => ipcRenderer.invoke('store:getMessages'),
+  addMessage: (msg: any) => ipcRenderer.invoke('store:addMessage', msg),
+  clearMessages: () => ipcRenderer.invoke('store:clearMessages'),
+
+  // ----- 设置 -----
+  getSettings: () => ipcRenderer.invoke('store:getSettings'),
+  updateSettings: (partial: any) =>
+    ipcRenderer.invoke('store:updateSettings', partial),
+
+  // ----- 歌曲分析 -----
+  analyzeSong: (songName: string, artist?: string) =>
+    ipcRenderer.invoke('ai:analyzeSong', songName, artist),
+
+  chat: (history: { role: string; content: string }[]) =>
+    ipcRenderer.invoke('ai:chat', history),
+
+  // ----- 听歌日记 -----
+  getDiary: () => ipcRenderer.invoke('store:getDiary'),
+  addDiaryEntry: (entry: any) =>
+    ipcRenderer.invoke('store:addDiaryEntry', entry),
+
+  // ----- 统计 -----
+  getStats: () => ipcRenderer.invoke('store:getStats'),
+
+  // ----- 数据管理 -----
+  getAllData: () => ipcRenderer.invoke('store:getAllData'),
+  resetAllData: () => ipcRenderer.invoke('store:resetAllData'),
 });
