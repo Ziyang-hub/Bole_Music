@@ -104,33 +104,37 @@ jobs:
           git push gitee ${{ github.ref }} 2>/dev/null || true
 
           TAG="${GITHUB_REF#refs/tags/}"
-          echo "=== Mirroring $TAG to Gitee ==="
+          GITHUB_DL="https://github.com/scorching12/Bole_Music/releases/download/$TAG"
 
-          # 获取或创建 Gitee Release
-          RELEASE_ID=$(curl -sf -H "Authorization: token $GITEE_TOKEN" \
-            "https://gitee.com/api/v5/repos/ScorchingSunnnn/bole-simulator/releases/tags/$TAG" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
-
-          if [ -z "$RELEASE_ID" ]; then
-            echo "Creating Gitee release..."
-            RESP=$(curl -sf -X POST \
-              -H "Authorization: token $GITEE_TOKEN" \
-              -H "Content-Type: application/json" \
-              "https://gitee.com/api/v5/repos/ScorchingSunnnn/bole-simulator/releases" \
-              -d "{\"tag_name\":\"$TAG\",\"name\":\"Bole Simulator $TAG\",\"body\":\"GitHub Actions auto-build\",\"target_commitish\":\"master\"}")
-            RELEASE_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
-          fi
-
-          echo "Release ID: $RELEASE_ID"
-
-          # 上传文件
-          for f in $(find packages -type f -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage'); do
-            echo "Uploading: $(basename $f)"
-            curl -sf -X POST \
-              -H "Authorization: token $GITEE_TOKEN" \
-              -F "file=@$f" \
-              "https://gitee.com/api/v5/repos/ScorchingSunnnn/bole-simulator/releases/$RELEASE_ID/attach_files" \
-              && echo "  OK" || echo "  FAIL"
+          # 列出所有文件
+          FILES=$(find packages -type f -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage')
+          FILE_LIST=""
+          for f in $FILES; do
+            FNAME=$(basename "$f")
+            FSIZE=$(du -h "$f" | cut -f1)
+            FILE_LIST="$FILE_LIST\n- [$FNAME]($GITHUB_DL/$FNAME) ($FSIZE)"
           done
 
+          # 创建 Gitee Release（描述中包含 GitHub 下载链接）
+          BODY="## \U0001F4E5 下载安装包\n\n> 安装包托管在 GitHub，国内下载可能较慢。\n> 推荐使用 [ghproxy.com](https://ghproxy.com) 加速。\n$FILE_LIST\n\n---\nBuilt by GitHub Actions"
+
+          # 删除旧 Release
+          OLD_ID=$(curl -sf -H "Authorization: token $GITEE_TOKEN" \
+            "https://gitee.com/api/v5/repos/ScorchingSunnnn/bole-simulator/releases/tags/$TAG" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+          if [ -n "$OLD_ID" ]; then
+            curl -sf -X DELETE -H "Authorization: token $GITEE_TOKEN" \
+              "https://gitee.com/api/v5/repos/ScorchingSunnnn/bole-simulator/releases/$OLD_ID" 2>/dev/null || true
+          fi
+
+          # 创建新 Release
+          echo "Creating Gitee release for $TAG..."
+          RESP=$(curl -sf -X POST \
+            -H "Authorization: token $GITEE_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://gitee.com/api/v5/repos/ScorchingSunnnn/bole-simulator/releases" \
+            -d "{\"tag_name\":\"$TAG\",\"name\":\"Bole Simulator $TAG\",\"body\":\"$BODY\",\"target_commitish\":\"master\",\"prerelease\":false}")
+          echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Release:', d.get('name','?'), 'ID:', d.get('id','?'))" 2>/dev/null || echo "Created"
+
           echo "=== Done ==="
+          echo "https://gitee.com/ScorchingSunnnn/bole-simulator/releases/tag/$TAG"
