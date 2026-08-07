@@ -38,6 +38,15 @@ import {
   installUpdate,
   getUpdateStatus,
 } from './updater';
+import {
+  searchSongs,
+  getLyrics,
+  getSongDetail,
+  parseSongUrl,
+  isSongUrl,
+  getSongFullInfo,
+} from './music-platforms';
+import { getCachedAnalysis, cacheAnalysis } from './store';
 
 // ----- 窗口管理 -----
 
@@ -121,9 +130,27 @@ ipcMain.handle('store:updateSettings', async (_e, partial) =>
 
 ipcMain.handle(
   'ai:analyzeSong',
-  async (_e, songName: string, artist?: string) => {
+  async (_e, songName: string, artist?: string, lyricsText?: string) => {
     try {
-      const result = await analyzeSong(songName, artist);
+      // 先查缓存
+      const cacheKey = `${songName}_${artist || ''}`.trim();
+      const cached = getCachedAnalysis(cacheKey);
+      if (cached) {
+        return { success: true, data: cached, cached: true };
+      }
+
+      // AI 分析（传入真实歌词）
+      const rawResult = await analyzeSong(songName, artist, lyricsText);
+
+      // 添加 analyzedAt 时间戳
+      const result = { ...rawResult, analyzedAt: new Date().toISOString() };
+
+      // 缓存结果
+      cacheAnalysis(cacheKey, result);
+
+      // 更新统计数据
+      updateStats(songName, artist || result.artist || '未知', result.genre || '未知');
+
       return { success: true, data: result };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -226,6 +253,55 @@ ipcMain.handle('audio:checkCapability', async () => {
 ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
   const result = await recognizeSong(audioPath);
   return result;
+});
+
+// ----- 音乐平台 -----
+
+ipcMain.handle('music:search', async (_e, keyword: string, limit?: number) => {
+  try {
+    const songs = await searchSongs(keyword, limit || 10);
+    return { success: true, data: songs };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('music:getLyrics', async (_e, songId: string) => {
+  try {
+    const lyrics = await getLyrics(songId);
+    return { success: true, data: lyrics };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('music:getSongDetail', async (_e, songId: string) => {
+  try {
+    const detail = await getSongDetail(songId);
+    return { success: true, data: detail };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('music:parseUrl', async (_e, url: string) => {
+  const parsed = parseSongUrl(url);
+  if (!parsed) return { success: false, error: '无法识别该链接' };
+
+  const info = await getSongFullInfo(parsed.songId);
+  return {
+    success: true,
+    data: {
+      platform: parsed.platform,
+      songId: parsed.songId,
+      song: info.song,
+      lyrics: info.lyrics,
+    },
+  };
+});
+
+ipcMain.handle('music:isSongUrl', async (_e, text: string) => {
+  return isSongUrl(text);
 });
 
 // ----- 自动更新 -----

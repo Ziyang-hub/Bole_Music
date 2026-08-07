@@ -21,8 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('store:updateSettings', partial),
 
   // ----- AI 分析 -----
-  analyzeSong: (songName: string, artist?: string) =>
-    ipcRenderer.invoke('ai:analyzeSong', songName, artist),
+  analyzeSong: (songName: string, artist?: string, lyrics?: string) =>
+    ipcRenderer.invoke('ai:analyzeSong', songName, artist, lyrics),
 
   chat: (history: { role: string; content: string }[]) =>
     ipcRenderer.invoke('ai:chat', history),
@@ -55,6 +55,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopAudioCapture: () => ipcRenderer.invoke('audio:stopCapture'),
   isAudioCapturing: () => ipcRenderer.invoke('audio:isCapturing'),
   checkCaptureCapability: () => ipcRenderer.invoke('audio:checkCapability'),
+
+  // ----- 音乐平台 -----
+  searchSongs: (keyword: string, limit?: number) =>
+    ipcRenderer.invoke('music:search', keyword, limit),
+  getLyrics: (songId: string) =>
+    ipcRenderer.invoke('music:getLyrics', songId),
+  getSongDetail: (songId: string) =>
+    ipcRenderer.invoke('music:getSongDetail', songId),
+  parseSongUrl: (url: string) =>
+    ipcRenderer.invoke('music:parseUrl', url),
+  isSongUrl: (text: string) =>
+    ipcRenderer.invoke('music:isSongUrl', text),
 
   // 监听歌曲检测事件
   onSongDetected: (callback: (result: any) => void) => {

@@ -63,12 +63,16 @@ const PERSONA_PROMPTS: Record<string, string> = {
  */
 export async function analyzeSong(
   songName: string,
-  artist?: string
+  artist?: string,
+  lyricsText?: string
 ): Promise<AnalysisResult> {
   const settings = getSettings();
   const personaPrompt = PERSONA_PROMPTS[settings.persona] || PERSONA_PROMPTS.literary;
 
   const artistHint = artist ? `，演唱者是 ${artist}` : '';
+  const lyricsHint = lyricsText
+    ? `\n\n以下是这首歌的真实歌词：\n${lyricsText.slice(0, 1500)}\n\n请基于以上真实歌词进行分析。`
+    : '';
 
   const systemPrompt = `${personaPrompt}
 
@@ -91,7 +95,7 @@ export async function analyzeSong(
 - personalThought 要体现你的AI人格特色
 - 要有深度，不要是泛泛而谈的空话`;
 
-  const userMessage = `请分析歌曲：《${songName}》${artistHint}`;
+  const userMessage = `请分析歌曲：《${songName}》${artistHint}${lyricsHint}`;
 
   try {
     const response = await callAI(systemPrompt, userMessage, settings);

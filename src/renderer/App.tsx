@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReportPage from './components/ReportPage';
 import DiaryPage from './components/DiaryPage';
 import SettingsPage from './components/SettingsPage';
+import SearchSongs from './components/SearchSongs';
 
 // ----- 类型 -----
 
@@ -50,6 +51,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [messagesLoaded, setMessagesLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 搜索面板
+  const [showSearch, setShowSearch] = useState(false);
 
   // 应用信息
   const [appInfo, setAppInfo] = useState<any>(null);
@@ -100,6 +104,42 @@ export default function App() {
     init();
   }, []);
 
+  // 订阅音频检测事件（自动采集识别到歌曲时）
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    window.electronAPI.onSongDetected(async (result) => {
+      if (result.title && result.confidence > 50) {
+        // 自动分析检测到的歌曲
+        try {
+          const analysis = await window.electronAPI!.analyzeSong(
+            result.title,
+            result.artist
+          );
+          if (analysis.success && analysis.data) {
+            const boleContent = formatAnalysis(analysis.data);
+            const userMsg: ChatMessage = {
+              id: generateId(),
+              role: 'user',
+              content: `🎧 检测到：${result.title} - ${result.artist}`,
+              timestamp: nowISO(),
+            };
+            const boleMsg: ChatMessage = {
+              id: generateId(),
+              role: 'bole',
+              content: boleContent,
+              timestamp: nowISO(),
+            };
+            setMessages((prev) => [...prev, userMsg, boleMsg]);
+            await window.electronAPI!.addMessage(userMsg);
+            await window.electronAPI!.addMessage(boleMsg);
+          }
+        } catch {
+          // 自动分析失败，静默处理
+        }
+      }
+    });
+  }, []);
+
   // 自动滚动
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -136,6 +176,47 @@ export default function App() {
     try {
       if (window.electronAPI) {
         // ---- 真实 AI 模式 ----
+
+        // 检测是否是歌曲链接
+        const isUrl = await window.electronAPI.isSongUrl(text);
+
+        if (isUrl) {
+          // ---- 链接解析模式 ----
+          const parsed = await window.electronAPI.parseSongUrl(text);
+          if (parsed.success && parsed.data) {
+            const { song, lyrics } = parsed.data;
+            if (song) {
+              const songTitle = `${song.name} - ${song.artists.join('、')}`;
+
+              // 用真实信息分析
+              const result = await window.electronAPI.analyzeSong(
+                song.name,
+                song.artists.join('、'),
+                lyrics || undefined
+              );
+
+              if (result.success && result.data) {
+                const boleContent = formatAnalysis(result.data);
+                const boleMsg: ChatMessage = {
+                  id: generateId(), role: 'bole', content: boleContent, timestamp: nowISO(),
+                };
+                setMessages((prev) => [...prev, boleMsg]);
+                await window.electronAPI.addMessage(boleMsg);
+
+                // 日记
+                const today = new Date().toISOString().split('T')[0];
+                await window.electronAPI.addDiaryEntry({
+                  date: today,
+                  songs: [{ title: song.name, artist: song.artists.join('、'), time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: result.data.personalThought?.slice(0, 100) || '' }],
+                  mood: result.data.emotion || '未知',
+                  summary: '',
+                });
+                return;
+              }
+            }
+          }
+          // 链接解析失败，回退到普通处理
+        }
 
         // 判断用户意图
         const isRecommendQuery =
@@ -271,6 +352,50 @@ export default function App() {
     }
   }, [inputValue, isLoading, messages]);
 
+  // 搜索回调
+  const handleSearchSelect = useCallback(
+    async (songName: string, artist: string, lyrics?: string) => {
+      setShowSearch(false);
+      // 在输入框填入并自动发送
+      const searchText = `${songName} ${artist}`;
+      setInputValue(searchText);
+      // 直接触发分析
+      if (!window.electronAPI) return;
+
+      const userMsg: ChatMessage = {
+        id: generateId(), role: 'user', content: `🔍 ${songName} - ${artist}`, timestamp: nowISO(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      await window.electronAPI.addMessage(userMsg);
+
+      setIsLoading(true);
+      try {
+        const result = await window.electronAPI.analyzeSong(songName, artist, lyrics);
+        if (result.success && result.data) {
+          const boleContent = formatAnalysis(result.data);
+          const boleMsg: ChatMessage = {
+            id: generateId(), role: 'bole', content: boleContent, timestamp: nowISO(),
+          };
+          setMessages((prev) => [...prev, boleMsg]);
+          await window.electronAPI.addMessage(boleMsg);
+
+          // 日记
+          const today = new Date().toISOString().split('T')[0];
+          await window.electronAPI.addDiaryEntry({
+            date: today,
+            songs: [{ title: songName, artist, time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: result.data.personalThought?.slice(0, 100) || '' }],
+            mood: result.data.emotion || '未知',
+            summary: '',
+          });
+        }
+      } catch {
+        // 失败静默
+      }
+      setIsLoading(false);
+    },
+    []
+  );
+
   // 键盘事件
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -331,6 +456,13 @@ export default function App() {
           </div>
         </header>
 
+        {showSearch && (
+          <SearchSongs
+            onSelect={handleSearchSelect}
+            onClose={() => setShowSearch(false)}
+          />
+        )}
+
         {currentView === 'report' && <ReportPage />}
         {currentView === 'diary' && <DiaryPage />}
         {currentView === 'settings' && <SettingsPage />}
@@ -378,9 +510,16 @@ export default function App() {
 
             <div className="input-area">
               <div className="input-wrapper">
+                <button
+                  className="search-toggle-btn"
+                  onClick={() => setShowSearch(true)}
+                  title="搜索歌曲"
+                >
+                  🔍
+                </button>
                 <textarea
                   className="input-field"
-                  placeholder="输入歌名或想说的话... (Enter 发送，Shift+Enter 换行)"
+                  placeholder="输入歌名、粘贴网易云链接，或点🔍搜索..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}

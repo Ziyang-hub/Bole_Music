@@ -81,8 +81,8 @@ interface ElectronAPI {
   updateSettings: (partial: Partial<UserSettings>) => Promise<UserSettings>;
 
   // AI
-  analyzeSong: (songName: string, artist?: string) =>
-    Promise<{ success: boolean; data?: SongAnalysis; error?: string }>;
+  analyzeSong: (songName: string, artist?: string, lyrics?: string) =>
+    Promise<{ success: boolean; data?: SongAnalysis; cached?: boolean; error?: string }>;
   chat: (history: { role: string; content: string }[]) =>
     Promise<{ success: boolean; data?: string; error?: string }>;
   generateReport: (type: string, songs: any[], stats: any) =>
@@ -99,6 +99,17 @@ interface ElectronAPI {
   // 统计
   getStats: () => Promise<ListeningStats>;
   updateStats: (songName: string, artist: string, genre: string) => Promise<void>;
+
+  // 音乐平台
+  searchSongs: (keyword: string, limit?: number) =>
+    Promise<{ success: boolean; data?: SongInfo[]; error?: string }>;
+  getLyrics: (songId: string) =>
+    Promise<{ success: boolean; data?: string | null; error?: string }>;
+  getSongDetail: (songId: string) =>
+    Promise<{ success: boolean; data?: SongInfo | null; error?: string }>;
+  parseSongUrl: (url: string) =>
+    Promise<{ success: boolean; data?: { platform: string; songId: string; song: SongInfo | null; lyrics: string | null }; error?: string }>;
+  isSongUrl: (text: string) => Promise<boolean>;
 
   // 音频采集
   startAudioCapture: () => Promise<{ success: boolean }>;
@@ -131,6 +142,19 @@ interface RecognitionResult {
   duration?: number;
   confidence: number;
 }
+
+// ----- 音乐平台类型 -----
+
+interface SongInfo {
+  id: string;
+  name: string;
+  artists: string[];
+  album?: { name: string; picUrl?: string };
+  duration?: number;
+  platform: 'netease' | 'qq' | 'unknown';
+}
+
+// ----- 更新类型 -----
 
 interface UpdateInfo {
   status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
