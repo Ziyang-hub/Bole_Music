@@ -271,6 +271,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* 使用统计 */}
+      <UsageSection />
+
       {/* 更新 */}
       <UpdateSection />
 
@@ -361,6 +364,54 @@ function AudioSetupGuide() {
 
       <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, fontStyle: 'italic' }}>
         💡 音频采集需要配合 ACRCloud 歌曲识别服务使用。在环境变量中设置 ACRCLOUD_ACCESS_KEY 和 ACRCLOUD_ACCESS_SECRET 即可启用自动识别。
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 使用统计组件
+ */
+function UsageSection() {
+  const [usage, setUsage] = useState<UsageData | null>(null);
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.getUsageStats().then(setUsage);
+    }
+  }, []);
+
+  if (!usage || !usage.firstUsed) {
+    return (
+      <div className="section-card">
+        <div className="section-header">📊 使用统计</div>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>还没有使用数据，开始使用伯乐吧！</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="section-card">
+      <div className="section-header">📊 使用统计</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="stat-card">
+          <div className="stat-val">{usage.totalAnalyses}</div>
+          <div className="stat-lbl">歌曲分析次数</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-val">{usage.totalChats}</div>
+          <div className="stat-lbl">对话次数</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-val">{usage.playlistImports}</div>
+          <div className="stat-lbl">歌单导入</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-val">
+            {usage.firstUsed ? new Date(usage.firstUsed).toLocaleDateString('zh-CN') : '-'}
+          </div>
+          <div className="stat-lbl">首次使用</div>
+        </div>
       </div>
     </div>
   );

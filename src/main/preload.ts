@@ -75,6 +75,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('music:parseUrl', url),
   isSongUrl: (text: string) =>
     ipcRenderer.invoke('music:isSongUrl', text),
+  isPlaylistUrl: (text: string) =>
+    ipcRenderer.invoke('music:isPlaylistUrl', text),
+  getPlaylist: (url: string) =>
+    ipcRenderer.invoke('music:getPlaylist', url),
+  batchAnalyze: (songs: { name: string; artist: string }[]) =>
+    ipcRenderer.invoke('ai:batchAnalyze', songs),
+  onBatchProgress: (callback: (p: any) => void) => {
+    ipcRenderer.on('batch:progress', (_e, p) => callback(p));
+  },
+
+  // ----- 使用统计 -----
+  trackUsage: (event: string, data?: any) =>
+    ipcRenderer.invoke('stats:track', event, data),
+  getUsageStats: () => ipcRenderer.invoke('stats:getUsage'),
 
   // 监听歌曲检测事件
   onSongDetected: (callback: (result: any) => void) => {

@@ -9,6 +9,8 @@ import ReportPage from './components/ReportPage';
 import DiaryPage from './components/DiaryPage';
 import SettingsPage from './components/SettingsPage';
 import SearchSongs from './components/SearchSongs';
+import PlaylistImport from './components/PlaylistImport';
+import HummingRecorder from './components/HummingRecorder';
 
 // ----- 类型 -----
 
@@ -54,6 +56,8 @@ export default function App() {
 
   // 搜索面板
   const [showSearch, setShowSearch] = useState(false);
+  const [showPlaylist, setShowPlaylist] = useState(false);
+  const [showHumming, setShowHumming] = useState(false);
 
   // 主题
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -188,6 +192,14 @@ export default function App() {
     try {
       if (window.electronAPI) {
         // ---- 真实 AI 模式 ----
+
+        // 检测是否是歌单链接
+        const isPUrl = await window.electronAPI.isPlaylistUrl(text);
+        if (isPUrl) {
+          setShowPlaylist(true);
+          setIsLoading(false);
+          return;
+        }
 
         // 检测是否是歌曲链接
         const isUrl = await window.electronAPI.isSongUrl(text);
@@ -482,6 +494,27 @@ export default function App() {
             onClose={() => setShowSearch(false)}
           />
         )}
+        {showPlaylist && (
+          <PlaylistImport
+            onClose={() => setShowPlaylist(false)}
+            onSongAnalyzed={async (name, artist, content) => {
+              const boleMsg: ChatMessage = {
+                id: generateId(), role: 'bole', content, timestamp: nowISO(),
+              };
+              setMessages((prev) => [...prev, boleMsg]);
+              if (window.electronAPI) await window.electronAPI.addMessage(boleMsg);
+            }}
+          />
+        )}
+        {showHumming && (
+          <HummingRecorder
+            onClose={() => setShowHumming(false)}
+            onResult={(title, artist) => {
+              setInputValue(`${title} ${artist}`);
+              setShowHumming(false);
+            }}
+          />
+        )}
 
         {currentView === 'report' && <ReportPage />}
         {currentView === 'diary' && <DiaryPage />}
@@ -530,13 +563,9 @@ export default function App() {
 
             <div className="input-area">
               <div className="input-wrapper">
-                <button
-                  className="search-toggle-btn"
-                  onClick={() => setShowSearch(true)}
-                  title="搜索歌曲"
-                >
-                  🔍
-                </button>
+                <button className="search-toggle-btn" onClick={() => setShowSearch(true)} title="搜索歌曲">🔍</button>
+                <button className="search-toggle-btn" onClick={() => setShowPlaylist(true)} title="导入歌单">📋</button>
+                <button className="search-toggle-btn" onClick={() => setShowHumming(true)} title="哼歌识别">🎤</button>
                 <textarea
                   className="input-field"
                   placeholder="输入歌名、粘贴网易云链接，或点🔍搜索..."

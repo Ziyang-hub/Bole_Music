@@ -271,6 +271,53 @@ export function getAllData(): StoredData {
   };
 }
 
+// ============================================================
+// 使用统计
+// ============================================================
+
+interface UsageData {
+  totalSessions: number;
+  totalAnalyses: number;
+  totalChats: number;
+  playlistImports: number;
+  firstUsed: string;
+  lastUsed: string;
+  featureCounts: Record<string, number>;
+}
+
+export function trackUsage(event: string, data?: any): void {
+  const usage: UsageData = (store as any).get('usage') || {
+    totalSessions: 0,
+    totalAnalyses: 0,
+    totalChats: 0,
+    playlistImports: 0,
+    firstUsed: new Date().toISOString(),
+    lastUsed: new Date().toISOString(),
+    featureCounts: {},
+  };
+
+  usage.lastUsed = new Date().toISOString();
+  usage.featureCounts[event] = (usage.featureCounts[event] || 0) + 1;
+
+  if (event === 'analysis') usage.totalAnalyses++;
+  if (event === 'chat') usage.totalChats++;
+  if (event === 'playlist_import') usage.playlistImports++;
+
+  (store as any).set('usage', usage);
+}
+
+export function getUsageStats(): UsageData {
+  return (store as any).get('usage') || {
+    totalSessions: 0,
+    totalAnalyses: 0,
+    totalChats: 0,
+    playlistImports: 0,
+    firstUsed: '',
+    lastUsed: '',
+    featureCounts: {},
+  };
+}
+
 export function resetAllData(): void {
   store.clear();
   store.set('messages', []);

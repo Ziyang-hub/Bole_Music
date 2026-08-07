@@ -46,8 +46,11 @@ import {
   parseSongUrl,
   isSongUrl,
   getSongFullInfo,
+  isPlaylistUrl,
+  parsePlaylistUrl,
+  getPlaylistSongs,
 } from './music-platforms';
-import { getCachedAnalysis, cacheAnalysis } from './store';
+import { getCachedAnalysis, cacheAnalysis, trackUsage, getUsageStats } from './store';
 
 // ----- 窗口管理 -----
 
@@ -404,6 +407,52 @@ ipcMain.handle('music:parseUrl', async (_e, url: string) => {
 
 ipcMain.handle('music:isSongUrl', async (_e, text: string) => {
   return isSongUrl(text);
+});
+
+ipcMain.handle('music:isPlaylistUrl', async (_e, text: string) => {
+  return isPlaylistUrl(text);
+});
+
+ipcMain.handle('music:getPlaylist', async (_e, url: string) => {
+  try {
+    const playlistId = parsePlaylistUrl(url);
+    if (!playlistId) return { success: false, error: '无法识别歌单链接' };
+    const data = await getPlaylistSongs(playlistId);
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 批量分析 IPC
+ipcMain.handle('ai:batchAnalyze', async (_e, songs: { name: string; artist: string }[]) => {
+  const results: any[] = [];
+  for (const song of songs) {
+    try {
+      const result = await analyzeSong(song.name, song.artist);
+      results.push({ success: true, data: result });
+      // 更新进度
+      if (mainWindow) {
+        mainWindow.webContents.send('batch:progress', {
+          current: results.length,
+          total: songs.length,
+          song: result.songName,
+        });
+      }
+    } catch (err: any) {
+      results.push({ success: false, error: err.message, song: song.name });
+    }
+  }
+  return { success: true, data: results };
+});
+
+// 使用统计 IPC
+ipcMain.handle('stats:track', async (_e, event: string, data?: any) => {
+  trackUsage(event, data);
+});
+
+ipcMain.handle('stats:getUsage', async () => {
+  return getUsageStats();
 });
 
 // ----- 自动更新 -----

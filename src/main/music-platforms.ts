@@ -159,6 +159,61 @@ export async function getSongDetail(songId: string): Promise<SongInfo | null> {
   }
 }
 
+// ----- 歌单 -----
+
+/**
+ * 解析歌单链接
+ */
+const PLAYLIST_PATTERNS = [
+  /music\.163\.com\/(?:#\/)?playlist\?id=(\d+)/,
+  /music\.163\.com\/playlist\/(\d+)/,
+];
+
+export function isPlaylistUrl(text: string): boolean {
+  return PLAYLIST_PATTERNS.some((p) => p.test(text));
+}
+
+export function parsePlaylistUrl(url: string): string | null {
+  for (const p of PLAYLIST_PATTERNS) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+/**
+ * 获取歌单歌曲列表
+ */
+export async function getPlaylistSongs(
+  playlistId: string
+): Promise<{ name: string; songs: SongInfo[] }> {
+  try {
+    const { playlist_detail } = await import('NeteaseCloudMusicApi');
+    const result = await playlist_detail({ id: Number(playlistId) });
+
+    if (result.status === 200) {
+      const body = result.body as any;
+      const playlist = body?.playlist;
+      if (!playlist) throw new Error('未找到歌单');
+
+      const songs = (playlist.tracks || []).map((track: any) => ({
+        id: String(track.id),
+        name: track.name,
+        artists: (track.ar || []).map((a: any) => a.name),
+        album: track.al ? { name: track.al.name, picUrl: track.al.picUrl } : undefined,
+        duration: track.dt,
+        platform: 'netease' as const,
+      }));
+
+      return { name: playlist.name || '未知歌单', songs };
+    }
+    throw new Error('获取歌单失败');
+  } catch (err) {
+    console.error('获取歌单失败:', err);
+    throw err;
+  }
+}
+
 // ----- 综合信息获取 -----
 
 /**

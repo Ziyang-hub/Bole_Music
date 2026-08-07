@@ -116,6 +116,16 @@ interface ElectronAPI {
   parseSongUrl: (url: string) =>
     Promise<{ success: boolean; data?: { platform: string; songId: string; song: SongInfo | null; lyrics: string | null }; error?: string }>;
   isSongUrl: (text: string) => Promise<boolean>;
+  isPlaylistUrl: (text: string) => Promise<boolean>;
+  getPlaylist: (url: string) =>
+    Promise<{ success: boolean; data?: { name: string; songs: SongInfo[] }; error?: string }>;
+  batchAnalyze: (songs: { name: string; artist: string }[]) =>
+    Promise<{ success: boolean; data?: any[]; error?: string }>;
+  onBatchProgress: (callback: (p: { current: number; total: number; song: string }) => void) => void;
+
+  // 使用统计
+  trackUsage: (event: string, data?: any) => Promise<void>;
+  getUsageStats: () => Promise<UsageData>;
 
   // 音频采集
   startAudioCapture: () => Promise<{ success: boolean }>;
@@ -161,6 +171,16 @@ interface SongInfo {
 }
 
 // ----- 更新类型 -----
+
+interface UsageData {
+  totalSessions: number;
+  totalAnalyses: number;
+  totalChats: number;
+  playlistImports: number;
+  firstUsed: string;
+  lastUsed: string;
+  featureCounts: Record<string, number>;
+}
 
 interface UpdateInfo {
   status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
