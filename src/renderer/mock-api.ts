@@ -33,7 +33,7 @@ export function installMockAPI() {
     getSettings: async () => lsGet<UserSettings>('settings', {
       persona: 'literary', apiProvider: 'deepseek', apiKey: '', customEndpoint: '',
       autoListen: false, notifyOnAnalysis: true, dailyReport: true, weeklyReport: true,
-      theme: 'dark', recognitionBackend: 'auto', auddApiKey: '', acoustidClientKey: '',
+      theme: 'dark', recognitionBackend: 'shazam',
     }),
     updateSettings: async (p: any) => {
       const s = lsGet<UserSettings>('settings', {} as any);

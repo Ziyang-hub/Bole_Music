@@ -21,13 +21,6 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: npm }
       - run: npm ci
-      - name: 下载 fpcalc（音频指纹工具）
-        run: |
-          mkdir -p resources/fpcalc/win32-x64
-          curl -sSL -o fpcalc.zip "https://github.com/acoustid/chromaprint/releases/download/v1.6.1/chromaprint-fpcalc-1.6.1-windows-x86_64.zip"
-          7z x fpcalc.zip -oresources/fpcalc/win32-x64 -y
-          ls resources/fpcalc/win32-x64/
-        shell: pwsh
       - run: npx vite build
       - run: npx tsc -p tsconfig.main.json
       - run: npx electron-builder --win --publish never
@@ -49,12 +42,6 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: npm }
       - run: npm ci
-      - name: 下载 fpcalc（音频指纹工具）
-        run: |
-          mkdir -p resources/fpcalc/darwin-x64 resources/fpcalc/darwin-arm64
-          curl -sSL "https://github.com/acoustid/chromaprint/releases/download/v1.6.1/chromaprint-fpcalc-1.6.1-macos-arm64.tar.gz" | tar xz -C resources/fpcalc/darwin-arm64 --strip-components=1
-          curl -sSL "https://github.com/acoustid/chromaprint/releases/download/v1.6.1/chromaprint-fpcalc-1.6.1-macos-x86_64.tar.gz" | tar xz -C resources/fpcalc/darwin-x64 --strip-components=1
-          ls resources/fpcalc/darwin-*/
       - run: npx vite build
       - run: npx tsc -p tsconfig.main.json
       - run: npx electron-builder --mac --publish never
@@ -84,11 +71,6 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: npm }
       - run: npm ci
-      - name: 下载 fpcalc（音频指纹工具）
-        run: |
-          mkdir -p resources/fpcalc/linux-x64
-          curl -sSL "https://github.com/acoustid/chromaprint/releases/download/v1.6.1/chromaprint-fpcalc-1.6.1-linux-x86_64.tar.gz" | tar xz -C resources/fpcalc/linux-x64 --strip-components=1
-          ls resources/fpcalc/linux-x64/
       - run: npx vite build
       - run: npx tsc -p tsconfig.main.json
       - run: npx electron-builder --linux --publish never

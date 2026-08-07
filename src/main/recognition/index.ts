@@ -1,74 +1,54 @@
 /**
  * 歌曲识别 - 统一服务
  *
- * 支持双后端切换：
- * - AudD：商业指纹，识别率高（需 API Key）
- * - AcoustID：开源指纹，完全免费（需安装 fpcalc）
- *
- * 设置中可切换后端，也可自动降级
+ * 使用 st-shazam（基于 Shazam 非官方 API）。
+ * 零安装、无需 API Key、识别率远高于 AudD/AcoustID。
  */
 
-import { RecognitionBackend, RecognitionResult } from './base';
-import { AudDBackend } from './audd';
-import { AcoustIDBackend } from './acoustid';
-import { getSettings } from '../store';
+import { recognizeSong as shazamRecognize } from 'st-shazam';
+import type { RecognitionResult } from './base';
 
-// 注册所有后端
-const backends: RecognitionBackend[] = [
-  new AudDBackend(),
-  new AcoustIDBackend(),
-];
+export type { RecognitionResult };
 
 /**
- * 识别歌曲（按设置依次尝试）
+ * 识别音频文件中的歌曲
  */
 export async function recognize(audioPath: string): Promise<RecognitionResult | null> {
-  const settings = getSettings();
-  const preferred = settings.recognitionBackend || 'auto';
-
-  if (preferred === 'auto') {
-    // 自动模式：依次尝试所有可用的后端
-    for (const backend of backends) {
-      const available = await backend.isAvailable();
-      if (!available) continue;
-
-      const result = await backend.recognize(audioPath);
-      if (result && result.confidence > 40) {
-        return result;
-      }
+  try {
+    const song = await shazamRecognize(audioPath);
+    if (song) {
+      return {
+        title: song.title || '未知歌曲',
+        artist: song.artist || '未知歌手',
+        album: song.album,
+        confidence: 85,  // Shazam 指纹匹配，置信度固定高值
+        backend: 'Shazam',
+      };
     }
     return null;
+  } catch (err: any) {
+    console.error('[Shazam] 识别失败:', err.message);
+    return null;
   }
-
-  // 指定后端：用简单字符串匹配
-  const backendMap: Record<string, number> = { audd: 0, acoustid: 1 };
-  const idx = backendMap[preferred] ?? 0;
-  const backend = backends[idx] || backends[0];
-  const available = await backend.isAvailable();
-  if (!available) return null;
-
-  return backend.recognize(audioPath);
 }
 
 /**
- * 获取所有后端的可用状态
+ * 获取后端状态
  */
 export async function getBackendStatus(): Promise<
   { name: string; available: boolean; description: string }[]
 > {
-  const result = [];
-  for (const b of backends) {
-    result.push({
-      name: b.name,
-      available: await b.isAvailable(),
-      description: b.name,
-    });
-  }
-  return result;
+  return [
+    {
+      name: 'Shazam',
+      available: true,
+      description: 'Shazam 音乐识别（免费，零配置）',
+    },
+  ];
 }
 
 /**
- * 简易音频质量检测
+ * 简易音频质量检测 — 排除静音/噪音
  */
 export function isMusicFile(audioPath: string): boolean {
   try {
@@ -81,12 +61,11 @@ export function isMusicFile(audioPath: string): boolean {
     fs.readSync(fd, buffer, 0, 4, 0);
     fs.closeSync(fd);
 
-    // 检查常见音频文件头
     const header = buffer.toString('hex');
     return (
-      header.startsWith('52494646') || // WAV (RIFF)
-      header.startsWith('fff3') ||      // MP3
-      header.startsWith('4f676753')     // OGG
+      header.startsWith('52494646') ||  // WAV (RIFF)
+      header.startsWith('fff3') ||       // MP3
+      header.startsWith('4f676753')      // OGG
     );
   } catch {
     return false;

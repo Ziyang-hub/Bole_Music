@@ -435,14 +435,8 @@ ipcMain.handle('audio:diagnose', async () => {
   ok.push(...audioDiag.ok);
   issues.push(...audioDiag.issues);
 
-  // 3. 检查识别后端
-  const backends = await checkBackends();
-  const hasBackend = backends.some((b: any) => b.available);
-  if (hasBackend) {
-    ok.push(`识别后端: ${backends.filter((b: any) => b.available).map((b: any) => b.name).join(', ')}`);
-  } else {
-    issues.push('未配置识别后端（去设置页填 AudD API Key）');
-  }
+  // 3. 检查识别后端（Shazam 始终可用）
+  ok.push('歌曲识别: Shazam（免费，零配置）');
 
   // 4. 检查 AI 服务
   const settings = getSettings();

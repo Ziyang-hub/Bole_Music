@@ -267,68 +267,14 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        <ApiKeyGuide type="recognition" />
-
-        {/* 识别后端选择 */}
+        {/* 歌曲识别 — 已简化为 Shazam 单一后端 */}
         <div className="setting-row">
           <div className="setting-info">
-            <label className="setting-label">歌曲识别后端</label>
-            <span className="setting-desc">选择识别服务（自动模式会依次尝试）</span>
+            <label className="setting-label">🎵 歌曲识别</label>
+            <span className="setting-desc">使用 Shazam 引擎，免费、零配置、即开即用</span>
           </div>
-          <select
-            className="setting-select"
-            value={settings.recognitionBackend || 'auto'}
-            onChange={(e) => updateField('recognitionBackend', e.target.value as any)}
-          >
-            <option value="auto">🔄 自动（优先可用）</option>
-            <option value="audd">💵 AudD（商业指纹）</option>
-            <option value="acoustid">🆓 AcoustID（开源指纹）</option>
-          </select>
+          <span style={{ color: '#4caf50', fontSize: 13, fontWeight: 600 }}>✅ 已启用</span>
         </div>
-
-        {/* AudD API Key */}
-        <div className="setting-row">
-          <label className="setting-label">AudD API Key</label>
-          <input
-            type="password"
-            className="setting-input"
-            style={{ flex: 1, maxWidth: 300 }}
-            placeholder="去 audd.io 注册获取（免费300次/月）"
-            value={settings.auddApiKey || ''}
-            onChange={(e) => setSettings({ ...settings, auddApiKey: e.target.value })}
-          />
-          <button className="send-button" style={{ fontSize: 11, padding: '6px 12px', height: 'auto' }}
-            onClick={async () => {
-              if (!window.electronAPI) return;
-              await window.electronAPI.updateSettings({ auddApiKey: settings.auddApiKey });
-              showSaved();
-            }}>
-            保存
-          </button>
-        </div>
-
-        {/* AcoustID Client Key */}
-        <div className="setting-row">
-          <label className="setting-label">AcoustID Client Key</label>
-          <input
-            type="text"
-            className="setting-input"
-            style={{ flex: 1, maxWidth: 300 }}
-            placeholder="去 acoustid.org 注册获取（免费）"
-            value={settings.acoustidClientKey || ''}
-            onChange={(e) => setSettings({ ...settings, acoustidClientKey: e.target.value })}
-          />
-          <button className="send-button" style={{ fontSize: 11, padding: '6px 12px', height: 'auto' }}
-            onClick={async () => {
-              if (!window.electronAPI) return;
-              await window.electronAPI.updateSettings({ acoustidClientKey: settings.acoustidClientKey });
-              showSaved();
-            }}>
-            保存
-          </button>
-        </div>
-
-        <BackendStatus />
 
         {/* 音频采集配置引导 */}
         {settings.autoListen && <AudioSetupGuide />}
@@ -455,72 +401,12 @@ function ApiKeyGuide({ type }: { type: 'ai' | 'recognition' }) {
     );
   }
 
-  // recognition type
+  // recognition type — 简化为 Shazam，免费零配置
   return (
     <div style={{ fontSize: 12, lineHeight: 1.8, marginBottom: 12 }}>
-      <p className="section-desc" style={{ marginBottom: 4 }}>
-        识别当前播放的歌曲（可选，不填也能手动输入歌名分析）。
+      <p className="section-desc" style={{ marginBottom: 4, color: "#4caf50" }}>
+        🎵 歌曲识别使用 Shazam 引擎，免费、零配置、即开即用。无需任何 API Key。
       </p>
-      <button
-        onClick={() => setShow(!show)}
-        style={{
-          background: 'none', border: 'none', color: 'var(--color-accent)',
-          cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline',
-        }}
-      >
-        {show ? '收起 ▲' : '📖 如何获取识别 API Key？（点击展开）'}
-      </button>
-      {show && (
-        <div style={{
-          marginTop: 8, padding: 12, background: 'var(--color-bg-tertiary)',
-          borderRadius: 8, border: '1px solid var(--color-border)',
-        }}>
-          <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--color-accent-light)' }}>
-            💵 AudD（商业指纹，推荐）
-          </div>
-          <div>1. 打开 <a href="https://audd.io" target="_blank" style={{ color: 'var(--color-accent)' }}>audd.io</a></div>
-          <div>2. 点击「Try for Free」注册账号</div>
-          <div>3. 登录后在 Dashboard 找到 API Key</div>
-          <div>4. 复制 Key，粘贴到下方「AudD API Key」输入框</div>
-          <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>💰 免费 300 次/月，个人使用完全够</div>
-
-          <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 8, color: 'var(--color-accent-light)' }}>
-            🆓 AcoustID（开源免费，零安装）
-          </div>
-          <div>1. 打开 <a href="https://acoustid.org/login" target="_blank" style={{ color: 'var(--color-accent)' }}>acoustid.org</a></div>
-          <div>2. 用邮箱注册（免费）</div>
-          <div>3. 登录后点击「Applications」→ 创建新应用</div>
-          <div>4. 复制 Client Key，粘贴到下方输入框</div>
-          <div style={{ color: '#4caf50', marginTop: 4 }}>✅ fpcalc 已内置，无需安装</div>
-          <div style={{ color: 'var(--text-muted)' }}>💰 完全免费，但中文歌识别率不如 AudD</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** 识别后端状态 */
-function BackendStatus() {
-  const [backends, setBackends] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.checkBackends().then(setBackends);
-    }
-  }, []);
-
-  if (backends.length === 0) return null;
-
-  return (
-    <div style={{ padding: '8px 0', fontSize: 12 }}>
-      {backends.map((b) => (
-        <div key={b.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-          <span style={{ color: 'var(--text-secondary)' }}>{b.name}</span>
-          <span style={{ color: b.available ? '#4caf50' : '#f44336' }}>
-            {b.available ? '✅ 可用' : '❌ 不可用'}
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -596,7 +482,7 @@ function AudioSetupGuide() {
       )}
 
       <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, fontStyle: 'italic' }}>
-        💡 音频采集需要配合歌曲识别服务使用。在设置页填写 AudD API Key 即可启用自动识别。
+        💡 音频采集使用 Shazam 引擎自动识别，免费且零配置。只需采集到音频即可自动识别歌曲。
       </div>
     </div>
   );

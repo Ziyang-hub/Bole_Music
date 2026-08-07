@@ -14,12 +14,6 @@ files:
   - package.json
   - resources/**/*
 
-# 内置工具：复制到 ASAR 外部（可通过 process.resourcesPath 访问）
-extraResources:
-  - from: resources/fpcalc
-    to: fpcalc
-    filter:
-      - "**/*"
 
 # GitHub 发布
 publish:
