@@ -340,6 +340,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* 隐私与数据 */}
+      <PrivacySection />
+
       {/* 使用统计 */}
       <UsageSection />
 
@@ -551,6 +554,41 @@ function AudioSetupGuide() {
       <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, fontStyle: 'italic' }}>
         💡 音频采集需要配合 ACRCloud 歌曲识别服务使用。在环境变量中设置 ACRCLOUD_ACCESS_KEY 和 ACRCLOUD_ACCESS_SECRET 即可启用自动识别。
       </div>
+    </div>
+  );
+}
+
+/**
+ * 隐私与数据组件
+ */
+function PrivacySection() {
+  const [cleared, setCleared] = useState(false);
+
+  async function handleClear() {
+    if (!window.confirm('确定要清除所有数据吗？\n\n这将删除：\n- 聊天记录\n- API 密钥\n- 听歌日记\n- 使用统计\n\n此操作不可撤销！')) return;
+    if (!window.electronAPI) return;
+    await window.electronAPI.resetAllData();
+    setCleared(true);
+    setTimeout(() => setCleared(false), 3000);
+  }
+
+  return (
+    <div className="section-card">
+      <div className="section-header">🔒 隐私与数据</div>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
+        所有数据保存在本地，不上传任何服务器。卸载 App 后请先清除数据。
+      </p>
+      <button
+        onClick={handleClear}
+        style={{
+          padding: '8px 20px', border: '1px solid #f44336', borderRadius: 8,
+          background: 'rgba(244,67,54,0.1)', color: '#f44336', cursor: 'pointer',
+          fontSize: 13, fontFamily: 'var(--font-sans)',
+        }}
+      >
+        🗑️ 清除所有本地数据
+      </button>
+      {cleared && <span style={{ color: '#4caf50', fontSize: 12, marginLeft: 12 }}>✅ 已清除</span>}
     </div>
   );
 }
