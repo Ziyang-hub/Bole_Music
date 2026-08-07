@@ -138,12 +138,7 @@ export default function SettingsPage() {
       {/* API 配置 */}
       <div className="section-card">
         <div className="section-header">🔑 AI 服务配置</div>
-        <p className="section-desc">
-          连接 AI 服务让伯乐拥有真正的智慧。
-          <br />
-          💡 <strong>推荐</strong>：DeepSeek（注册即送 500 万 tokens，便宜好用）
-          <a href="https://platform.deepseek.com" target="_blank" style={{ color: 'var(--color-accent)', marginLeft: 4 }}>去注册 →</a>
-        </p>
+        <ApiKeyGuide type="ai" />
 
         <div className="setting-row">
           <label className="setting-label">AI 服务商</label>
@@ -214,6 +209,8 @@ export default function SettingsPage() {
             {settings.autoListen ? '已开启' : '已关闭'}
           </button>
         </div>
+
+        <ApiKeyGuide type="recognition" />
 
         {/* 识别后端选择 */}
         <div className="setting-row">
@@ -348,6 +345,100 @@ export default function SettingsPage() {
           <div className="about-row"><span>理念</span><span>高山流水遇知音 🎵</span></div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** API Key 获取指引 */
+function ApiKeyGuide({ type }: { type: 'ai' | 'recognition' }) {
+  const [show, setShow] = useState(false);
+
+  if (type === 'ai') {
+    return (
+      <div style={{ fontSize: 12, lineHeight: 1.8, marginBottom: 12 }}>
+        <p className="section-desc" style={{ marginBottom: 4 }}>
+          连接 AI 服务让伯乐拥有真正的智慧。
+        </p>
+        <button
+          onClick={() => setShow(!show)}
+          style={{
+            background: 'none', border: 'none', color: 'var(--color-accent)',
+            cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline',
+          }}
+        >
+          {show ? '收起 ▲' : '📖 如何获取 API Key？（点击展开）'}
+        </button>
+        {show && (
+          <div style={{
+            marginTop: 8, padding: 12, background: 'var(--color-bg-tertiary)',
+            borderRadius: 8, border: '1px solid var(--color-border)',
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--color-accent-light)' }}>
+              💵 推荐：DeepSeek（国内直连，便宜好用）
+            </div>
+            <div>1. 打开 <a href="https://platform.deepseek.com" target="_blank" style={{ color: 'var(--color-accent)' }}>platform.deepseek.com</a></div>
+            <div>2. 用手机号注册（1分钟）</div>
+            <div>3. 点击左侧「API Keys」→「创建 API Key」</div>
+            <div>4. 复制 Key，粘贴到上方输入框</div>
+            <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>💰 新用户送 500 万 tokens，够用很久</div>
+
+            <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 8, color: 'var(--color-accent-light)' }}>
+              🆓 备选：通义千问（阿里云）
+            </div>
+            <div>1. 打开 <a href="https://dashscope.aliyun.com" target="_blank" style={{ color: 'var(--color-accent)' }}>dashscope.aliyun.com</a></div>
+            <div>2. 用支付宝/淘宝账号登录</div>
+            <div>3. 点击「API Key 管理」→「创建 API Key」</div>
+            <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>💰 新用户有百万 tokens 免费额度</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // recognition type
+  return (
+    <div style={{ fontSize: 12, lineHeight: 1.8, marginBottom: 12 }}>
+      <p className="section-desc" style={{ marginBottom: 4 }}>
+        识别当前播放的歌曲（可选，不填也能手动输入歌名分析）。
+      </p>
+      <button
+        onClick={() => setShow(!show)}
+        style={{
+          background: 'none', border: 'none', color: 'var(--color-accent)',
+          cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline',
+        }}
+      >
+        {show ? '收起 ▲' : '📖 如何获取识别 API Key？（点击展开）'}
+      </button>
+      {show && (
+        <div style={{
+          marginTop: 8, padding: 12, background: 'var(--color-bg-tertiary)',
+          borderRadius: 8, border: '1px solid var(--color-border)',
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--color-accent-light)' }}>
+            💵 AudD（商业指纹，推荐）
+          </div>
+          <div>1. 打开 <a href="https://audd.io" target="_blank" style={{ color: 'var(--color-accent)' }}>audd.io</a></div>
+          <div>2. 点击「Try for Free」注册账号</div>
+          <div>3. 登录后在 Dashboard 找到 API Key</div>
+          <div>4. 复制 Key，粘贴到下方「AudD API Key」输入框</div>
+          <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>💰 免费 300 次/月，个人使用完全够</div>
+
+          <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 8, color: 'var(--color-accent-light)' }}>
+            🆓 AcoustID（开源免费，需安装 fpcalc）
+          </div>
+          <div>1. 打开 <a href="https://acoustid.org/login" target="_blank" style={{ color: 'var(--color-accent)' }}>acoustid.org</a></div>
+          <div>2. 用邮箱注册（免费）</div>
+          <div>3. 登录后点击「Applications」→ 创建新应用</div>
+          <div>4. 复制 Client Key，粘贴到下方输入框</div>
+          <div>5. 安装 fpcalc：
+            <span style={{ color: 'var(--text-muted)' }}>
+              Mac: <code>brew install chromaprint</code> / Windows: 下载 chromaprint
+            </span>
+          </div>
+          <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>💰 完全免费，但中文歌识别率不如 AudD</div>
+        </div>
+      )}
     </div>
   );
 }
