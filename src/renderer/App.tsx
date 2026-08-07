@@ -63,6 +63,7 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showHumming, setShowHumming] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   // 主题
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -134,8 +135,9 @@ export default function App() {
   useEffect(() => {
     if (!window.electronAPI) return;
     window.electronAPI.onSongDetected(async (result) => {
-      if (result.title && result.confidence > 50) {
-        // 自动分析检测到的歌曲
+      if (result.title && result.confidence > 40) {
+        // 自动分析检测到的歌曲，切换到对话页展示
+        setCurrentView('chat');
         try {
           const analysis = await window.electronAPI!.analyzeSong(
             result.title,
@@ -146,7 +148,7 @@ export default function App() {
             const userMsg: ChatMessage = {
               id: generateId(),
               role: 'user',
-              content: `🎧 检测到：${result.title} - ${result.artist}`,
+              content: `🎧 自动检测到正在播放：**${result.title}** — ${result.artist}`,
               timestamp: nowISO(),
             };
             const boleMsg: ChatMessage = {
@@ -164,6 +166,17 @@ export default function App() {
         }
       }
     });
+
+    // 定期检查采集状态
+    const interval = setInterval(async () => {
+      if (window.electronAPI) {
+        try {
+          const capturing = await window.electronAPI.isAudioCapturing();
+          setIsListening(capturing);
+        } catch {}
+      }
+    }, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   // 自动滚动
@@ -492,8 +505,11 @@ export default function App() {
         <header className="topbar">
           <div className="topbar-title">{VIEW_TITLES[currentView]}</div>
           <div className="topbar-status">
-            <span className="status-dot"></span>
-            <span>在线</span>
+            {isListening ? (
+              <><span className="status-dot listening"></span><span>🎧 监听中</span></>
+            ) : (
+              <><span className="status-dot"></span><span>在线</span></>
+            )}
           </div>
         </header>
 
@@ -592,8 +608,16 @@ export default function App() {
                   发送
                 </button>
               </div>
+              {isListening && (
+                <div style={{
+                  textAlign: 'center', padding: '6px 0', fontSize: 12,
+                  color: 'var(--color-accent-light)',
+                }}>
+                  🎧 正在监听系统音频... 播放音乐后会自动识别和分析
+                </div>
+              )}
               <div className="input-hint">
-                💡 输入歌名让伯乐分析 ｜ 输入「推荐歌曲」获取个性化推荐 ｜ 也可以随便聊聊音乐
+                💡 输入歌名让伯乐分析 ｜ 输入「推荐歌曲」获取推荐 ｜ 也可以随便聊音乐
               </div>
             </div>
           </>
