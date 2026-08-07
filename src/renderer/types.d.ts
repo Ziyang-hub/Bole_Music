@@ -22,6 +22,8 @@ interface UserSettings {
   weeklyReport: boolean;
   theme: 'dark' | 'light';
   recognitionBackend: 'auto' | 'audd' | 'acoustid';
+  auddApiKey: string;
+  acoustidClientKey: string;
 }
 
 interface SongAnalysis {

@@ -13,6 +13,7 @@
 
 import { execSync, spawn } from 'child_process';
 import { RecognitionBackend, RecognitionResult } from './base';
+import { getSettings } from '../store';
 
 const ACOUSTID_API = 'https://api.acoustid.org/v2/lookup';
 
@@ -26,7 +27,8 @@ export class AcoustIDBackend implements RecognitionBackend {
       if (!fingerprint) return null;
 
       // 2. 查询 AcoustID
-      const clientKey = process.env.ACOUSTID_CLIENT_KEY || 'bole-simulator';
+      const settings = getSettings();
+      const clientKey = settings.acoustidClientKey || 'bole-simulator';
       const duration = this.getAudioDuration(audioPath);
 
       const url = `${ACOUSTID_API}?client=${clientKey}&meta=recordings+releases&duration=${duration}&fingerprint=${fingerprint.duration}`;

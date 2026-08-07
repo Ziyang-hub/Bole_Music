@@ -231,6 +231,49 @@ export default function SettingsPage() {
             <option value="acoustid">🆓 AcoustID（开源指纹）</option>
           </select>
         </div>
+
+        {/* AudD API Key */}
+        <div className="setting-row">
+          <label className="setting-label">AudD API Key</label>
+          <input
+            type="password"
+            className="setting-input"
+            style={{ flex: 1, maxWidth: 300 }}
+            placeholder="去 audd.io 注册获取（免费300次/月）"
+            value={settings.auddApiKey || ''}
+            onChange={(e) => setSettings({ ...settings, auddApiKey: e.target.value })}
+          />
+          <button className="send-button" style={{ fontSize: 11, padding: '6px 12px', height: 'auto' }}
+            onClick={async () => {
+              if (!window.electronAPI) return;
+              await window.electronAPI.updateSettings({ auddApiKey: settings.auddApiKey });
+              showSaved();
+            }}>
+            保存
+          </button>
+        </div>
+
+        {/* AcoustID Client Key */}
+        <div className="setting-row">
+          <label className="setting-label">AcoustID Client Key</label>
+          <input
+            type="text"
+            className="setting-input"
+            style={{ flex: 1, maxWidth: 300 }}
+            placeholder="去 acoustid.org 注册获取（免费）"
+            value={settings.acoustidClientKey || ''}
+            onChange={(e) => setSettings({ ...settings, acoustidClientKey: e.target.value })}
+          />
+          <button className="send-button" style={{ fontSize: 11, padding: '6px 12px', height: 'auto' }}
+            onClick={async () => {
+              if (!window.electronAPI) return;
+              await window.electronAPI.updateSettings({ acoustidClientKey: settings.acoustidClientKey });
+              showSaved();
+            }}>
+            保存
+          </button>
+        </div>
+
         <BackendStatus />
 
         {/* 音频采集配置引导 */}

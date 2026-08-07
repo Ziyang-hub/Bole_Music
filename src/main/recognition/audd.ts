@@ -8,6 +8,7 @@
 
 import * as fs from 'fs';
 import { RecognitionBackend, RecognitionResult } from './base';
+import { getSettings } from '../store';
 
 const AUDD_API = 'https://api.audd.io/';
 
@@ -15,9 +16,10 @@ export class AudDBackend implements RecognitionBackend {
   name = 'AudD（商业指纹）';
 
   async recognize(audioPath: string): Promise<RecognitionResult | null> {
-    const apiKey = process.env.AUDD_API_KEY || '';
+    const settings = getSettings();
+    const apiKey = settings.auddApiKey || process.env.AUDD_API_KEY || '';
     if (!apiKey) {
-      console.log('AudD: 未设置 AUDD_API_KEY');
+      console.log('AudD: 未设置 API Key（请在设置页面填入）');
       return null;
     }
 
@@ -59,6 +61,7 @@ export class AudDBackend implements RecognitionBackend {
   }
 
   async isAvailable(): Promise<boolean> {
-    return !!process.env.AUDD_API_KEY;
+    const settings = getSettings();
+    return !!(settings.auddApiKey || process.env.AUDD_API_KEY);
   }
 }

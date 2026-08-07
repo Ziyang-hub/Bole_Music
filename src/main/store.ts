@@ -58,6 +58,10 @@ export interface UserSettings {
   theme: 'dark' | 'light';
   /** 识别后端 */
   recognitionBackend: 'auto' | 'audd' | 'acoustid';
+  /** AudD API Key */
+  auddApiKey: string;
+  /** AcoustID Client Key */
+  acoustidClientKey: string;
 }
 
 export interface SongAnalysis {
@@ -105,6 +109,8 @@ const defaultSettings: UserSettings = {
   weeklyReport: true,
   theme: 'dark',
   recognitionBackend: 'auto',
+  auddApiKey: '',
+  acoustidClientKey: '',
 };
 
 const defaultStats: ListeningStats = {
