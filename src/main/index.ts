@@ -99,15 +99,19 @@ function createWindow(): void {
 // ----- 系统托盘 -----
 
 function createTray(): void {
-  // 使用 PNG 图标
-  const iconPath = path.join(__dirname, '../../resources/icon-256.png');
-  let trayIcon: Electron.NativeImage;
+  // 尝试多个路径找到图标
+  const possiblePaths = [
+    path.join(__dirname, '../../resources/icon-256.png'),
+    path.join(process.resourcesPath || '', 'icon-256.png'),
+    path.join(app.getAppPath(), 'resources', 'icon-256.png'),
+  ];
+  let trayIcon: Electron.NativeImage = nativeImage.createEmpty();
 
-  if (fs.existsSync(iconPath)) {
-    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
-  } else {
-    // 备用：创建简单的 16x16 图标
-    trayIcon = nativeImage.createEmpty();
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      trayIcon = nativeImage.createFromPath(p).resize({ width: 16, height: 16 });
+      break;
+    }
   }
 
   tray = new Tray(trayIcon);
@@ -173,6 +177,24 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
 
+  // 恢复自动采集（如果用户之前开启过）
+  const settings = getSettings();
+  if (settings.autoListen) {
+    const onChunk = async (audioPath: string) => {
+      if (!isMaybeMusic(audioPath)) return;
+      const result = await recognizeSong(audioPath);
+      if (result && result.confidence > 50) {
+        const key = `${result.title}|${result.artist}`;
+        const now = Date.now();
+        if (key === lastDetectedSong && now - lastDetectedTime < 5 * 60 * 1000) return;
+        lastDetectedSong = key;
+        lastDetectedTime = now;
+        if (mainWindow) mainWindow.webContents.send('audio:songDetected', result);
+      }
+    };
+    startCapture(onChunk);
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -227,9 +249,14 @@ ipcMain.handle('store:clearMessages', async () => clearMessages());
 // ----- 设置 -----
 
 ipcMain.handle('store:getSettings', async () => getSettings());
-ipcMain.handle('store:updateSettings', async (_e, partial) =>
-  updateSettings(partial)
-);
+ipcMain.handle('store:updateSettings', async (_e, partial) => {
+  const updated = updateSettings(partial);
+  // 通知渲染进程设置已变更（主题等需要实时生效）
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('settings:changed', updated);
+  }
+  return updated;
+});
 
 // ----- 歌曲分析 -----
 
@@ -327,15 +354,24 @@ ipcMain.handle(
 
 // ----- 音频采集 -----
 
+let lastDetectedSong = '';
+let lastDetectedTime = 0;
+
 ipcMain.handle('audio:startCapture', async () => {
   const onChunk = async (audioPath: string) => {
-    // 检测是否为音乐
     if (!isMaybeMusic(audioPath)) return;
 
-    // 尝试识别歌曲
     const result = await recognizeSong(audioPath);
     if (result && result.confidence > 50) {
-      // 通知渲染进程
+      // 去重：同一首歌5分钟内不重复通知
+      const key = `${result.title}|${result.artist}`;
+      const now = Date.now();
+      if (key === lastDetectedSong && now - lastDetectedTime < 5 * 60 * 1000) {
+        return;
+      }
+      lastDetectedSong = key;
+      lastDetectedTime = now;
+
       if (mainWindow) {
         mainWindow.webContents.send('audio:songDetected', result);
       }

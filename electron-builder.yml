@@ -12,6 +12,7 @@ directories:
 files:
   - dist/**/*
   - package.json
+  - resources/**/*
 
 # GitHub 发布
 publish:

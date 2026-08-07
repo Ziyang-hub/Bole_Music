@@ -79,6 +79,7 @@ interface ElectronAPI {
   showNotification: (title: string, body: string) => Promise<void>;
   getTheme: () => Promise<string>;
   onNavigate: (callback: (view: string) => void) => void;
+  onSettingsChanged?: (callback: (settings: UserSettings) => void) => void;
 
   // 消息
   getMessages: () => Promise<ChatMessage[]>;
@@ -198,5 +199,3 @@ declare global {
     electronAPI?: ElectronAPI;
   }
 }
-
-export {};

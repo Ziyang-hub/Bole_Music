@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onNavigate: (callback: (view: string) => void) => {
     ipcRenderer.on('navigate', (_e, view) => callback(view));
   },
+  onSettingsChanged: (callback: (settings: any) => void) => {
+    ipcRenderer.on('settings:changed', (_e, s) => callback(s));
+  },
 
   // ----- 消息存储 -----
   getMessages: () => ipcRenderer.invoke('store:getMessages'),

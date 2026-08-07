@@ -86,8 +86,9 @@ export function initUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('更新出错:', err.message);
-    setStatus('error', { error: err.message });
+    console.log('更新检查未完成:', err.message);
+    // 不显示为错误——离线/未发布时这是正常情况
+    setStatus('not-available');
   });
 
   // 首次检查

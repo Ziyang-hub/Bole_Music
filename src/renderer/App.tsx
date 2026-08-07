@@ -76,6 +76,11 @@ export default function App() {
         const t = await window.electronAPI.getTheme();
         setTheme(t as 'dark' | 'light');
 
+        // 监听设置变更（主题实时切换等）
+        window.electronAPI.onSettingsChanged?.((s: any) => {
+          if (s.theme) setTheme(s.theme);
+        });
+
         // 监听托盘导航
         window.electronAPI.onNavigate((view: string) => {
           setCurrentView(view as View);
@@ -284,12 +289,15 @@ export default function App() {
             const analysis = result.data;
             const boleContent = formatAnalysis(analysis);
 
-            // 发送系统通知
-            if (window.electronAPI) {
-              window.electronAPI.showNotification(
-                '伯乐分析完成 🎵',
-                `${analysis.songName} - ${analysis.artist}`
-              ).catch(() => {});
+            // 发送系统通知（尊重用户设置）
+            if (window.electronAPI && result.cached !== true) {
+              const settings = await window.electronAPI.getSettings();
+              if (settings.notifyOnAnalysis) {
+                window.electronAPI.showNotification(
+                  '伯乐分析完成 🎵',
+                  `${analysis.songName} - ${analysis.artist}`
+                ).catch(() => {});
+              }
             }
 
             const boleMsg: ChatMessage = {
