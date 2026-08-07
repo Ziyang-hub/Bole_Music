@@ -56,6 +56,8 @@ export interface UserSettings {
   weeklyReport: boolean;
   /** 主题 */
   theme: 'dark' | 'light';
+  /** 识别后端 */
+  recognitionBackend: 'auto' | 'audd' | 'acoustid';
 }
 
 export interface SongAnalysis {
@@ -102,6 +104,7 @@ const defaultSettings: UserSettings = {
   dailyReport: true,
   weeklyReport: true,
   theme: 'dark',
+  recognitionBackend: 'auto',
 };
 
 const defaultStats: ListeningStats = {

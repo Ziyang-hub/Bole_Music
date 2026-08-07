@@ -21,6 +21,7 @@ interface UserSettings {
   dailyReport: boolean;
   weeklyReport: boolean;
   theme: 'dark' | 'light';
+  recognitionBackend: 'auto' | 'audd' | 'acoustid';
 }
 
 interface SongAnalysis {
@@ -136,6 +137,9 @@ interface ElectronAPI {
     platform: string;
     needs: string[];
   }>;
+  checkBackends: () => Promise<
+    { name: string; available: boolean; description: string }[]
+  >;
   onSongDetected: (callback: (result: RecognitionResult) => void) => void;
 
   // 自动更新

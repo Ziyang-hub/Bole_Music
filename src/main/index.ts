@@ -31,7 +31,7 @@ import {
   isCapturing,
   checkCaptureCapability,
 } from './audio-capture';
-import { recognizeSong, isMaybeMusic } from './song-recognition';
+import { recognizeSong, isMaybeMusic, checkBackends } from './song-recognition';
 import {
   initUpdater,
   checkForUpdates,
@@ -358,6 +358,10 @@ ipcMain.handle('audio:checkCapability', async () => {
 ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
   const result = await recognizeSong(audioPath);
   return result;
+});
+
+ipcMain.handle('audio:checkBackends', async () => {
+  return await checkBackends();
 });
 
 // ----- 音乐平台 -----

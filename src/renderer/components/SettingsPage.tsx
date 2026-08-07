@@ -215,6 +215,24 @@ export default function SettingsPage() {
           </button>
         </div>
 
+        {/* 识别后端选择 */}
+        <div className="setting-row">
+          <div className="setting-info">
+            <label className="setting-label">歌曲识别后端</label>
+            <span className="setting-desc">选择识别服务（自动模式会依次尝试）</span>
+          </div>
+          <select
+            className="setting-select"
+            value={settings.recognitionBackend || 'auto'}
+            onChange={(e) => updateField('recognitionBackend', e.target.value as any)}
+          >
+            <option value="auto">🔄 自动（优先可用）</option>
+            <option value="audd">💵 AudD（商业指纹）</option>
+            <option value="acoustid">🆓 AcoustID（开源指纹）</option>
+          </select>
+        </div>
+        <BackendStatus />
+
         {/* 音频采集配置引导 */}
         {settings.autoListen && <AudioSetupGuide />}
 
@@ -287,6 +305,32 @@ export default function SettingsPage() {
           <div className="about-row"><span>理念</span><span>高山流水遇知音 🎵</span></div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** 识别后端状态 */
+function BackendStatus() {
+  const [backends, setBackends] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.checkBackends().then(setBackends);
+    }
+  }, []);
+
+  if (backends.length === 0) return null;
+
+  return (
+    <div style={{ padding: '8px 0', fontSize: 12 }}>
+      {backends.map((b) => (
+        <div key={b.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+          <span style={{ color: 'var(--text-secondary)' }}>{b.name}</span>
+          <span style={{ color: b.available ? '#4caf50' : '#f44336' }}>
+            {b.available ? '✅ 可用' : '❌ 不可用'}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
