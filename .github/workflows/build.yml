@@ -93,14 +93,18 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: 伯乐模拟器-macOS
-          path: release/*.dmg
+          path: |
+            release/*.dmg
+            release/*.zip
           retention-days: 7
 
       - name: 上传到 Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: release/*.dmg
+          files: |
+            release/*.dmg
+            release/*.zip
 
   # ----- Linux -----
   build-linux:

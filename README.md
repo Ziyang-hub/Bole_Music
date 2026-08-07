@@ -103,15 +103,38 @@ https://music.163.com/song?id=186016
 
 ### 🍎 macOS
 
-安装 `.dmg` 后，**不要直接双击 App 图标**。请：
+**推荐方式：下载 ZIP 包（不是 DMG）**
 
-1. 打开 **访达** → **应用程序** 文件夹
-2. 找到「伯乐模拟器」，**右键点击** → 选择 **「打开」**
-3. 弹出对话框点 **「打开」** 确认
+1. 从 Actions Artifacts 下载 `伯乐模拟器-macOS.zip`
+2. 解压 ZIP，会得到 `伯乐模拟器.app`
+3. 打开 **终端**（在「启动台→其他」里）
+4. 运行以下命令（把路径改成你的实际路径）：
 
-> 如果已经双击过（被移到废纸篓），先去废纸篓**移回来**，再用上面的方法打开。
+```bash
+# 如果 App 在「下载」文件夹
+xattr -cr ~/Downloads/伯乐模拟器.app
+codesign --force --deep --sign - ~/Downloads/伯乐模拟器.app
+open ~/Downloads/伯乐模拟器.app
+```
 
-**彻底解决**：需要 Apple Developer 账号（$99/年）+ 公证。如果以后想要，可以再配置。
+> 这三条命令的作用：清除隔离标记 → 临时签名 → 打开应用
+
+**或者用自动安装脚本**（ZIP 包里附带 `mac-install.sh`）：
+
+```bash
+cd ~/Downloads
+bash mac-install.sh
+```
+
+**如果下载的是 DMG**：
+- 先把 App 从 DMG 拖到「应用程序」
+- 然后在终端运行：
+```bash
+xattr -cr /Applications/伯乐模拟器.app
+open /Applications/伯乐模拟器.app
+```
+
+**彻底解决**：需要 Apple Developer 账号（$99/年）。
 
 ### 🪟 Windows
 

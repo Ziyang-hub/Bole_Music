@@ -52,22 +52,24 @@ mac:
       arch:
         - x64
         - arm64
+    - target: zip       # ZIP 格式：绕过 DMG 的隔离标记问题
+      arch:
+        - x64
+        - arm64
   icon: resources/icon.icns
   artifactName: ${productName}-${version}-${arch}.${ext}
   category: public.app-category.music
-  # 开启 hardened runtime（减少 Gatekeeper 拦截）
   hardenedRuntime: true
-  # 基础权限
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  # 临时签名（无需 Apple Developer 账号）
-  # CSC_IDENTITY_AUTO_DISCOVERY=false 时使用 ad-hoc 签名
-  # 注意：ad-hoc 签名不能完全绕过 Gatekeeper，用户需右键打开
+  # 在 ZIP 包中附带安装脚本
+  extraResources:
+    - from: scripts/mac-install.sh
+      to: mac-install.sh
 
 # macOS DMG 设置
 dmg:
   title: 伯乐模拟器
-  # 在 DMG 窗口背景添加使用说明
   contents:
     - x: 130
       y: 220
