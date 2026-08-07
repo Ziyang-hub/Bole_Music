@@ -404,6 +404,41 @@ ipcMain.handle('audio:checkBackends', async () => {
   return await checkBackends();
 });
 
+ipcMain.handle('audio:diagnose', async () => {
+  const issues: string[] = [];
+  const ok: string[] = [];
+
+  // 1. 检查 ffmpeg（内置，总是可用）
+  ok.push('ffmpeg 已内置');
+
+  // 2. 检查音频设备
+  const cap = await checkCaptureCapability();
+  if (cap.available) {
+    ok.push('音频设备就绪');
+  } else {
+    issues.push(...cap.needs);
+  }
+
+  // 3. 检查识别后端
+  const backends = await checkBackends();
+  const hasBackend = backends.some((b: any) => b.available);
+  if (hasBackend) {
+    ok.push(`识别后端: ${backends.filter((b: any) => b.available).map((b: any) => b.name).join(', ')}`);
+  } else {
+    issues.push('未配置识别后端（去设置页填 AudD API Key）');
+  }
+
+  // 4. 检查 AI 服务
+  const settings = getSettings();
+  if (settings.apiKey) {
+    ok.push('AI 服务已配置');
+  } else {
+    issues.push('未配置 AI 服务（去设置页填 DeepSeek API Key）');
+  }
+
+  return { ok, issues, ready: issues.length === 0 };
+});
+
 // ----- 音乐平台 -----
 
 ipcMain.handle('music:search', async (_e, keyword: string, limit?: number) => {

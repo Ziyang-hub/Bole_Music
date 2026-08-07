@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isAudioCapturing: () => ipcRenderer.invoke('audio:isCapturing'),
   checkCaptureCapability: () => ipcRenderer.invoke('audio:checkCapability'),
   checkBackends: () => ipcRenderer.invoke('audio:checkBackends'),
+  diagnoseAudio: () => ipcRenderer.invoke('audio:diagnose'),
 
   // ----- 音乐平台 -----
   searchSongs: (keyword: string, limit?: number) =>

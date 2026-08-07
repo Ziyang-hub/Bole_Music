@@ -207,9 +207,18 @@ export default function SettingsPage() {
             onClick={async () => {
               const newVal = !settings.autoListen;
               updateField('autoListen', newVal);
-              // 真正启动/停止音频采集
+
               if (window.electronAPI) {
                 if (newVal) {
+                  // 开启前先诊断
+                  const diag = await window.electronAPI.diagnoseAudio();
+                  if (!diag.ready) {
+                    const msg = '⚠️ 自动采集无法启动：\n\n' + diag.issues.map((i: string) => '• ' + i).join('\n') +
+                      '\n\n' + '✅ 已就绪：\n' + diag.ok.map((o: string) => '• ' + o).join('\n');
+                    alert(msg);
+                    updateField('autoListen', false);
+                    return;
+                  }
                   await window.electronAPI.startAudioCapture();
                 } else {
                   await window.electronAPI.stopAudioCapture();

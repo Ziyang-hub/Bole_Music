@@ -172,12 +172,24 @@ export default function App() {
       if (window.electronAPI) {
         try {
           const capturing = await window.electronAPI.isAudioCapturing();
-          setIsListening(capturing);
+          if (capturing !== isListening) {
+            setIsListening(capturing);
+            // 状态变化时在对话中提示
+            if (capturing) {
+              const msg: ChatMessage = {
+                id: generateId(), role: 'bole',
+                content: '🎧 自动监听已开启！\n\n正在监听系统音频... 播放音乐后会自动识别和分析。\n\n💡 提示：切换回本页面，检测到歌曲时会自动显示分析结果。',
+                timestamp: nowISO(),
+              };
+              setMessages((prev) => [...prev, msg]);
+              if (window.electronAPI) window.electronAPI.addMessage(msg).catch(() => {});
+            }
+          }
         } catch {}
       }
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isListening]);
 
   // 自动滚动
   useEffect(() => {

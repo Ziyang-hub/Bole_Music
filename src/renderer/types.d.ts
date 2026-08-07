@@ -139,6 +139,7 @@ interface ElectronAPI {
   checkBackends: () => Promise<
     { name: string; available: boolean; description: string }[]
   >;
+  diagnoseAudio: () => Promise<{ ok: string[]; issues: string[]; ready: boolean }>;
   onSongDetected: (callback: (result: RecognitionResult) => void) => void;
 
   // 自动更新
