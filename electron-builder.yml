@@ -1,62 +1,85 @@
 # ============================================================
 # 伯乐模拟器 - Electron Builder 打包配置
-#
-# electron-builder 负责将应用打包成可安装的桌面应用
-# Windows: .exe 安装程序
-# macOS: .dmg 安装包
 # ============================================================
 
-# 应用标识符（唯一标识你的应用）
 appId: com.bole.simulator
-
-# 应用名称
 productName: 伯乐模拟器
 
-# 要打包的目录
 directories:
-  output: release        # 安装包输出目录
-  buildResources: resources  # 图标等资源目录
+  output: release
+  buildResources: resources
 
-# 要打包的文件
 files:
   - dist/**/*
   - package.json
 
-# ===== GitHub 发布配置（用于自动更新）=====
+# GitHub 发布
 publish:
   provider: github
   owner: scorching12
   repo: Bole_Music
 
-# ----- Windows 配置 -----
+# ============================================================
+# Windows
+# ============================================================
 win:
   target:
-    - target: nsis        # NSIS 安装程序（.exe）
+    - target: nsis
       arch:
-        - x64             # 64位
+        - x64
   icon: resources/icon.png
   artifactName: ${productName}-${version}-Setup.${ext}
+  # 请求管理员权限（减少杀软误报）
+  requestedExecutionLevel: asInvoker
 
-# Windows NSIS 安装程序设置
 nsis:
-  oneClick: false         # 不使用一键安装
-  perMachine: false       # 按用户安装（不需要管理员权限）
+  oneClick: false
+  perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: 伯乐模拟器
+  # 在安装目录创建卸载程序
+  createStartMenuShortcut: true
+  # 安装程序签名（无证书时跳过）
+  # 注意：没有花钱买代码签名证书的话，Windows SmartScreen 仍会警告
 
-# ----- macOS 配置 -----
+# ============================================================
+# macOS
+# ============================================================
 mac:
   target:
-    - target: dmg         # DMG 安装包
+    - target: dmg
       arch:
-        - x64             # Intel Mac
-        - arm64           # Apple Silicon (M1/M2/M3)
+        - x64
+        - arm64
   icon: resources/icon.icns
   artifactName: ${productName}-${version}-${arch}.${ext}
   category: public.app-category.music
+  # 开启 hardened runtime（减少 Gatekeeper 拦截）
+  hardenedRuntime: true
+  # 基础权限
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # 临时签名（无需 Apple Developer 账号）
+  # CSC_IDENTITY_AUTO_DISCOVERY=false 时使用 ad-hoc 签名
+  # 注意：ad-hoc 签名不能完全绕过 Gatekeeper，用户需右键打开
 
-# ----- Linux 配置（可选）-----
+# macOS DMG 设置
+dmg:
+  title: 伯乐模拟器
+  # 在 DMG 窗口背景添加使用说明
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+      name: 拖到这里安装
+
+# ============================================================
+# Linux
+# ============================================================
 linux:
   target:
     - target: AppImage

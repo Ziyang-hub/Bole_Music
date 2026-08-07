@@ -43,6 +43,7 @@ jobs:
         run: npx electron-builder --win --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Windows 未签名（无代码签名证书），SmartScreen 会警告
 
       - name: 上传安装包（临时存档）
         uses: actions/upload-artifact@v4
@@ -82,9 +83,11 @@ jobs:
       - name: 打包 macOS 安装包
         run: npx electron-builder --mac --publish never
         env:
+          # 使用 ad-hoc 签名（无需 Apple 开发者账号）
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          # 如果不需要签名，跳过
           CSC_SKIP_NOTARIZATION: true
+          # 开启 hardened runtime（减少 Gatekeeper 拦截）
+          # 注意：ad-hoc 签名 ≠ Apple 公证，用户仍需右键打开
 
       - name: 上传安装包（临时存档）
         uses: actions/upload-artifact@v4
