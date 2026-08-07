@@ -60,24 +60,10 @@ mac:
   artifactName: ${productName}-${version}-${arch}.${ext}
   category: public.app-category.music
   hardenedRuntime: true
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
-  # 在 ZIP 包中附带安装脚本
-  extraResources:
-    - from: scripts/mac-install.sh
-      to: mac-install.sh
 
 # macOS DMG 设置
 dmg:
   title: 伯乐模拟器
-  contents:
-    - x: 130
-      y: 220
-    - x: 410
-      y: 220
-      type: link
-      path: /Applications
-      name: 拖到这里安装
 
 # ============================================================
 # Linux
