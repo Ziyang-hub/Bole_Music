@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
   # 发布 Release 时自动构建 + 上传安装包
   release:
-    types: [published]
+    types: [published, edited]
 
 # ============================================================
 # 构建任务 - 三平台并行
