@@ -204,7 +204,18 @@ export default function SettingsPage() {
           </div>
           <button
             className={`toggle ${settings.autoListen ? 'on' : 'off'}`}
-            onClick={() => updateField('autoListen', !settings.autoListen)}
+            onClick={async () => {
+              const newVal = !settings.autoListen;
+              updateField('autoListen', newVal);
+              // 真正启动/停止音频采集
+              if (window.electronAPI) {
+                if (newVal) {
+                  await window.electronAPI.startAudioCapture();
+                } else {
+                  await window.electronAPI.stopAudioCapture();
+                }
+              }
+            }}
           >
             {settings.autoListen ? '已开启' : '已关闭'}
           </button>
