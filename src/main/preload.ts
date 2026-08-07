@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkCaptureCapability: () => ipcRenderer.invoke('audio:checkCapability'),
   checkBackends: () => ipcRenderer.invoke('audio:checkBackends'),
   diagnoseAudio: () => ipcRenderer.invoke('audio:diagnose'),
+  openScreenRecordingSettings: () => ipcRenderer.invoke('audio:openScreenSettings'),
 
   // macOS 系统音频采集（渲染进程 ↔ 主进程通信）
   onRequestCapture: (callback: () => void) => {

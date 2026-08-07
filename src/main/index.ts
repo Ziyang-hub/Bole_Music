@@ -34,6 +34,7 @@ import {
   registerAudioIpcHandlers,
   requestScreenPermission,
   setMainWindow as setAudioMainWindow,
+  openScreenRecordingSettings,
 } from './audio-capture';
 import { recognizeSong, isMaybeMusic, checkBackends } from './song-recognition';
 import {
@@ -412,6 +413,10 @@ ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
 
 ipcMain.handle('audio:checkBackends', async () => {
   return await checkBackends();
+});
+
+ipcMain.handle('audio:openScreenSettings', async () => {
+  await openScreenRecordingSettings();
 });
 
 ipcMain.handle('audio:diagnose', async () => {

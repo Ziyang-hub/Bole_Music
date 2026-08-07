@@ -73,6 +73,7 @@ export function installMockAPI() {
     checkCaptureCapability: async () => ({ available: false, platform: 'browser', needs: [] }),
     checkBackends: async () => [],
     diagnoseAudio: async () => ({ ok: ['浏览器测试模式'], issues: [], ready: true }),
+    openScreenRecordingSettings: async () => {},
     onSongDetected: () => {},
     onRequestCapture: () => {},
     onStopCaptureRenderer: () => {},

@@ -210,26 +210,34 @@ export default function SettingsPage() {
 
               if (window.electronAPI) {
                 if (newVal) {
-                  // 开启前先诊断
+                  // 诊断（只做提示，不阻塞——getDisplayMedia 会触发权限弹窗）
                   const diag = await window.electronAPI.diagnoseAudio();
-                  if (!diag.ready) {
-                    const msg = '⚠️ 自动采集无法启动：\n\n' + diag.issues.map((i: string) => '• ' + i).join('\n') +
-                      '\n\n' + '✅ 已就绪：\n' + diag.ok.map((o: string) => '• ' + o).join('\n');
-                    alert(msg);
-                    updateField('autoListen', false);
-                    return;
+                  if (diag.issues.length > 0) {
+                    // 有警告但不阻止，让 getDisplayMedia 触发系统弹窗
+                    console.log('采集诊断警告:', diag.issues.join(', '));
                   }
 
-                  // macOS：需要调用 getDisplayMedia 触发系统权限
+                  // macOS：调用 getDisplayMedia 触发系统权限弹窗
                   if (window.electronAPI.platform === 'darwin') {
                     try {
-                      // 动态导入避免循环依赖
                       const { startSystemAudioCapture } = await import('../system-audio-capture');
-                      await window.electronAPI.startAudioCapture(); // 通知主进程
-                      await startSystemAudioCapture();              // 渲染进程调用 getDisplayMedia
+                      await window.electronAPI.startAudioCapture();
+                      await startSystemAudioCapture();
                     } catch (err: any) {
-                      if (err.name !== 'AbortError') {
-                        alert('采集启动失败: ' + (err.message || '未知错误'));
+                      // 用户取消选择器不算错误
+                      if (err.name === 'AbortError') {
+                        updateField('autoListen', false);
+                        await window.electronAPI.stopAudioCapture();
+                        return;
+                      }
+                      // 权限被拒绝 → 引导去系统设置
+                      const goSettings = window.confirm(
+                        '⚠️ 无法获取屏幕录制权限\n\n' +
+                        '请在系统设置中允许「伯乐模拟器」录制屏幕和音频。\n\n' +
+                        '点击「确定」打开系统设置，在隐私与安全性 → 屏幕录制 中开启。'
+                      );
+                      if (goSettings) {
+                        try { await window.electronAPI.openScreenRecordingSettings(); } catch {}
                       }
                       updateField('autoListen', false);
                       await window.electronAPI.stopAudioCapture();

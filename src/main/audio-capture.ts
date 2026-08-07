@@ -21,6 +21,7 @@ import {
   unregisterIpcHandlers as macUnregisterIpcHandlers,
   requestScreenPermission as macRequestScreenPermission,
   setMainWindow as macSetMainWindow,
+  openScreenRecordingSettings as macOpenScreenSettings,
 } from './mac-audio-capture';
 
 const execFileAsync = promisify(execFile);
@@ -139,9 +140,11 @@ export function setMainWindow(win: any): void {
 }
 
 /**
- * 注册 macOS 音频采集的 IPC 处理器
- * 由 index.ts 在 app.whenReady 后调用
+ * 打开 macOS 屏幕录制权限设置（由 renderer 调用）
  */
+export async function openScreenRecordingSettings(): Promise<void> {
+  if (isMac) return macOpenScreenSettings();
+}
 export function registerAudioIpcHandlers(): void {
   if (isMac) macRegisterIpcHandlers();
 }

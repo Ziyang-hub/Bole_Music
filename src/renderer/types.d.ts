@@ -140,6 +140,7 @@ interface ElectronAPI {
     { name: string; available: boolean; description: string }[]
   >;
   diagnoseAudio: () => Promise<{ ok: string[]; issues: string[]; ready: boolean }>;
+  openScreenRecordingSettings: () => Promise<void>;
   onSongDetected: (callback: (result: RecognitionResult) => void) => void;
 
   // macOS 系统音频采集（渲染进程 ↔ 主进程通信）

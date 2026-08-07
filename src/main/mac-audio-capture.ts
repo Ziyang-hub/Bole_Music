@@ -106,16 +106,30 @@ export async function diagnose(): Promise<{
   if (perm === 'granted') {
     ok.push('屏幕录制权限已授权');
   } else if (perm === 'not-determined') {
-    issues.push('屏幕录制权限待授权（开启采集时会弹出系统对话框）');
+    issues.push('屏幕录制权限待授权（点击开启后会弹出系统对话框）');
   } else {
-    issues.push('屏幕录制权限被拒绝（系统设置 > 隐私与安全性 > 屏幕录制 中开启）');
+    issues.push('屏幕录制权限被拒绝（请在弹窗中点击「打开系统设置」开启）');
   }
 
+  // 关键修改：ready 只检查 macOS 版本，不检查权限状态
+  // 因为 getDisplayMedia() 会自然触发权限对话框
+  // 即使之前被拒，也让用户尝试——失败了再引导去系统设置
   return {
     ok,
     issues,
-    ready: majorVer >= 13 && perm !== 'denied',
+    ready: majorVer >= 13,
   };
+}
+
+/**
+ * 打开 macOS 屏幕录制权限设置页
+ */
+export async function openScreenRecordingSettings(): Promise<void> {
+  const { shell } = require('electron');
+  // macOS 13+ 的隐私设置 URL
+  await shell.openExternal(
+    'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+  );
 }
 
 // ============================================================
