@@ -22,9 +22,9 @@
     "electron-updater": "^6.3.0",
     "ffmpeg-static": "^5.2.0",
     "NeteaseCloudMusicApi": "^4.32.0",
+    "node-shazam": "^1.2.7",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "st-shazam": "^1.1.1"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
