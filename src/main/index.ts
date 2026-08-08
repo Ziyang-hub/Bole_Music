@@ -4,7 +4,7 @@
  * 负责：窗口管理、IPC 通信、调用存储服务和 AI 服务
  */
 
-import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage, desktopCapturer } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -404,6 +404,20 @@ ipcMain.handle('audio:checkCapability', async () => {
 ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
   const result = await recognizeSong(audioPath);
   return result;
+});
+
+ipcMain.handle('desktop-capturer:getSources', async () => {
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1, height: 1 },
+    });
+    console.log('[main] desktopCapturer sources:', sources.length);
+    return sources.map(s => ({ id: s.id, name: s.name }));
+  } catch (err: any) {
+    console.error('[main] desktopCapturer failed:', err.message);
+    return []; // 返回空数组而不是抛异常
+  }
 });
 
 ipcMain.handle('audio:openScreenSettings', async () => {

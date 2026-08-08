@@ -1,8 +1,8 @@
 /**
  * 伯乐模拟器 - 系统音频采集（渲染进程）
  *
- * 使用 chromeMediaSource: 'system' 直接捕获系统音频输出。
- * 这是 Chromium/Electron 专有 API，不需要屏幕选择器。
+ * 通过主进程 desktopCapturer 获取屏幕源，
+ * 再用 getUserMedia 捕获桌面（含系统音频）。
  */
 
 let mediaRecorder: MediaRecorder | null = null;
@@ -13,83 +13,84 @@ const CHUNK_SEC = 10;
 export async function startSystemAudioCapture(): Promise<void> {
   stopSystemAudioCapture();
 
+  if (!window.electronAPI) throw new Error('Electron API not available');
+
+  // 1. 通过主进程获取屏幕源
+  const sources = await window.electronAPI.getScreenSources();
+  console.log('[system-audio] Sources:', sources);
+  if (!sources || sources.length === 0) {
+    throw new Error('未找到可录制的屏幕源');
+  }
+
+  const sourceId = sources[0].id;
+
+  // 2. 捕获桌面（含系统音频）——尝试两种约束格式
   try {
-    // chromeMediaSource: 'system' — 直接捕获系统音频，不弹屏幕选择器
-    // macOS 首次调用会自动弹出「屏幕录制」权限对话框
+    console.log('[system-audio] Trying getUserMedia with source:', sourceId);
+    stream = await (navigator.mediaDevices as any).getUserMedia({
+      audio: { chromeMediaSource: 'desktop', chromeMediaSourceId: sourceId },
+      video: { chromeMediaSource: 'desktop', chromeMediaSourceId: sourceId,
+               maxWidth: 1, maxHeight: 1, maxFrameRate: 1 },
+    });
+  } catch (e1: any) {
+    console.log('[system-audio] Format 1 failed:', e1.message, ', trying format 2...');
+    // 备选：旧版 mandatory 格式
     stream = await (navigator.mediaDevices as any).getUserMedia({
       audio: {
-        mandatory: {
-          chromeMediaSource: 'system',
-        },
+        mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: sourceId },
       },
-      video: false,
+      video: {
+        mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: sourceId,
+                     maxWidth: 1, maxHeight: 1, maxFrameRate: 1 },
+      },
     });
-
-    const audioTracks = stream.getAudioTracks();
-    if (audioTracks.length === 0) {
-      stream.getTracks().forEach((t) => t.stop());
-      stream = null;
-      throw new Error(
-        '未获取到系统音频轨道。\n\n请确认：\n' +
-        '1. macOS 版本 ≥ 13 (Ventura)\n' +
-        '2. 系统设置 → 隐私与安全性 → 屏幕录制 → 伯乐模拟器 已开启\n' +
-        '3. 当前有音频正在播放'
-      );
-    }
-
-    // 监听流意外结束
-    audioTracks.forEach((t) => {
-      t.onended = () => {
-        console.log('[system-audio] Track ended');
-        stopSystemAudioCapture();
-      };
-    });
-
-    const audioStream = new MediaStream(audioTracks);
-    stream = audioStream;
-
-    // MediaRecorder
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-      ? 'audio/webm;codecs=opus'
-      : 'audio/webm';
-
-    mediaRecorder = new MediaRecorder(audioStream, { mimeType });
-
-    mediaRecorder.ondataavailable = (event: BlobEvent) => {
-      if (event.data.size > 0 && window.electronAPI) {
-        event.data.arrayBuffer().then((buf: ArrayBuffer) => {
-          window.electronAPI!.sendAudioChunk(buf);
-        }).catch(() => {});
-      }
-    };
-
-    mediaRecorder.onerror = () => {
-      if (window.electronAPI) window.electronAPI.notifyCaptureError('MediaRecorder error');
-    };
-
-    mediaRecorder.onstop = () => {
-      if (_started && window.electronAPI) window.electronAPI.notifyCaptureStopped();
-      _started = false;
-    };
-
-    mediaRecorder.start(CHUNK_SEC * 1000);
-    _started = true;
-    console.log('[system-audio] Capture started via chromeMediaSource:system');
-
-    if (window.electronAPI) window.electronAPI.notifyCaptureStarted();
-
-  } catch (err: any) {
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop());
-      stream = null;
-    }
-    mediaRecorder = null;
-    _started = false;
-
-    console.error('[system-audio] Failed:', err.name, err.message);
-    if (window.electronAPI) window.electronAPI.notifyCaptureError(err.message);
-    throw err;
   }
+
+  // 3. 停止视频轨道
+  stream.getVideoTracks().forEach((t) => t.stop());
+
+  const audioTracks = stream.getAudioTracks();
+  console.log('[system-audio] Audio tracks:', audioTracks.length);
+  if (audioTracks.length === 0) {
+    stream.getTracks().forEach((t) => t.stop());
+    stream = null;
+    throw new Error('未获取到系统音频轨道');
+  }
+
+  audioTracks.forEach((t) => {
+    t.onended = () => { console.log('[system-audio] Track ended'); stopSystemAudioCapture(); };
+  });
+
+  stream = new MediaStream(audioTracks);
+
+  // 4. MediaRecorder
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus' : 'audio/webm';
+
+  mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+  mediaRecorder.ondataavailable = (event: BlobEvent) => {
+    if (event.data.size > 0 && window.electronAPI) {
+      event.data.arrayBuffer().then((buf: ArrayBuffer) => {
+        window.electronAPI!.sendAudioChunk(buf);
+      }).catch(() => {});
+    }
+  };
+
+  mediaRecorder.onerror = () => {
+    if (window.electronAPI) window.electronAPI.notifyCaptureError('MediaRecorder error');
+  };
+  mediaRecorder.onstop = () => {
+    if (_started && window.electronAPI) window.electronAPI.notifyCaptureStopped();
+    _started = false;
+  };
+
+  mediaRecorder.start(CHUNK_SEC * 1000);
+  _started = true;
+  console.log('[system-audio] Capture started');
+
+  if (window.electronAPI) window.electronAPI.notifyCaptureStarted();
+
 }
 
 export function stopSystemAudioCapture(): void {
