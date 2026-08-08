@@ -8,9 +8,6 @@ import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage, des
 import * as path from 'path';
 import * as fs from 'fs';
 
-// 禁用 Autofill 避免 DevTools 中的噪音错误
-app.commandLine.appendSwitch('disable-features', 'Autofill');
-
 // 导入服务模块
 import {
   getMessages,
