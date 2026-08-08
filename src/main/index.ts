@@ -351,10 +351,14 @@ ipcMain.handle(
   'ai:chat',
   async (_e, history: { role: string; content: string }[], userMessage: string) => {
     try {
+      console.log('[ipc:chat] Called, historyLen:', history?.length, 'msg:', userMessage?.slice(0, 30));
       const reply = await runAgent(userMessage, history);
+      console.log('[ipc:chat] Reply length:', reply?.length);
       trackUsage('chat');
       return { success: true, data: reply };
     } catch (error: any) {
+      console.error('[ipc:chat] ERROR:', error.message);
+      console.error('[ipc:chat] STACK:', error.stack);
       return { success: false, error: error.message };
     }
   }
