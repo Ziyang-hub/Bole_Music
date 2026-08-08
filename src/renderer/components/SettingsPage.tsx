@@ -509,8 +509,8 @@ function PrivacySection() {
     if (!window.confirm('确定要清除所有数据吗？\n\n这将删除：\n- 聊天记录\n- API 密钥\n- 听歌日记\n- 使用统计\n\n此操作不可撤销！')) return;
     if (!window.electronAPI) return;
     await window.electronAPI.resetAllData();
-    setCleared(true);
-    setTimeout(() => setCleared(false), 3000);
+    // 清除后立即刷新页面，让用户看到干净的状态
+    window.location.reload();
   }
 
   return (

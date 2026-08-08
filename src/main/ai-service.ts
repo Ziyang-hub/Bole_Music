@@ -427,8 +427,8 @@ async function _callAI(
   settings: ReturnType<typeof getSettings>,
   withTools: boolean
 ): Promise<any> {
-  const apiKey = settings.apiKey || '';
-  console.log('[bole-agent] _callAI: provider=', settings.apiProvider, 'keyLen=', apiKey.length, 'withTools=', withTools);
+  const apiKey = (settings.apiKey || '').trim();
+  console.log('[bole-agent] _callAI: provider=', settings.apiProvider, 'keyLen=', apiKey.length, 'keyStarts=', apiKey.slice(0, 5), 'withTools=', withTools);
   if (!apiKey) {
     console.error('[bole-agent] _callAI: NO API KEY! Throwing error.');
     throw new Error(
