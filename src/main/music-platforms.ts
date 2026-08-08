@@ -61,52 +61,6 @@ export function isSongUrl(text: string): boolean {
 /**
  * 搜索歌曲
  */
-// 缓存 Cookie，避免每次都请求首页
-let _cachedCookies: string | null = null;
-
-/** 获取网易云 Cookie（访问首页获得） */
-async function _getNeteaseCookies(): Promise<string> {
-  if (_cachedCookies) return _cachedCookies;
-  try {
-    const resp = await fetch('https://music.163.com/', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
-      signal: AbortSignal.timeout(5000),
-    });
-    const setCookie = resp.headers.get('set-cookie');
-    if (setCookie) {
-      _cachedCookies = setCookie.split(';')[0];
-      console.log('[cover] Got cookies:', _cachedCookies.slice(0, 30));
-    }
-  } catch {}
-  return _cachedCookies || '';
-}
-
-/** 下载图片 → base64 data URI */
-async function _fetchImageAsDataUri(url: string): Promise<string | null> {
-  try {
-    const cookie = await _getNeteaseCookies();
-    const resp = await fetch(url, {
-      headers: {
-        'Referer': 'https://music.163.com/',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        ...(cookie ? { 'Cookie': cookie } : {}),
-      },
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!resp.ok) return null;
-    const buf = Buffer.from(await resp.arrayBuffer());
-
-    const ct = resp.headers.get('content-type') || 'image/jpeg';
-    const dataUri = `data:${ct};base64,${buf.toString('base64')}`;
-    console.log('[cover] Downloaded', buf.length, 'bytes, dataUri:', dataUri.slice(0, 50));
-    return dataUri;
-  } catch (err: any) {
-    console.log('[cover] Error:', err.message);
-    return null;
-  }
-}
-
 export async function searchSongs(
   keyword: string,
   limit: number = 10,
@@ -135,15 +89,7 @@ export async function searchSongs(
         platform: 'netease' as const,
       }));
 
-      // 并行下载前10张封面转 base64
-      const downloadPromises = mapped.slice(0, 10).map(async (s: any) => {
-        if (s.album?.picUrl && s.album.picUrl.startsWith('http')) {
-          const dataUri = await _fetchImageAsDataUri(s.album.picUrl);
-          if (dataUri) s.album.picUrl = dataUri;
-        }
-      });
-      await Promise.all(downloadPromises);
-
+      console.log(`[music] searchSongs: ${mapped.length} results`);
       return mapped;
     }
 
