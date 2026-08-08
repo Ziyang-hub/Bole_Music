@@ -25,9 +25,7 @@ export async function recognize(audioPath: string): Promise<RecognitionResult | 
   try {
     await Promise.race([prev, new Promise<void>(r => setTimeout(r, 35000))]);
 
-    // fromFilePath: ffmpeg 转 PCM → shazamio-core 指纹 → Shazam API
-    // fromFilePath: ffmpeg 转 PCM → shazamio-core 指纹 → Shazam API
-    // 参数 (path, minimal=false, language='zh-CN')
+    console.log('[Shazam] Calling fromFilePath:', require('path').basename(audioPath));
     const raw = await Promise.race([
       shazam.fromFilePath(audioPath, false, 'zh-CN'),
       new Promise<any>((_, reject) =>
@@ -35,7 +33,10 @@ export async function recognize(audioPath: string): Promise<RecognitionResult | 
       ),
     ]);
 
-    if (!raw) return null;
+    if (!raw) {
+      console.log('[Shazam] No raw response');
+      return null;
+    }
 
     // node-shazam 返回格式: { track: { title, subtitle, sections: [...] } }
     const track = raw.track;
@@ -43,6 +44,7 @@ export async function recognize(audioPath: string): Promise<RecognitionResult | 
       const mainSection = track.sections?.find((s: any) => s.type === 'SONG');
       const album = mainSection?.metadata?.find((m: any) => m.title === 'Album')?.text;
 
+      console.log('[Shazam] Match found:', track.title, '-', track.subtitle || '未知歌手');
       return {
         title: track.title,
         artist: track.subtitle || '未知歌手',
@@ -51,6 +53,7 @@ export async function recognize(audioPath: string): Promise<RecognitionResult | 
         backend: 'Shazam',
       };
     }
+    console.log('[Shazam] No track in response, raw keys:', Object.keys(raw || {}));
     return null;
   } catch (err: any) {
     console.error('[Shazam] 识别失败:', err.message);

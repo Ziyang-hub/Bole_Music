@@ -27,7 +27,7 @@ const execFileAsync = promisify(execFile);
 let ffmpegPath = 'ffmpeg';
 try { ffmpegPath = require('ffmpeg-static'); } catch {}
 
-export type AudioChunkCallback = (audioPath: string) => void;
+export type AudioChunkCallback = (audioPath: string, createdAt?: number) => void;
 
 const AUDIO_DIR = path.join(os.tmpdir(), 'bole-simulator-audio');
 const CHUNK_SEC = 10;
@@ -46,6 +46,9 @@ const isMac = process.platform === 'darwin';
 
 export function startCapture(callback: AudioChunkCallback): boolean {
   if (isRunning) return false;
+
+  // 清理超过 1 小时的旧临时文件
+  cleanupStaleFiles();
 
   // macOS 使用零安装的 ScreenCaptureKit 方案
   if (isMac) {
@@ -226,5 +229,22 @@ export function cleanupOldChunks(): void {
       .map(f => ({ n: f, t: fs.statSync(path.join(AUDIO_DIR, f)).mtimeMs }))
       .sort((a, b) => b.t - a.t);
     for (let i = MAX_CHUNKS; i < files.length; i++) fs.unlinkSync(path.join(AUDIO_DIR, files[i].n));
+  } catch {}
+}
+
+/** 清理超过 1 小时的旧临时文件（启动时调用） */
+function cleanupStaleFiles(): void {
+  try {
+    if (!fs.existsSync(AUDIO_DIR)) return;
+    const oneHourAgo = Date.now() - 3600000;
+    const files = fs.readdirSync(AUDIO_DIR);
+    for (const f of files) {
+      const fullPath = path.join(AUDIO_DIR, f);
+      try {
+        if (fs.statSync(fullPath).mtimeMs < oneHourAgo) {
+          fs.unlinkSync(fullPath);
+        }
+      } catch {}
+    }
   } catch {}
 }

@@ -186,16 +186,29 @@ app.whenReady().then(() => {
   // 恢复自动采集（如果用户之前开启过）
   const settings = getSettings();
   if (settings.autoListen) {
-    const onChunk = async (audioPath: string) => {
+    const onChunk = async (audioPath: string, createdAt?: number) => {
+      // 跳过超过 60 秒的过期 chunk
+      const age = createdAt ? Date.now() - createdAt : 0;
+      if (age > 60000) {
+        console.log('[audio] Auto-restore: skipped stale chunk (age:', Math.round(age / 1000), 's)');
+        return;
+      }
       if (!isMaybeMusic(audioPath)) return;
+      console.log('[audio] Auto-restore: recognizing:', path.basename(audioPath));
       const result = await recognizeSong(audioPath);
       if (result && result.confidence > 50) {
         const key = `${result.title}|${result.artist}`;
         const now = Date.now();
-        if (key === lastDetectedSong && now - lastDetectedTime < 5 * 60 * 1000) return;
+        if (key === lastDetectedSong && now - lastDetectedTime < 2 * 60 * 1000) {
+          console.log('[audio] Auto-restore: dedup skipped:', key);
+          return;
+        }
         lastDetectedSong = key;
         lastDetectedTime = now;
-        if (mainWindow) mainWindow.webContents.send('audio:songDetected', result);
+        if (mainWindow) {
+          console.log('[audio] Auto-restore: detected:', result.title);
+          mainWindow.webContents.send('audio:songDetected', result);
+        }
       }
     };
     startCapture(onChunk);
@@ -216,9 +229,19 @@ app.whenReady().then(() => {
     }
   });
 
-  // 真正退出前清理
+  // 真正退出前清理临时文件
   app.on('before-quit', () => {
     isQuitting = true;
+    // 清理音频采集临时目录
+    const audioDir = path.join(require('os').tmpdir(), 'bole-simulator-audio');
+    try {
+      if (fs.existsSync(audioDir)) {
+        fs.rmSync(audioDir, { recursive: true, force: true });
+        console.log('[app] Cleaned up temp audio directory');
+      }
+    } catch (e) {
+      console.log('[app] Failed to clean temp directory:', e);
+    }
   });
 });
 
@@ -364,33 +387,41 @@ let lastDetectedSong = '';
 let lastDetectedTime = 0;
 
 ipcMain.handle('audio:startCapture', async () => {
-  const onChunk = async (audioPath: string) => {
-    if (!isMaybeMusic(audioPath)) {
-      console.log('[audio] Skipped non-music file:', audioPath);
+  const onChunk = async (audioPath: string, createdAt?: number) => {
+    // 跳过超过 60 秒的过期 chunk，避免识别队列积压
+    const age = createdAt ? Date.now() - createdAt : 0;
+    if (age > 60000) {
+      console.log('[audio] Skipped stale chunk (age:', Math.round(age / 1000), 's):', path.basename(audioPath));
       return;
     }
 
-    console.log('[audio] Recognizing chunk:', audioPath);
+    if (!isMaybeMusic(audioPath)) {
+      console.log('[audio] Skipped non-music:', path.basename(audioPath));
+      return;
+    }
+
+    console.log('[audio] Recognizing:', path.basename(audioPath), age > 0 ? `(age: ${Math.round(age / 1000)}s)` : '');
     const result = await recognizeSong(audioPath);
     if (result) {
-      console.log('[audio] Recognized:', result.title, '-', result.artist, 'confidence:', result.confidence);
+      console.log('[audio] ✅ Matched:', result.title, '-', result.artist);
     } else {
-      console.log('[audio] No match for chunk');
+      console.log('[audio] ❌ No match for:', path.basename(audioPath));
       return;
     }
 
     if (result.confidence > 50) {
       const key = `${result.title}|${result.artist}`;
       const now = Date.now();
-      if (key === lastDetectedSong && now - lastDetectedTime < 5 * 60 * 1000) {
-        console.log('[audio] Dedup skipped:', key);
+      // 2 分钟去重窗口（同一首歌不重复通知）
+      if (key === lastDetectedSong && now - lastDetectedTime < 2 * 60 * 1000) {
+        console.log('[audio] 🔄 Dedup skipped:', key);
         return;
       }
       lastDetectedSong = key;
       lastDetectedTime = now;
 
       if (mainWindow) {
-        console.log('[audio] Sending songDetected:', result.title);
+        console.log('[audio] 📤 Sending songDetected:', result.title);
         mainWindow.webContents.send('audio:songDetected', result);
       }
     }

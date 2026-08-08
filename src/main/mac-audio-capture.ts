@@ -20,7 +20,7 @@ import * as os from 'os';
 import * as fs from 'fs';
 import { cleanupOldChunks } from './audio-capture';
 
-export type AudioChunkCallback = (audioPath: string) => void;
+export type AudioChunkCallback = (audioPath: string, createdAt?: number) => void;
 
 const AUDIO_DIR = path.join(os.tmpdir(), 'bole-simulator-audio');
 const CHUNK_SEC = 15; // 15 秒足够 Shazam 匹配
@@ -133,7 +133,8 @@ export function registerIpcHandlers(): void {
   ipcMain.on('audio:chunk', (_event, data: Buffer) => {
     if (!isRunning || !onChunk) return;
 
-    const id = `${Date.now()}_${chunkIndex++}`;
+    const now = Date.now();
+    const id = `${now}_${chunkIndex++}`;
     const tmpWebm = path.join(AUDIO_DIR, `chunk_${id}.webm`);
     const tmpWav = path.join(AUDIO_DIR, `chunk_${id}.wav`);
 
@@ -149,24 +150,33 @@ export function registerIpcHandlers(): void {
       ], { stdio: 'ignore' });
 
       p.on('close', (code: number) => {
+        // 无论成功失败都删除 webm 源文件
         fs.promises.unlink(tmpWebm).catch(() => {});
         if (code === 0) {
           fs.promises.stat(tmpWav).then(s => {
             if (s.size > 1000 && onChunk) {
               console.log('[mac-audio] Chunk ready:', tmpWav, 'size:', s.size);
-              onChunk(tmpWav);
+              // 传入创建时间戳，方便判断是否过期
+              onChunk(tmpWav, now);
             }
             cleanupOldChunks();
-          }).catch(() => {});
+          }).catch(() => { cleanupOldChunks(); });
         } else {
+          console.log('[mac-audio] ffmpeg conversion failed, code:', code);
+          // 转换失败也清理 wav 残留
+          fs.promises.unlink(tmpWav).catch(() => {});
           cleanupOldChunks();
         }
       });
 
-      p.on('error', () => {
+      p.on('error', (err: any) => {
+        console.log('[mac-audio] ffmpeg spawn error:', err.message);
         fs.promises.unlink(tmpWebm).catch(() => {});
+        fs.promises.unlink(tmpWav).catch(() => {});
       });
-    }).catch(() => {});
+    }).catch((err) => {
+      console.log('[mac-audio] writeFile error:', err.message);
+    });
   });
 
   // 接收捕获错误
