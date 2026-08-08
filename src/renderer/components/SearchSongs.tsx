@@ -1,10 +1,6 @@
 /**
  * 伯乐模拟器 - 搜索歌曲组件
- *
- * 在应用内搜索歌曲，支持：
- * - 关键词搜索（调用网易云音乐 API）
- * - 搜索结果列表展示
- * - 点击选择歌曲进行分析
+ * 支持「加载更多」分页
  */
 
 import React, { useState } from 'react';
@@ -14,14 +10,19 @@ interface Props {
   onClose: () => void;
 }
 
+const PAGE_SIZE = 20;
+
 export default function SearchSongs({ onSelect, onClose }: Props) {
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState<SongInfo[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [loadingLyrics, setLoadingLyrics] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  async function handleSearch() {
+  async function handleSearch(resetOffset = true) {
     const kw = keyword.trim();
     if (!kw || !window.electronAPI) return;
 
@@ -29,43 +30,50 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
     setSearched(true);
 
     try {
-      const result = await window.electronAPI.searchSongs(kw, 30);
+      const newOffset = resetOffset ? 0 : offset;
+      const result = await (window.electronAPI as any).searchSongs(kw, PAGE_SIZE, newOffset);
       if (result.success && result.data) {
-        setResults(result.data);
-      } else {
-        setResults([]);
+        const songs = result.data as SongInfo[];
+        if (resetOffset) {
+          setResults(songs);
+          setOffset(PAGE_SIZE);
+        } else {
+          setResults(prev => [...prev, ...songs]);
+          setOffset(prev => prev + PAGE_SIZE);
+        }
+        setHasMore(songs.length >= PAGE_SIZE);
       }
     } catch {
-      setResults([]);
+      if (resetOffset) setResults([]);
     }
 
     setSearching(false);
+    setLoadingMore(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') handleSearch();
+    if (e.key === 'Enter') { setOffset(0); handleSearch(true); }
+  }
+
+  function handleLoadMore() {
+    setLoadingMore(true);
+    handleSearch(false);
   }
 
   async function handleSelect(song: SongInfo) {
     if (!window.electronAPI) return;
 
-    // 尝试获取歌词
     let lyrics: string | undefined;
     if (song.platform === 'netease') {
       setLoadingLyrics(song.id);
       try {
         const lrc = await window.electronAPI.getLyrics(song.id);
-        if (lrc.success && lrc.data) {
-          lyrics = lrc.data;
-        }
-      } catch {
-        // 获取歌词失败不影响主流程
-      }
+        if (lrc.success && lrc.data) lyrics = lrc.data;
+      } catch {}
       setLoadingLyrics(null);
     }
 
-    const artist = song.artists.join('、');
-    onSelect(song.name, artist, lyrics);
+    onSelect(song.name, song.artists.join('、'), lyrics);
   }
 
   return (
@@ -87,7 +95,7 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
           />
           <button
             className="search-btn"
-            onClick={handleSearch}
+            onClick={() => { setOffset(0); handleSearch(true); }}
             disabled={searching || !keyword.trim()}
           >
             {searching ? '搜索中...' : '搜索'}
@@ -98,13 +106,10 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
           {!searched && (
             <div className="search-hint">
               <p>💡 输入关键词搜索歌曲，比如「晴天」「周杰伦」</p>
-              <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8 }}>
-                也支持直接粘贴网易云歌曲链接
-              </p>
             </div>
           )}
 
-          {searching && (
+          {searching && !loadingMore && (
             <div className="search-loading">⏳ 搜索中...</div>
           )}
 
@@ -119,11 +124,7 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
               onClick={() => handleSelect(song)}
             >
               {song.album?.picUrl ? (
-                <img className="search-album-cover"
-                  src={(song.album.picUrl.startsWith('http:') ? song.album.picUrl.replace('http:', 'https:') : song.album.picUrl) + '?param=100y100'}
-                  alt=""
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
+                <img className="search-album-cover" src={song.album.picUrl + '?param=80y80'} alt="" />
               ) : (
                 <div className="search-album-placeholder">🎵</div>
               )}
@@ -131,21 +132,29 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
                 <div className="search-song-name">
                   {song.name}
                   {loadingLyrics === song.id && (
-                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 8 }}>
-                      ⏳ 获取歌词...
-                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 8 }}>⏳</span>
                   )}
                 </div>
                 <div className="search-song-artist">{song.artists.join(' / ')}</div>
-                {song.album && (
-                  <div className="search-song-album">{song.album.name}</div>
-                )}
+                {song.album && <div className="search-song-album">{song.album.name}</div>}
               </div>
               <div className="search-song-platform">
-                {song.platform === 'netease' ? '🔴 网易云' : song.platform === 'qq' ? '🟢 QQ' : ''}
+                {song.platform === 'netease' ? '🔴' : ''}
               </div>
             </div>
           ))}
+
+          {hasMore && results.length > 0 && (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <button className="search-btn"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}
+              >
+                {loadingMore ? '加载中...' : '📥 加载更多'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

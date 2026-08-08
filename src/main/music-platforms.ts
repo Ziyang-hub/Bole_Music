@@ -61,15 +61,22 @@ export function isSongUrl(text: string): boolean {
 /**
  * 搜索歌曲
  */
+function _fixPicUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  // 网易云 CDN 返回 http:// 但 https:// 也能访问
+  return url.replace(/^http:/, 'https:');
+}
+
 export async function searchSongs(
   keyword: string,
-  limit: number = 10
+  limit: number = 10,
+  offset: number = 0
 ): Promise<SongInfo[]> {
   try {
     // 动态导入 NeteaseCloudMusicApi
     const { search } = await import('NeteaseCloudMusicApi');
 
-    const result = await search({ keywords: keyword, limit, type: 1 });
+    const result = await search({ keywords: keyword, limit, offset, type: 1 });
 
     if (result.status === 200) {
       const body = result.body as any;
@@ -82,7 +89,7 @@ export async function searchSongs(
         album: song.album
           ? {
               name: song.album.name,
-              picUrl: song.album.picUrl || song.album.artist?.img1v1Url,
+              picUrl: _fixPicUrl(song.album.picUrl || song.album.artist?.img1v1Url),
             }
           : undefined,
         duration: song.duration,

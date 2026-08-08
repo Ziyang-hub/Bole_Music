@@ -88,8 +88,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notifyCaptureError: (msg: string) => ipcRenderer.send('audio:captureError', msg),
 
   // ----- 音乐平台 -----
-  searchSongs: (keyword: string, limit?: number) =>
-    ipcRenderer.invoke('music:search', keyword, limit),
+  searchSongs: (keyword: string, limit?: number, offset?: number) =>
+    ipcRenderer.invoke('music:search', keyword, limit, offset),
   getLyrics: (songId: string) =>
     ipcRenderer.invoke('music:getLyrics', songId),
   getSongDetail: (songId: string) =>

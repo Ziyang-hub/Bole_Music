@@ -558,9 +558,9 @@ ipcMain.handle('audio:diagnose', async () => {
 
 // ----- 音乐平台 -----
 
-ipcMain.handle('music:search', async (_e, keyword: string, limit?: number) => {
+ipcMain.handle('music:search', async (_e, keyword: string, limit?: number, offset?: number) => {
   try {
-    const songs = await searchSongs(keyword, limit || 10);
+    const songs = await searchSongs(keyword, limit || 10, offset || 0);
     return { success: true, data: songs };
   } catch (error: any) {
     return { success: false, error: error.message };
