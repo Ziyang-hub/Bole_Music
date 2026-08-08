@@ -431,9 +431,8 @@ export default function App() {
               role: m.role === 'bole' ? 'assistant' : 'user',
               content: m.content,
             }));
-            history.push({ role: 'user', content: text });
 
-            const chatResult = await window.electronAPI.chat(history);
+            const chatResult = await window.electronAPI.chat(history, text);
             if (chatResult.success && chatResult.data) {
               const boleMsg: ChatMessage = {
                 id: generateId(), role: 'bole', content: chatResult.data, timestamp: nowISO(),
@@ -456,9 +455,8 @@ export default function App() {
             role: m.role === 'bole' ? 'assistant' : 'user',
             content: m.content,
           }));
-          history.push({ role: 'user', content: text });
 
-          const result = await window.electronAPI.chat(history);
+          const result = await window.electronAPI.chat(history, text);
 
           if (result.success && result.data) {
             const boleMsg: ChatMessage = {
@@ -729,29 +727,17 @@ export default function App() {
  * 格式化 AI 分析结果为好看的聊天文本
  */
 function formatAnalysis(a: SongAnalysis): string {
-  let text = '';
-  text += `🎵 **${a.songName}**`;
-  if (a.artist && a.artist !== '未知') {
-    text += ` — ${a.artist}`;
-  }
+  // Agent 返回的自然语言已在 personalThought 中
+  if (a.personalThought) return a.personalThought;
+
+  // 兼容旧格式
+  let text = `🎵 **${a.songName}**`;
+  if (a.artist && a.artist !== '未知') text += ` — ${a.artist}`;
   text += '\n\n';
-
-  if (a.lyrics) {
-    text += `📝 **歌词主题**\n${a.lyrics}\n\n`;
-  }
-  if (a.emotion) {
-    text += `💗 **情感色彩**\n${a.emotion}\n\n`;
-  }
-  if (a.genre) {
-    text += `🎼 **音乐风格**\n${a.genre}\n\n`;
-  }
-  if (a.story && a.story !== '暂无相关信息') {
-    text += `📖 **创作背景**\n${a.story}\n\n`;
-  }
-  if (a.personalThought) {
-    text += `💭 **伯乐感悟**\n${a.personalThought}`;
-  }
-
+  if (a.lyrics) text += `📝 **歌词主题**\n${a.lyrics}\n\n`;
+  if (a.emotion) text += `💗 **情感色彩**\n${a.emotion}\n\n`;
+  if (a.genre) text += `🎼 **音乐风格**\n${a.genre}\n\n`;
+  if (a.story && a.story !== '暂无相关信息') text += `📖 **创作背景**\n${a.story}\n\n`;
   return text;
 }
 

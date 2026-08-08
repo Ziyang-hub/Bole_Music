@@ -24,7 +24,7 @@ import {
   getAllData,
   resetAllData,
 } from './store';
-import { analyzeSong, chat, generateReport, recommendSongs } from './ai-service';
+import { runAgent, generateReport, recommendSongs } from './ai-service';
 import {
   startCapture,
   stopCapture,
@@ -297,7 +297,7 @@ ipcMain.handle('store:updateSettings', async (_e, partial) => {
   return updated;
 });
 
-// ----- 歌曲分析 -----
+// ----- 歌曲分析（通过 Agent）-----
 
 ipcMain.handle(
   'ai:analyzeSong',
@@ -310,17 +310,28 @@ ipcMain.handle(
         return { success: true, data: cached, cached: true };
       }
 
-      // AI 分析（传入真实歌词）
-      const rawResult = await analyzeSong(songName, artist, lyricsText);
+      // 用 Agent 分析（自然语言，不再强制 JSON）
+      const artistHint = artist ? ` — ${artist}` : '';
+      const message = `🎧 请帮我分析一下这首歌：《${songName}》${artistHint}`;
+      const reply = await runAgent(message, []);
 
-      // 添加 analyzedAt 时间戳
-      const result = { ...rawResult, analyzedAt: new Date().toISOString() };
+      // 将 Agent 的自然语言回复包装为 AnalysisResult
+      const result = {
+        songName,
+        artist: artist || '未知',
+        lyrics: '',
+        emotion: '',
+        genre: '',
+        story: '',
+        personalThought: reply,
+        analyzedAt: new Date().toISOString(),
+      };
 
       // 缓存结果
       cacheAnalysis(cacheKey, result);
 
       // 更新统计数据
-      updateStats(songName, artist || result.artist || '未知', result.genre || '未知');
+      updateStats(songName, artist || '未知', '');
 
       // 追踪使用
       trackUsage('analysis');
@@ -334,9 +345,9 @@ ipcMain.handle(
 
 ipcMain.handle(
   'ai:chat',
-  async (_e, history: { role: string; content: string }[]) => {
+  async (_e, history: { role: string; content: string }[], userMessage: string) => {
     try {
-      const reply = await chat(history);
+      const reply = await runAgent(userMessage, history);
       trackUsage('chat');
       return { success: true, data: reply };
     } catch (error: any) {

@@ -35,8 +35,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyzeSong: (songName: string, artist?: string, lyrics?: string) =>
     ipcRenderer.invoke('ai:analyzeSong', songName, artist, lyrics),
 
-  chat: (history: { role: string; content: string }[]) =>
-    ipcRenderer.invoke('ai:chat', history),
+  chat: (history: { role: string; content: string }[], userMessage: string) =>
+    ipcRenderer.invoke('ai:chat', history, userMessage),
 
   generateReport: (type: string, songs: any[], stats: any) =>
     ipcRenderer.invoke('ai:generateReport', type, songs, stats),

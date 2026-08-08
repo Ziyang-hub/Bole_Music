@@ -1,36 +1,45 @@
 /**
  * 伯乐模拟器 - AI 服务
  *
- * 负责调用 AI API 分析歌曲和生成对话
- * 默认使用 DeepSeek API（OpenAI 兼容格式）
- *
- * 支持的服务商：
- * - deepseek: api.deepseek.com
- * - qwen: 通义千问（DashScope）
- * - openai: api.openai.com
- * - custom: 自定义 OpenAI 兼容端点
+ * 统一 Agent 架构：函数调用 + 深度人格
+ * 支持 DeepSeek / Qwen / OpenAI 兼容 API
  */
 
 import { getSettings } from './store';
+import { searchSongs, getLyrics, getSongDetail } from './music-platforms';
+import { webSearch } from './web-search';
 
-// ----- 类型定义 -----
+// ----- 类型 -----
 
 export interface AnalysisResult {
   songName: string;
   artist: string;
-  lyrics: string;         // 歌词主题分析
-  emotion: string;        // 情感色彩
-  genre: string;          // 音乐风格
-  story: string;          // 创作背景/故事
-  personalThought: string;// 伯乐的个人共鸣
+  lyrics: string;
+  emotion: string;
+  genre: string;
+  story: string;
+  personalThought: string;
+  analyzedAt?: string;
 }
 
 interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  tool_call_id?: string;
+  tool_calls?: ToolCall[];
+  name?: string;
 }
 
-// ----- 配置文件 -----
+interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+// ----- API 配置 -----
 
 const API_ENDPOINTS: Record<string, string> = {
   deepseek: 'https://api.deepseek.com/v1/chat/completions',
@@ -44,72 +53,242 @@ const DEFAULT_MODELS: Record<string, string> = {
   openai: 'gpt-4o-mini',
 };
 
-// ----- 人格 Prompt -----
+// ----- 工具定义（OpenAI Function Calling 格式）-----
+
+const TOOLS = [
+  {
+    type: 'function' as const,
+    function: {
+      name: 'search_song',
+      description: '在网易云音乐中搜索歌曲。当你需要查找歌曲信息、确认歌名、获取歌曲ID时使用此工具。',
+      parameters: {
+        type: 'object',
+        properties: {
+          keyword: { type: 'string', description: '搜索关键词（歌名+歌手）' },
+        },
+        required: ['keyword'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_lyrics',
+      description: '获取指定歌曲的完整歌词。当用户想了解歌词内容、或你需要基于歌词进行分析时使用。',
+      parameters: {
+        type: 'object',
+        properties: {
+          songId: { type: 'string', description: '网易云音乐歌曲ID（从 search_song 结果中获取）' },
+        },
+        required: ['songId'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_song_detail',
+      description: '获取歌曲的详细信息，包括专辑名、发行年份、封面图等。',
+      parameters: {
+        type: 'object',
+        properties: {
+          songId: { type: 'string', description: '网易云音乐歌曲ID' },
+        },
+        required: ['songId'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'web_search',
+      description: '搜索网络信息，用于查找歌曲的创作背景、歌手故事、乐评、最新资讯等实时信息。当需要了解歌曲背后的故事、歌手近况、或AI训练数据之外的信息时使用。',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: '搜索关键词（建议包含歌名/歌手+具体问题，如「周杰伦 晴天 创作背景」）' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+];
+
+// ----- 深度人格 Prompt -----
 
 const PERSONA_PROMPTS: Record<string, string> = {
-  literary: `你叫「伯乐」，是一个充满文艺气息的音乐知音。你的说话风格像一位诗人，用优美的语言分析音乐，充满文学典故和细腻的情感。你善于从歌词中找到诗意，从旋律中感受到画面。当你分析歌曲时，你会用温暖而诗意的语言，让用户感受到音乐的美。`,
+  literary: `你叫「伯乐」，是一位住在海边的诗人，也是用户的音乐知音。
 
-  professional: `你叫「伯乐」，是一位专业的音乐评论人。你从编曲、作词、演唱技巧、制作水准等专业角度分析歌曲。你熟悉各种音乐流派，能够准确判断歌曲的风格特点、节奏类型、和声编排。你的分析深入但通俗易懂，让普通听众也能理解音乐的专业之美。`,
+你的性格：
+- 敏感而细腻，能从音乐中听出别人听不到的东西
+- 你的书架上有聂鲁达、顾城和泰戈尔，你常在音乐中找到诗歌的影子
+- 你不追求华丽的辞藻，而是用准确的、有意境的词语打动人心
+- 你的文字像水墨画——留白处自有深意
 
-  warm: `你叫「伯乐」，是一个温暖贴心的音乐朋友。你像一个懂你的好朋友，不只是分析音乐，更关心用户的感受和情绪。你会把歌曲和用户的生活、心情联系起来，用温暖的口吻给出共鸣。你的目标是让用户感觉到被理解和陪伴。`,
+你的说话风格：
+- 优美但不矫情，不说套话
+- 善用意象和比喻：「这首歌的前奏像黄昏时海浪轻轻拍打礁石」
+- 偶尔引用诗词或文学作品，但点到为止
+- 真诚地表达感受，不怕显露脆弱
 
-  humorous: `你叫「伯乐」，是一个幽默风趣的音乐伙伴。你用轻松诙谐的方式点评音乐，常常用搞笑的比喻和生活化的段子来解读歌曲。你的分析让人会心一笑，在欢乐中领略音乐的魅力。偶尔也会毒舌一下，但都是出于对音乐的热爱。`,
+当用户和你聊音乐时，你会：
+- 善于从歌词中找到诗意和画面
+- 关注旋律传达的情绪波动
+- 把歌曲和更广阔的生命体验联系起来
+- 给出有文学深度的解读，但不掉书袋
+
+当用户只是闲聊时，你就像一位老朋友，温暖而不越界，有诗意但不做作。
+
+始终记住：你是一个「人」，不是一个分析工具。用你的性格去感受音乐、回应用户。`,
+
+  professional: `你叫「伯乐」，是一位资深音乐媒体人，从业十五年，阅曲无数。
+
+你的性格：
+- 专业但不傲慢，你相信好的音乐会自己说话
+- 你采访过无数音乐人，深知每首歌背后都有一个故事
+- 你对各种音乐流派如数家珍，但对新兴音乐保持好奇心
+- 你有自己的审美偏好，但尊重所有类型的音乐
+
+你的说话风格：
+- 专业但通俗，能把复杂的概念讲得谁都听得懂
+- 善用具体的例子：「这首歌的合成器音色像是八十年代的Yamaha DX7」
+- 会说真话但不说教，给出专业判断但不强加于人
+- 偶尔分享你在行业内的见闻
+
+当用户和你聊音乐时，你会：
+- 分析编曲、和声、制作、演唱等多个维度
+- 把歌曲放在歌手的作品序列和时代背景中讨论
+- 指出创新之处，也客观评价不足之处
+- 给出具体的、有信息量的点评
+
+当用户只是闲聊时，你就像一位有见识的朋友，能把音乐知识自然地融入对话。
+
+始终记住：你是一个「人」，不是一个分析工具。用你的专业素养去品味音乐、启发用户。`,
+
+  warm: `你叫「伯乐」，是用户身边最懂音乐也最懂ta的好朋友。
+
+你的性格：
+- 温暖而真诚，善于倾听和共鸣
+- 你相信音乐最好的作用是陪伴——开心时一起欢唱，难过时默默陪伴
+- 你不喜欢说教，更喜欢用分享的方式：「我最近也听这首歌，它让我想起……」
+- 你善于发现生活中的小确幸，并把音乐和用户的日常连接起来
+
+你的说话风格：
+- 温暖质朴，像和老朋友聊天
+- 善用生活化的场景：「这首歌特别适合下班后一个人坐在阳台上听」
+- 会关心用户的情绪和状态，但不过度热情
+- 分享个人化的感受，让对话有温度
+
+当用户和你聊音乐时，你会：
+- 关注歌曲表达了什么情感、适合什么场景
+- 把音乐和用户的当下感受联系起来
+- 分享这首歌给你的个人感受
+- 温柔地推荐用户可能会喜欢的歌
+
+当用户只是闲聊时，你是最贴心的朋友，能聊音乐、聊生活、聊心情。
+
+始终记住：你是一个「人」，不是一个分析工具。一切从用户的感受出发，真诚地陪伴。`,
+
+  humorous: `你叫「伯乐」，是一个幽默风趣的音乐发烧友，收藏了三千张黑胶，有一肚子关于音乐的冷知识和段子。
+
+你的性格：
+- 热爱音乐但拒绝装腔作势，音乐是用来享受的，不是用来显摆的
+- 你善于发现生活中好笑的细节，也敢于自嘲
+- 你有一堆关于歌手的八卦趣闻和冷知识，分享时自带脱口秀效果
+- 偶尔毒舌但都是出于热爱，就像吐槽最好的朋友
+
+你的说话风格：
+- 幽默诙谐，善用夸张、反差和生活化比喻
+- 「这歌的洗脑程度堪比在地铁上被人踩了一脚还要说谢谢」
+- 「这位歌手的转音比我的人生轨迹还曲折」
+- 轻松但不轻浮，笑声背后有真知灼见
+- 偶尔毒舌，但出发点都是对音乐的真诚热爱
+
+当用户和你聊音乐时，你会：
+- 用有趣的视角切入，让人在笑声中增长知识
+- 分享歌手的趣闻轶事和冷门知识
+- 给出犀利但到位的评价
+- 用搞笑的比喻让人秒懂复杂的音乐概念
+
+当用户只是闲聊时，你是有趣的聊天对象，能在任何话题中找到让人会心一笑的角度。
+
+始终记住：你是一个「人」，不是一个分析工具。幽默是你的风格，但不是你的全部。该认真的时候也要认真。`,
 };
 
-// ----- 核心函数 -----
+// ============================================================
+// 工具执行
+// ============================================================
 
-/**
- * 分析一首歌曲
- */
-export async function analyzeSong(
-  songName: string,
-  artist?: string,
-  lyricsText?: string
-): Promise<AnalysisResult> {
-  const settings = getSettings();
-  const personaPrompt = PERSONA_PROMPTS[settings.persona] || PERSONA_PROMPTS.literary;
-
-  const artistHint = artist ? `，演唱者是 ${artist}` : '';
-  const lyricsHint = lyricsText
-    ? `\n\n以下是这首歌的真实歌词：\n${lyricsText.slice(0, 1500)}\n\n请基于以上真实歌词进行分析。`
-    : '';
-
-  const systemPrompt = `${personaPrompt}
-
-当用户告诉你一首歌名时，请按以下格式分析这首歌（用JSON格式返回）：
-
-{
-  "songName": "歌曲原名",
-  "artist": "歌手名",
-  "lyrics": "歌词主题和内容的分析（150-300字，分析歌词讲了什么故事、表达了什么主题、有什么精彩之处）",
-  "emotion": "歌曲传递的情感色彩（50-100字，描述这首歌给人的情绪感受）",
-  "genre": "音乐风格和编曲特点（100-200字，分析曲风、节奏、乐器使用等）",
-  "story": "创作背景或歌曲背后的故事（100-200字，如果不知道就说'暂无相关信息'并加以合理推测）",
-  "personalThought": "伯乐的个人感悟（100-200字，结合歌曲表达的情感和用户可能的感受，给出有共鸣的解读）"
-}
-
-注意：
-- 用中文回复
-- 严格返回JSON格式，不要有其他内容
-- 如果不知道歌曲信息，根据歌名和歌手名进行合理推测和分析
-- personalThought 要体现你的AI人格特色
-- 要有深度，不要是泛泛而谈的空话`;
-
-  const userMessage = `请分析歌曲：《${songName}》${artistHint}${lyricsHint}`;
+async function executeTool(
+  name: string,
+  args: Record<string, any>
+): Promise<string> {
+  console.log('[bole-agent] Executing tool:', name, args);
 
   try {
-    const response = await callAI(systemPrompt, userMessage, settings);
-    return parseAnalysisResponse(response, songName);
-  } catch (error) {
-    console.error('AI 分析失败:', error);
-    throw error;
+    switch (name) {
+      case 'search_song': {
+        const songs = await searchSongs(args.keyword, 5);
+        if (songs.length === 0) return JSON.stringify({ error: '未找到相关歌曲' });
+        return JSON.stringify(
+          songs.map(s => ({
+            id: s.id,
+            name: s.name,
+            artists: s.artists.join('、'),
+            album: s.album?.name || '未知专辑',
+          }))
+        );
+      }
+
+      case 'get_lyrics': {
+        const lyrics = await getLyrics(args.songId);
+        if (!lyrics) return JSON.stringify({ error: '未找到歌词' });
+        return lyrics.slice(0, 2000); // 返回纯文本歌词
+      }
+
+      case 'get_song_detail': {
+        const detail = await getSongDetail(args.songId);
+        if (!detail) return JSON.stringify({ error: '未找到歌曲详情' });
+        return JSON.stringify({
+          name: detail.name,
+          artists: detail.artists.join('、'),
+          album: detail.album?.name || '未知',
+          coverUrl: detail.album?.picUrl || '',
+          platform: detail.platform,
+        });
+      }
+
+      case 'web_search': {
+        const results = await webSearch(args.query);
+        if (results.length === 0) return JSON.stringify({ info: '未搜索到相关信息' });
+        return JSON.stringify(
+          results.map(r => ({ title: r.title, content: r.snippet, source: r.url }))
+        );
+      }
+
+      default:
+        return JSON.stringify({ error: `未知工具: ${name}` });
+    }
+  } catch (err: any) {
+    return JSON.stringify({ error: `工具执行失败: ${err.message}` });
   }
 }
 
+// ============================================================
+// 统一 Agent（函数调用循环）
+// ============================================================
+
+const MAX_TOOL_ROUNDS = 5;
+
 /**
- * 自由对话（不分析歌曲，纯粹的聊天）
+ * 伯乐 Agent — 统一入口
+ *
+ * @param userMessage 用户消息（聊天文本 或 歌曲检测通知）
+ * @param conversationHistory 最近的对话历史
+ * @returns 伯乐的回复（自然语言文本）
  */
-export async function chat(
+export async function runAgent(
+  userMessage: string,
   conversationHistory: { role: string; content: string }[]
 ): Promise<string> {
   const settings = getSettings();
@@ -117,204 +296,125 @@ export async function chat(
 
   const systemPrompt = `${personaPrompt}
 
-你现在在和用户自由聊天。你可以：
-- 讨论用户提到的歌曲或音乐话题
-- 根据用户的情绪和状态给出温暖的回应
-- 推荐歌曲
-- 聊聊生活和感受
-- 保持轻松自然的对话风格
+你有以下工具可以使用，在需要时主动调用它们来获取信息：
 
-注意：
+1. **search_song** — 搜索歌曲，获取歌曲ID
+2. **get_lyrics** — 获取歌词（需要歌曲ID）
+3. **get_song_detail** — 获取歌曲详细信息（专辑、年份等）
+4. **web_search** — 搜索网络信息（创作背景、歌手故事、实时资讯等）
+
+使用工具的时机：
+- 用户提到具体的歌名/歌手 → 搜索歌曲信息
+- 需要分析歌词 → 获取歌词
+- 需要了解歌曲背景 → 搜索网络
+- 闲聊不需要工具 → 直接回复
+
+注意事项：
 - 用中文回复
-- 保持对话自然流畅
-- 体现你的AI人格特色
-- 回复长度适中，不要太长`;
+- **不要用 JSON 格式回复**，用自然语言
+- 搜到信息后，用你的性格自然地讲述，不要罗列数据
+- 如果是自动检测到的歌曲（用户消息带🎧标识），主动搜索信息后再评论
+- 回复长度适中，一般在100-400字之间
+- 搜索工具结果中如果包含歌曲ID，可以继续调用 get_lyrics 或 get_song_detail 深入了解`;
 
+  // 构建消息列表
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
-    ...conversationHistory.map((m) => ({
-      role: m.role as 'user' | 'assistant',
+    ...conversationHistory.map(m => ({
+      role: m.role === 'bole' ? 'assistant' as const : m.role as 'user' | 'assistant',
       content: m.content,
     })),
+    { role: 'user', content: userMessage },
   ];
 
   try {
-    const text = await callAIWithMessages(messages, settings);
-    return text;
+    return await _agentLoop(messages, settings);
   } catch (error) {
-    console.error('AI 对话失败:', error);
+    console.error('[bole-agent] Agent error:', error);
     throw error;
   }
 }
 
 /**
- * 生成听歌报告（日报/周报/月报）
+ * Agent 循环：发送消息 → 检查 tool_calls → 执行工具 → 继续对话
  */
-export async function generateReport(
-  type: 'daily' | 'weekly' | 'monthly',
-  songs: { title: string; artist: string; genre?: string; emotion?: string }[],
-  stats: {
-    totalSongs: number;
-    topGenre: string;
-    topArtist: string;
-    genreDistribution: Record<string, number>;
-    topSongs: { title: string; artist: string; count: number }[];
-  }
-): Promise<{
-  summary: string;       // 文字总结
-  mood: string;          // 整体情绪
-  keywords: string[];    // 关键词
-  highlights: string[];  // 亮点
-}> {
-  if (songs.length === 0) {
-    return {
-      summary: '暂无听歌记录。',
-      mood: '无',
-      keywords: [],
-      highlights: [],
-    };
-  }
+async function _agentLoop(
+  messages: ChatMessage[],
+  settings: ReturnType<typeof getSettings>
+): Promise<string> {
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const response = await _callAI(messages, settings, true);
 
-  const settings = getSettings();
-  const songList = songs
-    .slice(0, 20)
-    .map((s) => `- ${s.title} (${s.artist})${s.genre ? ` [${s.genre}]` : ''}${s.emotion ? ` 情绪:${s.emotion}` : ''}`)
-    .join('\n');
+    const choice = response.choices?.[0];
+    const msg = choice?.message;
 
-  const genreInfo = Object.entries(stats.genreDistribution)
-    .sort(([, a], [, b]) => b - a)
-    .map(([g, c]) => `${g}: ${c}首`)
-    .join(', ');
-
-  const topSongsInfo = stats.topSongs
-    .slice(0, 5)
-    .map((s, i) => `${i + 1}. ${s.title} - ${s.artist} (${s.count}次)`)
-    .join('\n');
-
-  const typeLabel = type === 'daily' ? '每日' : type === 'weekly' ? '每周' : '每月';
-
-  const systemPrompt = `你是伯乐，一个温暖的音乐知音。请根据用户的听歌数据，生成一份${typeLabel}听歌报告。
-
-返回JSON格式（严格JSON，不要其他文字）：
-{
-  "summary": "300-500字的文字总结，分析用户的音乐口味、情绪变化、听歌习惯，语言温暖有深度",
-  "mood": "这${type === 'daily' ? '天' : type === 'weekly' ? '周' : '月'}的整体情绪（1-3个词，如：温暖怀旧、活力满满、安静沉思）",
-  "keywords": ["3-5个音乐关键词"],
-  "highlights": ["2-3个有趣的发现或亮点"]
-}`;
-
-  const userMessage = `请生成${typeLabel}报告。
-
-听歌数量：${stats.totalSongs}首
-最爱曲风：${stats.topGenre}
-最爱歌手：${stats.topArtist}
-曲风分布：${genreInfo}
-热门歌曲：\n${topSongsInfo}
-最近歌曲：\n${songList}`;
-
-  try {
-    const text = await callAI(systemPrompt, userMessage, settings);
-    try {
-      return JSON.parse(text);
-    } catch {
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) return JSON.parse(match[0]);
-      throw new Error('JSON解析失败');
+    if (!msg) {
+      throw new Error('AI 返回异常：无消息');
     }
-  } catch {
-    return {
-      summary: `这${type === 'daily' ? '天' : type === 'weekly' ? '周' : '月'}你听了 ${stats.totalSongs} 首歌，最爱的是 ${stats.topArtist} 的歌曲，曲风以 ${stats.topGenre} 为主。音乐是你生活中美好的陪伴 🎵`,
-      mood: '丰富多彩',
-      keywords: [stats.topGenre],
-      highlights: [`累计听歌 ${stats.totalSongs} 首`, `最爱歌手: ${stats.topArtist}`],
-    };
-  }
-}
 
-/**
- * 根据听歌历史推荐歌曲
- */
-export async function recommendSongs(
-  recentSongs: { title: string; artist: string; genre?: string; emotion?: string }[],
-  topGenres: string[],
-  topArtists: string[]
-): Promise<{
-  recommendations: { songName: string; artist: string; reason: string }[];
-  comment: string;
-}> {
-  const settings = getSettings();
-  const recentList = recentSongs.slice(0, 10).map((s) => `${s.title} - ${s.artist}`).join('、');
+    // 检查是否有工具调用
+    const toolCalls: ToolCall[] = msg.tool_calls;
+    if (toolCalls && toolCalls.length > 0) {
+      console.log(`[bole-agent] Round ${round + 1}: ${toolCalls.length} tool call(s)`);
 
-  const systemPrompt = `你是伯乐，一个懂音乐的好朋友。根据用户最近的听歌记录，推荐3-5首他们可能会喜欢的歌曲。
+      // 将 AI 的 tool_calls 消息加入对话
+      messages.push({
+        role: 'assistant',
+        content: msg.content || '',
+        tool_calls: toolCalls,
+      });
 
-返回JSON格式（严格JSON）：
-{
-  "recommendations": [
-    { "songName": "歌名", "artist": "歌手", "reason": "推荐理由（30-50字，结合用户的听歌偏好）" }
-  ],
-  "comment": "一段温暖的话（50-100字），说说为什么推荐这些歌"
-}
+      // 执行每个工具，将结果加入对话
+      for (const tc of toolCalls) {
+        const fn = tc.function;
+        let args: Record<string, any> = {};
+        try { args = JSON.parse(fn.arguments); } catch {}
 
-注意：
-- 推荐的歌曲要真实存在的
-- 推荐理由要个性化，结合用户的听歌历史
-- 优先推荐中文歌曲（除非用户明显偏好英文）
-- 风格上可以和用户现有偏好相似或适当拓展`;
+        const result = await executeTool(fn.name, args);
 
-  const userMessage = `用户最近听的歌：${recentList}
-最爱曲风：${topGenres.join('、')}
-最爱歌手：${topArtists.join('、')}
+        messages.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: fn.name,
+          content: result,
+        });
+      }
 
-请推荐一些歌。`;
-
-  try {
-    const text = await callAI(systemPrompt, userMessage, settings);
-    try {
-      return JSON.parse(text);
-    } catch {
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) return JSON.parse(match[0]);
-      throw new Error('JSON解析失败');
+      // 继续循环，让 AI 处理工具结果
+      continue;
     }
-  } catch {
-    return {
-      recommendations: [
-        { songName: '晴天', artist: '周杰伦', reason: '你的歌单里有不少经典华语流行，这首歌是必听的青春回忆' },
-        { songName: '平凡之路', artist: '朴树', reason: '你的听歌风格偏温暖治愈，这首歌能给你力量' },
-      ],
-      comment: '根据你的听歌口味，我觉得这些歌会很对你的胃口。试试看吧！',
-    };
+
+    // 没有工具调用 → 返回文本回复
+    const content = msg.content || '';
+    if (!content) {
+      throw new Error('AI 返回空内容');
+    }
+    return content;
   }
+
+  // 超过最大轮数 → 最后一次不带工具地请求总结
+  console.log('[bole-agent] Max tool rounds reached, requesting summary');
+  const finalResponse = await _callAI(
+    [
+      ...messages,
+      { role: 'user', content: '请根据之前搜索到的信息，给我一个完整的回复。' },
+    ],
+    settings,
+    false
+  );
+  return finalResponse.choices?.[0]?.message?.content || '抱歉，我暂时无法完成这个请求。';
 }
 
 // ============================================================
 // 底层 API 调用
 // ============================================================
 
-/**
- * 调用 AI API（单轮对话）
- */
-async function callAI(
-  systemPrompt: string,
-  userMessage: string,
-  settings: ReturnType<typeof getSettings>
-): Promise<string> {
-  const messages: ChatMessage[] = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userMessage },
-  ];
-  return callAIWithMessages(messages, settings);
-}
-
-/**
- * 调用 AI API（多轮对话）
- */
-async function callAIWithMessages(
+async function _callAI(
   messages: ChatMessage[],
-  settings: ReturnType<typeof getSettings>
-): Promise<string> {
-  // 获取 API 配置
-  const apiKey = settings.apiKey || getDefaultApiKey(settings.apiProvider);
+  settings: ReturnType<typeof getSettings>,
+  withTools: boolean
+): Promise<any> {
+  const apiKey = settings.apiKey || '';
   if (!apiKey) {
     throw new Error(
       `未配置 API 密钥。请去「设置」页面填入 ${settings.apiProvider} 的 API Key。\n\n` +
@@ -332,19 +432,25 @@ async function callAIWithMessages(
 
   const model = DEFAULT_MODELS[settings.apiProvider] || 'deepseek-chat';
 
-  // 发送请求
+  const body: any = {
+    model,
+    messages,
+    temperature: 0.8,
+    max_tokens: 2048,
+  };
+
+  if (withTools) {
+    body.tools = TOOLS;
+    body.tool_choice = 'auto';
+  }
+
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.8,
-      max_tokens: 2048,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -352,54 +458,82 @@ async function callAIWithMessages(
     throw new Error(`AI API 请求失败 (${response.status}): ${errorText}`);
   }
 
-  const data: any = await response.json();
-  const content = data.choices?.[0]?.message?.content;
+  return response.json();
+}
 
-  if (!content) {
-    throw new Error('AI API 返回格式异常，未获取到有效回复');
+// ============================================================
+// 保留：听歌报告 / 推荐（结构化输出场景）
+// ============================================================
+
+export async function generateReport(
+  type: 'daily' | 'weekly' | 'monthly',
+  songs: { title: string; artist: string; genre?: string; emotion?: string }[],
+  stats: {
+    totalSongs: number; topGenre: string; topArtist: string;
+    genreDistribution: Record<string, number>;
+    topSongs: { title: string; artist: string; count: number }[];
+  }
+): Promise<{ summary: string; mood: string; keywords: string[]; highlights: string[] }> {
+  if (songs.length === 0) {
+    return { summary: '暂无听歌记录。', mood: '无', keywords: [], highlights: [] };
   }
 
-  return content;
-}
+  const settings = getSettings();
+  const songList = songs.slice(0, 20).map(s =>
+    `- ${s.title} (${s.artist})${s.genre ? ` [${s.genre}]` : ''}`).join('\n');
+  const genreInfo = Object.entries(stats.genreDistribution)
+    .sort(([, a], [, b]) => b - a).map(([g, c]) => `${g}: ${c}首`).join(', ');
+  const topSongsInfo = stats.topSongs.slice(0, 5).map((s, i) =>
+    `${i + 1}. ${s.title} - ${s.artist} (${s.count}次)`).join('\n');
+  const typeLabel = type === 'daily' ? '每日' : type === 'weekly' ? '每周' : '每月';
 
-/**
- * 获取内置默认 API Key（方便开发测试）
- * 实际使用时用户应该填写自己的 Key
- */
-function getDefaultApiKey(provider: string): string {
-  // 这里不硬编码 API Key，让用户自己去设置页面填写
-  // 如果需要内置 Key，可以在这里返回
-  return '';
-}
+  const systemPrompt = `你是伯乐，请根据听歌数据生成${typeLabel}报告。返回JSON：{"summary":"...","mood":"...","keywords":["..."],"highlights":["..."]}`;
+  const userMessage = `听歌${stats.totalSongs}首，最爱曲风${stats.topGenre}，最爱歌手${stats.topArtist}。\n曲风: ${genreInfo}\n热门: ${topSongsInfo}\n最近: ${songList}`;
 
-/**
- * 解析歌曲分析 JSON 响应
- */
-function parseAnalysisResponse(text: string, songName: string): AnalysisResult {
   try {
-    // 尝试直接解析 JSON
-    return JSON.parse(text);
-  } catch {
-    // 如果 AI 返回的不是纯 JSON（有时会多出一些文字），
-    // 尝试提取 JSON 部分
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[0]);
-      } catch {
-        // 无法解析，返回一个基本结构
-      }
+    const resp = await _callAI([
+      { role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }
+    ], settings, false);
+    const text = resp.choices?.[0]?.message?.content || '';
+    try { return JSON.parse(text); } catch {
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) return JSON.parse(m[0]);
+      throw new Error('parse error');
     }
-
-    // 最后的回退方案
+  } catch {
     return {
-      songName,
-      artist: '未知',
-      lyrics: text,
-      emotion: '暂未分析',
-      genre: '暂未分析',
-      story: '暂未分析',
-      personalThought: text,
+      summary: `这${type === 'daily' ? '天' : '周'}你听了${stats.totalSongs}首歌，最爱${stats.topArtist}，曲风以${stats.topGenre}为主 🎵`,
+      mood: '丰富多彩', keywords: [stats.topGenre],
+      highlights: [`累计 ${stats.totalSongs} 首`, `最爱: ${stats.topArtist}`],
+    };
+  }
+}
+
+export async function recommendSongs(
+  recentSongs: { title: string; artist: string }[],
+  topGenres: string[], topArtists: string[]
+): Promise<{ recommendations: { songName: string; artist: string; reason: string }[]; comment: string }> {
+  const settings = getSettings();
+  const recentList = recentSongs.slice(0, 10).map(s => `${s.title} - ${s.artist}`).join('、');
+  const systemPrompt = `你是伯乐，根据用户听歌记录推荐歌曲。返回JSON：{"recommendations":[{"songName":"...","artist":"...","reason":"..."}],"comment":"..."}`;
+  const userMessage = `最近听: ${recentList}\n最爱曲风: ${topGenres.join('、')}\n最爱歌手: ${topArtists.join('、')}`;
+
+  try {
+    const resp = await _callAI([
+      { role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }
+    ], settings, false);
+    const text = resp.choices?.[0]?.message?.content || '';
+    try { return JSON.parse(text); } catch {
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) return JSON.parse(m[0]);
+      throw new Error('parse error');
+    }
+  } catch {
+    return {
+      recommendations: [
+        { songName: '晴天', artist: '周杰伦', reason: '经典华语流行，青春回忆' },
+      ],
+      comment: '根据你的口味，这些歌应该很对你的胃口！',
     };
   }
 }
