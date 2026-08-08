@@ -305,11 +305,12 @@ export function trackUsage(event: string, data?: any): void {
   };
 
   usage.lastUsed = new Date().toISOString();
+  usage.featureCounts = usage.featureCounts || {};
   usage.featureCounts[event] = (usage.featureCounts[event] || 0) + 1;
 
-  if (event === 'analysis') usage.totalAnalyses++;
-  if (event === 'chat') usage.totalChats++;
-  if (event === 'playlist_import') usage.playlistImports++;
+  if (event === 'analysis') usage.totalAnalyses = (usage.totalAnalyses || 0) + 1;
+  if (event === 'chat') usage.totalChats = (usage.totalChats || 0) + 1;
+  if (event === 'playlist_import') usage.playlistImports = (usage.playlistImports || 0) + 1;
 
   (store as any).set('usage', usage);
 }
