@@ -61,12 +61,6 @@ export function isSongUrl(text: string): boolean {
 /**
  * 搜索歌曲
  */
-function _fixPicUrl(url: string | undefined): string | undefined {
-  if (!url) return undefined;
-  // 网易云 CDN 返回 http:// 但 https:// 也能访问
-  return url.replace(/^http:/, 'https:');
-}
-
 export async function searchSongs(
   keyword: string,
   limit: number = 10,
@@ -89,7 +83,7 @@ export async function searchSongs(
         album: song.album
           ? {
               name: song.album.name,
-              picUrl: _fixPicUrl(song.album.picUrl || song.album.artist?.img1v1Url),
+              picUrl: song.album.picUrl || song.album.artist?.img1v1Url,
             }
           : undefined,
         duration: song.duration,

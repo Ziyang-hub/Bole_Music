@@ -139,7 +139,7 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
                 {song.album && <div className="search-song-album">{song.album.name}</div>}
               </div>
               <div className="search-song-platform">
-                {song.platform === 'netease' ? '🔴' : ''}
+                {song.platform === 'netease' ? '🔴 网易云' : song.platform === 'qq' ? '🟢 QQ' : ''}
               </div>
             </div>
           ))}
