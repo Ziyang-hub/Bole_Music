@@ -45,6 +45,9 @@ function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// 模块级变量：防止 React Strict Mode 双重挂载导致重复启动采集
+let _autoRestoreDone = false;
+
 // ============================================================
 // 主组件
 // ============================================================
@@ -138,12 +141,14 @@ export default function App() {
   }, []);
 
   // macOS: 自动恢复采集（设置中 autoListen=true 时）
+  // restored 在模块级，防止 React Strict Mode 双重挂载
   useEffect(() => {
     if (!window.electronAPI || window.electronAPI.platform !== 'darwin') return;
-    let restored = false;
+
+    let cancelled = false;
     window.electronAPI.getSettings().then(async (s: any) => {
-      if (s.autoListen && !restored) {
-        restored = true;
+      if (s.autoListen && !cancelled && !_autoRestoreDone) {
+        _autoRestoreDone = true;
         try {
           // 必须同时启动主进程采集（注册 onChunk 回调）和渲染进程采集（MediaRecorder）
           await window.electronAPI!.startAudioCapture();
@@ -151,9 +156,17 @@ export default function App() {
           await startSystemAudioCapture();
         } catch (e) {
           console.log('[app] Auto-restore capture failed:', e);
+          _autoRestoreDone = false;
         }
       }
     });
+
+    return () => {
+      cancelled = true;
+      // Strict Mode 清理：停止采集
+      window.electronAPI?.stopAudioCapture().catch(() => {});
+      import('./system-audio-capture').then(m => m.stopSystemAudioCapture()).catch(() => {});
+    };
   }, []);
 
   // 订阅音频检测事件（自动采集识别到歌曲时）

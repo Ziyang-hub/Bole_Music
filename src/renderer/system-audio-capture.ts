@@ -12,6 +12,12 @@ let _started = false;
 const CHUNK_SEC = 15; // 15 秒足够 Shazam 匹配
 
 export async function startSystemAudioCapture(): Promise<void> {
+  // 防重入：如果已经在采集，直接返回
+  if (_started && mediaRecorder && mediaRecorder.state === 'recording') {
+    console.log('[system-audio] Already capturing, skipping duplicate start');
+    return;
+  }
+
   stopSystemAudioCapture();
 
   if (!window.electronAPI) throw new Error('Electron API not available');
