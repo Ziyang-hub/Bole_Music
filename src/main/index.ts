@@ -181,6 +181,16 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
 
+  // 拦截网易云CDN请求，自动加 Referer 绕过防盗链
+  const { session: { defaultSession } } = require('electron');
+  defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['*://*.music.126.net/*'] },
+    (details: any, callback: any) => {
+      details.requestHeaders['Referer'] = 'https://music.163.com/';
+      callback({ requestHeaders: details.requestHeaders });
+    }
+  );
+
   // 注册 macOS 音频采集的 IPC
   registerAudioIpcHandlers();
 

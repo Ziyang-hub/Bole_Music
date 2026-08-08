@@ -3,7 +3,7 @@
  * 支持「加载更多」分页
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 interface Props {
   onSelect: (songName: string, artist: string, lyrics?: string) => void;
@@ -11,31 +11,6 @@ interface Props {
 }
 
 const PAGE_SIZE = 20;
-
-/** 通过主进程代理加载图片（带 Referer，绕过网易云防盗链） */
-function useProxiedImage(url: string | undefined): string | null {
-  const [dataUri, setDataUri] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!url || !window.electronAPI) return;
-    let cancelled = false;
-    (window.electronAPI as any).fetchImage?.(url).then((d: string | null) => {
-      if (!cancelled && d) setDataUri(d);
-    });
-    return () => { cancelled = true; };
-  }, [url]);
-
-  return dataUri;
-}
-
-function SongCover({ song }: { song: SongInfo }) {
-  const url = song.album?.picUrl;
-  const dataUri = useProxiedImage(url);
-
-  if (dataUri) return <img className="search-album-cover" src={dataUri} alt="" />;
-  if (url) return <div className="search-album-placeholder">⏳</div>; // 加载中
-  return <div className="search-album-placeholder">🎵</div>;
-}
 
 export default function SearchSongs({ onSelect, onClose }: Props) {
   const [keyword, setKeyword] = useState('');
@@ -148,7 +123,11 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
               className="search-result-item"
               onClick={() => handleSelect(song)}
             >
-              <SongCover song={song} />
+              {song.album?.picUrl ? (
+                <img className="search-album-cover" src={song.album.picUrl + '?param=80y80'} alt="" />
+              ) : (
+                <div className="search-album-placeholder">🎵</div>
+              )}
               <div className="search-song-info">
                 <div className="search-song-name">
                   {song.name}
