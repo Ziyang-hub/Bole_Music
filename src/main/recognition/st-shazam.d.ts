@@ -17,8 +17,9 @@ declare module 'node-shazam' {
 
   export class Shazam {
     constructor();
-    recognise(filePath: string): Promise<ShazamResult>;
-    recognizeSong(filePath: string): Promise<any>;
-    search_music(query: string): Promise<any>;
+    recognise(path: string, language?: string, minimal?: boolean): Promise<any>;
+    fromFilePath(path: string, minimal?: boolean, language?: string): Promise<any>;
+    recognizeSong(samples: number[], language?: string): Promise<any>;
+    search_music(query: string, language?: string, country?: string, limit?: string, offset?: string): Promise<any>;
   }
 }

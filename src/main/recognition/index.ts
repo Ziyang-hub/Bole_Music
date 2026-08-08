@@ -11,24 +11,42 @@ export type { RecognitionResult };
 
 const shazam = new Shazam();
 
+// 串行队列：fromFilePath 写固定临时文件 node_shazam_temp.pcm，并发会冲突
+let _pending: Promise<any> = Promise.resolve();
+
 /**
  * 识别音频文件中的歌曲
  */
 export async function recognize(audioPath: string): Promise<RecognitionResult | null> {
+  const prev = _pending;
+  let resolveOuter: (v: any) => void = () => {};
+  _pending = new Promise(r => { resolveOuter = r; });
+
   try {
+    await Promise.race([prev, new Promise<void>(r => setTimeout(r, 35000))]);
+
+    // fromFilePath: ffmpeg 转 PCM → shazamio-core 指纹 → Shazam API
+    // fromFilePath: ffmpeg 转 PCM → shazamio-core 指纹 → Shazam API
+    // 参数 (path, minimal=false, language='zh-CN')
     const raw = await Promise.race([
-      shazam.recognise(audioPath),
+      shazam.fromFilePath(audioPath, false, 'zh-CN'),
       new Promise<any>((_, reject) =>
         setTimeout(() => reject(new Error('Shazam timeout')), 30000)
       ),
     ]);
 
-    // node-shazam 返回格式: { track: { title, subtitle, ... } }
-    const track = raw?.track || raw;
+    if (!raw) return null;
+
+    // node-shazam 返回格式: { track: { title, subtitle, sections: [...] } }
+    const track = raw.track;
     if (track && track.title) {
+      const mainSection = track.sections?.find((s: any) => s.type === 'SONG');
+      const album = mainSection?.metadata?.find((m: any) => m.title === 'Album')?.text;
+
       return {
         title: track.title,
-        artist: track.subtitle || track.artist || '未知歌手',
+        artist: track.subtitle || '未知歌手',
+        album: album || undefined,
         confidence: 85,
         backend: 'Shazam',
       };
@@ -37,6 +55,8 @@ export async function recognize(audioPath: string): Promise<RecognitionResult | 
   } catch (err: any) {
     console.error('[Shazam] 识别失败:', err.message);
     return null;
+  } finally {
+    resolveOuter(null);
   }
 }
 
