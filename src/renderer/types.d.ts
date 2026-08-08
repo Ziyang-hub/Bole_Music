@@ -139,7 +139,6 @@ interface ElectronAPI {
   onSongDetected: (callback: (result: RecognitionResult) => void) => void;
 
   // macOS 系统音频采集
-  getScreenSources: () => Promise<{ id: string; name: string }[]>;
   sendAudioChunk: (data: ArrayBuffer) => void;
   notifyCaptureStarted: () => void;
   notifyCaptureStopped: () => void;
