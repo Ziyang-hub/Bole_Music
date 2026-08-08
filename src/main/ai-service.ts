@@ -278,7 +278,7 @@ async function executeTool(
 // 统一 Agent（函数调用循环）
 // ============================================================
 
-const MAX_TOOL_ROUNDS = 5;
+const MAX_TOOL_ROUNDS = 6;
 
 /**
  * 伯乐 Agent — 统一入口
@@ -399,7 +399,9 @@ async function _agentLoop(
 
     // 没有工具调用 → 返回文本回复
     const content = msg.content || '';
+    console.log('[bole-agent] Text response received, length:', content.length);
     if (!content) {
+      console.error('[bole-agent] Empty content from AI');
       throw new Error('AI 返回空内容');
     }
     return content;
@@ -407,15 +409,22 @@ async function _agentLoop(
 
   // 超过最大轮数 → 最后一次不带工具地请求总结
   console.log('[bole-agent] Max tool rounds reached, requesting summary');
-  const finalResponse = await _callAI(
-    [
-      ...messages,
-      { role: 'user', content: '请根据之前搜索到的信息，给我一个完整的回复。' },
-    ],
-    settings,
-    false
-  );
-  return finalResponse.choices?.[0]?.message?.content || '抱歉，我暂时无法完成这个请求。';
+  try {
+    const finalResponse = await _callAI(
+      [
+        ...messages,
+        { role: 'user', content: '请根据之前搜索到的信息，给我一个完整的回复。' },
+      ],
+      settings,
+      false
+    );
+    const summary = finalResponse.choices?.[0]?.message?.content || '';
+    console.log('[bole-agent] Summary response, length:', summary.length);
+    return summary || '抱歉，我暂时无法完成这个请求。';
+  } catch (err: any) {
+    console.error('[bole-agent] Summary request failed:', err.message);
+    return '抱歉，我暂时无法完成这个请求。';
+  }
 }
 
 // ============================================================
