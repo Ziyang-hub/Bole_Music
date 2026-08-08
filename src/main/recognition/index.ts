@@ -21,22 +21,26 @@ let _pending: Promise<any> = Promise.resolve();
  * 解析 Shazam API 返回的原始响应
  * 格式: { matches: [...], results: [{ matches: [{ properties: { title, subtitle } }] }] }
  */
+/**
+ * 解析 Shazam API v2 响应格式:
+ * {
+ *   results: { matches: [{ id: "xxx", type: "shazam-songs" }] },
+ *   resources: { "shazam-songs": { "xxx": { attributes: { title, artist } } } }
+ * }
+ */
 function parseShazamResponse(data: any): { title: string; artist: string; album?: string } | null {
   try {
-    const results = data?.results;
-    if (!results || !Array.isArray(results) || results.length === 0) return null;
+    const songMatches = data?.results?.matches;
+    if (!songMatches || !Array.isArray(songMatches) || songMatches.length === 0) return null;
 
-    const best = results[0];
-    const match = best?.matches?.[0];
-    if (!match) return null;
-
-    const props = match.properties;
-    if (!props) return null;
+    const songId = songMatches[0].id;
+    const songData = data?.resources?.["shazam-songs"]?.[songId]?.attributes;
+    if (!songData) return null;
 
     return {
-      title: props.title || '未知歌曲',
-      artist: props.subtitle || props.artist || '未知歌手',
-      album: props.sections?.[0]?.metadata?.find((m: any) => m.title === 'Album')?.text,
+      title: songData.title || '未知歌曲',
+      artist: songData.artist || '未知歌手',
+      album: songData.album || undefined,
     };
   } catch {
     return null;
