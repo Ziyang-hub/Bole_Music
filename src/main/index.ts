@@ -408,6 +408,8 @@ ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
 
 ipcMain.handle('desktop-capturer:getSources', async () => {
   try {
+    console.log('[main] desktopCapturer type:', typeof desktopCapturer);
+    console.log('[main] desktopCapturer.getSources type:', typeof desktopCapturer.getSources);
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: { width: 1, height: 1 },
@@ -415,8 +417,10 @@ ipcMain.handle('desktop-capturer:getSources', async () => {
     console.log('[main] desktopCapturer sources:', sources.length);
     return sources.map(s => ({ id: s.id, name: s.name }));
   } catch (err: any) {
-    console.error('[main] desktopCapturer failed:', err.message);
-    return []; // 返回空数组而不是抛异常
+    console.error('[main] desktopCapturer error type:', typeof err);
+    console.error('[main] desktopCapturer error keys:', Object.keys(err || {}));
+    console.error('[main] desktopCapturer raw error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+    return [];
   }
 });
 
