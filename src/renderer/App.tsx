@@ -427,6 +427,10 @@ export default function App() {
             });
           } else {
             // 歌曲分析失败 → 回退到自由对话模式
+            console.log('[app] analyzeSong failed, falling back to chat. errorAPI:', !!window.electronAPI, 'hasChat:', !!window.electronAPI?.chat);
+            if (!window.electronAPI || !window.electronAPI.chat) {
+              throw new Error('chat API 不可用，请完全退出 App 后重新打开');
+            }
             const history = messages.slice(-10).map((m) => ({
               role: m.role === 'bole' ? 'assistant' : 'user',
               content: m.content,
@@ -451,6 +455,7 @@ export default function App() {
           }
         } else {
           // 自由对话模式
+          console.log('[app] Chat mode. text:', text, 'errorAPI:', !!window.electronAPI, 'hasChat:', !!window.electronAPI?.chat);
           if (!window.electronAPI || !window.electronAPI.chat) {
             console.error('[app] window.electronAPI or chat is missing!', !!window.electronAPI, typeof window.electronAPI?.chat);
             const errorMsg: ChatMessage = {
