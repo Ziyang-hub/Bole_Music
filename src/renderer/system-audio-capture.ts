@@ -3,12 +3,17 @@
  *
  * 通过主进程 desktopCapturer 获取屏幕源，
  * 再用 getUserMedia 捕获桌面（含系统音频）。
+ *
+ * 使用「定时 stop + 重建」方式代替 timeslice，
+ * 确保每个 webm blob 都有完整的 EBML 头部。
  */
 
 let mediaRecorder: MediaRecorder | null = null;
 let stream: MediaStream | null = null;
 let _originalStream: MediaStream | null = null; // 保持原始采集会话存活
 let _started = false;
+let _stopping = false;  // 用户主动停止标记，区分「循环重启」和「用户停止」
+let _chunkTimer: ReturnType<typeof setTimeout> | null = null;
 const CHUNK_SEC = 15; // 15 秒足够 Shazam 匹配
 
 export async function startSystemAudioCapture(): Promise<void> {
@@ -41,7 +46,6 @@ export async function startSystemAudioCapture(): Promise<void> {
     });
   } catch (e1: any) {
     console.log('[system-audio] Format 1 failed:', e1.message, e1.name, ', trying format 2...');
-    // 备选：旧版 mandatory 格式
     _originalStream = await (navigator.mediaDevices as any).getUserMedia({
       audio: {
         mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: sourceId },
@@ -75,14 +79,25 @@ export async function startSystemAudioCapture(): Promise<void> {
   // 同时保留 _originalStream 引用防止采集会话被 GC
   stream = new MediaStream(audioTracks);
 
-  // 4. MediaRecorder — 优先 audio/webm（纯音频流）
+  // 4. 启动录制循环
+  _stopping = false;
+  _started = true;
+  console.log('[system-audio] Capture started (stop+recreate mode)');
+
+  if (window.electronAPI) window.electronAPI.notifyCaptureStarted();
+
+  _startRecordingCycle();
+}
+
+/** 启动一次录制周期：录制 CHUNK_SEC 秒 → stop → 完整 blob */
+function _startRecordingCycle(): void {
+  if (_stopping || !stream) return;
+
   const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
     ? 'audio/webm;codecs=opus'
     : MediaRecorder.isTypeSupported('audio/webm')
       ? 'audio/webm'
       : 'video/webm';
-
-  console.log('[system-audio] Using MIME:', mimeType);
 
   mediaRecorder = new MediaRecorder(stream, { mimeType });
 
@@ -101,31 +116,52 @@ export async function startSystemAudioCapture(): Promise<void> {
   };
 
   mediaRecorder.onstop = () => {
-    console.log('[system-audio] MediaRecorder onstop');
-    _started = false;
-    if (window.electronAPI) window.electronAPI.notifyCaptureStopped();
+    console.log('[system-audio] Recorder stopped');
+    mediaRecorder = null;
+
+    if (_stopping) {
+      // 用户主动停止
+      _started = false;
+      if (window.electronAPI) window.electronAPI.notifyCaptureStopped();
+    } else {
+      // 周期结束：短暂延迟后重启，确保 webm 完整写入
+      _chunkTimer = setTimeout(() => {
+        _startRecordingCycle();
+      }, 200);
+    }
   };
 
-  mediaRecorder.start(CHUNK_SEC * 1000);
-  _started = true;
-  console.log('[system-audio] Capture started, state:', mediaRecorder.state);
+  mediaRecorder.start(); // 不带 timeslice，stop 时才产生完整 blob
+  console.log('[system-audio] Recording cycle started');
 
-  if (window.electronAPI) window.electronAPI.notifyCaptureStarted();
+  // 定时停止（产生完整 webm blob）
+  _chunkTimer = setTimeout(() => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+    }
+  }, CHUNK_SEC * 1000);
 }
 
 export function stopSystemAudioCapture(): void {
   console.log('[system-audio] stopSystemAudioCapture called, _started:', _started);
+  _stopping = true;
+
+  if (_chunkTimer) {
+    clearTimeout(_chunkTimer);
+    _chunkTimer = null;
+  }
+
   const prevRecorder = mediaRecorder;
   mediaRecorder = null;
-  // 先清掉 onstop，防止旧 recorder 的异步 onstop 误通知主进程
   if (prevRecorder) {
     prevRecorder.onstop = null;
     prevRecorder.onerror = null;
     prevRecorder.ondataavailable = null;
     if (prevRecorder.state !== 'inactive') {
-      try { prevRecorder.stop(); } catch (e) { console.error('[system-audio] stop error:', e); }
+      try { prevRecorder.stop(); } catch (e) { /* ignore */ }
     }
   }
+
   _started = false;
   if (stream) {
     stream.getTracks().forEach((t) => t.stop());
@@ -138,5 +174,5 @@ export function stopSystemAudioCapture(): void {
 }
 
 export function isSystemAudioCapturing(): boolean {
-  return _started && mediaRecorder !== null && mediaRecorder.state === 'recording';
+  return _started && !_stopping && mediaRecorder !== null && mediaRecorder.state === 'recording';
 }
