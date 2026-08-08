@@ -64,15 +64,37 @@ export function isSongUrl(text: string): boolean {
 /** 下载图片 → base64 data URI（绕过防盗链） */
 async function _fetchImageAsDataUri(url: string): Promise<string | null> {
   try {
-    const resp = await fetch(url + '?param=80y80', {
-      headers: { 'Referer': 'https://music.163.com/' },
+    console.log('[cover] Fetching:', url.slice(0, 80));
+    const resp = await fetch(url, {
+      headers: {
+        'Referer': 'https://music.163.com/',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
       signal: AbortSignal.timeout(5000),
     });
+    console.log('[cover] Status:', resp.status, 'Content-Type:', resp.headers.get('content-type'), 'Size:', resp.headers.get('content-length'));
+
     if (!resp.ok) return null;
     const buf = Buffer.from(await resp.arrayBuffer());
+
+    // 诊断：保存第一张封面到磁盘，检查是否是真实图片
+    const fs = require('fs');
+    const tmpFile = '/tmp/bole-cover-test.jpg';
+    fs.writeFileSync(tmpFile, buf);
+    console.log('[cover] Saved to', tmpFile, 'size:', buf.length, 'first bytes:', buf.slice(0, 4).toString('hex'));
+
+    // 检查是否是 JPEG/PNG（不是防盗图占位符）
+    const header = buf.slice(0, 4).toString('hex');
+    if (header === 'ffd8ffe0' || header === 'ffd8ffe1' || header === '89504e47') {
+      console.log('[cover] Valid image header:', header);
+    } else {
+      console.log('[cover] WARNING: Unknown image header:', header, '— might be placeholder');
+    }
+
     const ct = resp.headers.get('content-type') || 'image/jpeg';
     return `data:${ct};base64,${buf.toString('base64')}`;
-  } catch {
+  } catch (err: any) {
+    console.log('[cover] Fetch error:', err.message);
     return null;
   }
 }
