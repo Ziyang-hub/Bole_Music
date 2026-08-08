@@ -451,6 +451,18 @@ export default function App() {
           }
         } else {
           // 自由对话模式
+          if (!window.electronAPI || !window.electronAPI.chat) {
+            console.error('[app] window.electronAPI or chat is missing!', !!window.electronAPI, typeof window.electronAPI?.chat);
+            const errorMsg: ChatMessage = {
+              id: generateId(), role: 'bole',
+              content: '抱歉，出了点问题 🙏\n\n应用正在初始化中，请稍后重试。如果持续出现此问题，请完全退出 App 后重新打开。',
+              timestamp: nowISO(),
+            };
+            setMessages((prev) => [...prev, errorMsg]);
+            setIsLoading(false);
+            return;
+          }
+
           const history = messages.slice(-10).map((m) => ({
             role: m.role === 'bole' ? 'assistant' : 'user',
             content: m.content,
