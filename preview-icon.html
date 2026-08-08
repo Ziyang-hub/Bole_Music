@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>图标预览 - 伯乐与千里马</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0f0f1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #e8e8f0;
+      gap: 30px;
+    }
+    h1 { font-size: 24px; margin-bottom: 10px; }
+    .previews { display: flex; gap: 60px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    .preview-item { text-align: center; }
+    .preview-item p { margin-top: 12px; color: #9898b0; font-size: 14px; }
+    .preview-item img { border-radius: 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+    .desc {
+      max-width: 500px; text-align: center; color: #9898b0; line-height: 1.8; font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐴 伯乐模拟器 · 新图标预览</h1>
+  <p class="desc">
+    马形音符 — 将 ♪ 八分音符的三个部分用马的形态演绎<br>
+    符头→马身 · 符干→马颈 · 符尾→鬃毛<br>
+    全贝塞尔曲线，圆润流畅，无棱角，暖琥珀渐变
+  </p>
+  <div class="previews">
+    <div class="preview-item">
+      <img src="resources/icon.png" width="256" height="256" alt="512x512">
+      <p>512×512</p>
+    </div>
+    <div class="preview-item">
+      <img src="resources/icon-256.png" width="128" height="128" alt="256x256">
+      <p>256×256</p>
+    </div>
+    <div class="preview-item">
+      <img src="resources/icon-256.png" width="64" height="64" alt="64x64">
+      <p>64×64（托盘尺寸）</p>
+    </div>
+    <div class="preview-item">
+      <img src="resources/icon-256.png" width="32" height="32" alt="32x32">
+      <p>32×32</p>
+    </div>
+  </div>
+</body>
+</html>
