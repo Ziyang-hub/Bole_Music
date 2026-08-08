@@ -129,31 +129,59 @@ export function registerIpcHandlers(): void {
   if (ipcRegistered) return;
   ipcRegistered = true;
 
+  // 音频 chunk 缓冲区：合并最近 3 个 chunk 再识别
+  const chunkBuffer: string[] = [];       // webm 文件路径
+  const BUFFER_SIZE = 3;                  // 3 × 10s = 30s 音频
+  let mergeIndex = 0;
+
   // 接收音频数据块（webm/opus 格式）
   ipcMain.on('audio:chunk', (_event, data: Buffer) => {
     if (!isRunning || !onChunk) return;
 
-    // 用时间戳避免跨 session 冲突（CR#7）
     const id = `${Date.now()}_${chunkIndex++}`;
     const tmpWebm = path.join(AUDIO_DIR, `chunk_${id}.webm`);
-    const tmpWav = path.join(AUDIO_DIR, `chunk_${id}.wav`);
 
     fs.promises.writeFile(tmpWebm, data).then(() => {
+      chunkBuffer.push(tmpWebm);
+
+      // 只保留最近 N 个
+      while (chunkBuffer.length > BUFFER_SIZE) {
+        const old = chunkBuffer.shift();
+        if (old) fs.promises.unlink(old).catch(() => {});
+      }
+
+      // 不足 N 个时不识别（等待积累）
+      if (chunkBuffer.length < BUFFER_SIZE) {
+        console.log('[mac-audio] Buffering chunk', chunkBuffer.length, '/', BUFFER_SIZE);
+        return;
+      }
+
+      // 合并最近 N 个 webm → wav
+      const mergedWav = path.join(AUDIO_DIR, `merged_${mergeIndex++}.wav`);
       const { spawn } = require('child_process');
       let ffmpegPath = 'ffmpeg';
       try { ffmpegPath = require('ffmpeg-static'); } catch {}
 
+      // 生成 ffmpeg concat 文件列表
+      const concatList = chunkBuffer.map(f => `file '${f}'`).join('\n');
+      const listFile = path.join(AUDIO_DIR, 'concat.txt');
+      fs.writeFileSync(listFile, concatList);
+
       const p = spawn(ffmpegPath, [
-        '-y', '-i', tmpWebm,
+        '-y', '-f', 'concat', '-safe', '0',
+        '-i', listFile,
         '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
-        tmpWav,
+        mergedWav,
       ], { stdio: 'ignore' });
 
       p.on('close', (code: number) => {
-        fs.promises.unlink(tmpWebm).catch(() => {});
+        fs.promises.unlink(listFile).catch(() => {});
         if (code === 0) {
-          fs.promises.stat(tmpWav).then(s => {
-            if (s.size > 1000 && onChunk) onChunk(tmpWav);
+          fs.promises.stat(mergedWav).then(s => {
+            if (s.size > 1000 && onChunk) {
+              console.log('[mac-audio] Merged chunk ready:', mergedWav, 'size:', s.size);
+              onChunk(mergedWav);
+            }
             cleanupOldChunks();
           }).catch(() => {});
         } else {
@@ -162,7 +190,7 @@ export function registerIpcHandlers(): void {
       });
 
       p.on('error', () => {
-        fs.promises.unlink(tmpWebm).catch(() => {});
+        fs.promises.unlink(listFile).catch(() => {});
       });
     }).catch(() => {});
   });
