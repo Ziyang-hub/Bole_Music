@@ -56,6 +56,8 @@ export interface UserSettings {
   weeklyReport: boolean;
   /** 主题 */
   theme: 'dark' | 'light';
+  /** 用户头像 emoji */
+  userAvatar: string;
   /** 识别后端（已简化为 Shazam 单一后端） */
   recognitionBackend: 'shazam';
 }
@@ -104,6 +106,7 @@ const defaultSettings: UserSettings = {
   dailyReport: true,
   weeklyReport: true,
   theme: 'dark',
+  userAvatar: '👤',
   recognitionBackend: 'shazam',
 };
 
@@ -145,6 +148,17 @@ export function addMessage(msg: ChatMessage): void {
 
 export function clearMessages(): void {
   store.set('messages', []);
+}
+
+export function deleteMessage(id: string): void {
+  const messages = store.get('messages', []);
+  store.set('messages', messages.filter(m => m.id !== id));
+}
+
+export function deleteMessages(ids: string[]): void {
+  const messages = store.get('messages', []);
+  const idSet = new Set(ids);
+  store.set('messages', messages.filter(m => !idSet.has(m.id)));
 }
 
 // ============================================================

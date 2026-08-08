@@ -29,7 +29,7 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
     setSearched(true);
 
     try {
-      const result = await window.electronAPI.searchSongs(kw, 10);
+      const result = await window.electronAPI.searchSongs(kw, 30);
       if (result.success && result.data) {
         setResults(result.data);
       } else {
@@ -119,7 +119,11 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
               onClick={() => handleSelect(song)}
             >
               {song.album?.picUrl ? (
-                <img className="search-album-cover" src={song.album.picUrl} alt="" />
+                <img className="search-album-cover"
+                  src={(song.album.picUrl.startsWith('http:') ? song.album.picUrl.replace('http:', 'https:') : song.album.picUrl) + '?param=100y100'}
+                  alt=""
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
               ) : (
                 <div className="search-album-placeholder">🎵</div>
               )}

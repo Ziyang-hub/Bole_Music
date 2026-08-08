@@ -50,16 +50,26 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
     }
   }
 
-  async function recognizeAudio(_blob: Blob) {
+  async function recognizeAudio(blob: Blob) {
     setRecognizing(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setResult(
-      '🎵 哼歌识别需要配置识别服务。\n\n' +
-      '当前已录制音频片段。推荐方式：\n' +
-      '- AudD：在设置页填入 API Key（免费300次/月）\n' +
-      '- 或者直接输入你哼的歌名让 AI 分析\n\n' +
-      '💡 提示：告诉伯乐「我在哼一首歌，旋律大概是...」也可以哦'
-    );
+    try {
+      // 将录制的音频发送到主进程，用 Shazam 识别
+      const buf = await blob.arrayBuffer();
+      // 通过 IPC 发送音频数据到主进程识别
+      if (window.electronAPI && (window.electronAPI as any).recognizeAudioBlob) {
+        const res = await (window.electronAPI as any).recognizeAudioBlob(buf);
+        if (res?.title) {
+          setResult(`✅ 识别成功！\n\n🎵 ${res.title}\n👤 ${res.artist || '未知歌手'}`);
+          onResult(res.title, res.artist || '');
+        } else {
+          setResult('😕 未能识别出歌曲。\n\n建议：\n- 哼唱更长的片段（5-10秒）\n- 尽量接近原曲的旋律\n- 或者直接输入歌名搜索');
+        }
+      } else {
+        setResult('⚠️ 哼歌识别功能需要 Electron 环境支持。');
+      }
+    } catch {
+      setResult('❌ 识别过程出错，请重试。');
+    }
     setRecognizing(false);
   }
 

@@ -89,6 +89,7 @@ interface ElectronAPI {
   getMessages: () => Promise<ChatMessage[]>;
   addMessage: (msg: ChatMessage) => Promise<void>;
   clearMessages: () => Promise<void>;
+  deleteMessage: (id: string) => Promise<void>;
 
   // 设置
   getSettings: () => Promise<UserSettings>;

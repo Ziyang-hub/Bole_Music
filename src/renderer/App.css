@@ -1504,3 +1504,25 @@ textarea {
 .song-confirm-btn.ignore:hover {
   color: var(--color-danger);
 }
+
+/* 消息删除按钮 */
+.msg-delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  line-height: 1;
+  padding: 0 2px;
+}
+.message-bubble:hover .msg-delete-btn {
+  opacity: 1;
+}
+.msg-delete-btn:hover {
+  color: var(--color-danger);
+}

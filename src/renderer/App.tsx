@@ -68,8 +68,9 @@ export default function App() {
   const [showHumming, setShowHumming] = useState(false);
   const [isListening, setIsListening] = useState(false);
 
-  // 主题
+  // 主题 + 头像
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [userAvatar, setUserAvatar] = useState('👤');
 
   // 应用信息
   const [appInfo, setAppInfo] = useState<any>(null);
@@ -88,7 +89,10 @@ export default function App() {
         // 监听设置变更（主题实时切换等）
         window.electronAPI.onSettingsChanged?.((s: any) => {
           if (s.theme) setTheme(s.theme);
+          if (s.userAvatar) setUserAvatar(s.userAvatar);
         });
+        const s = await window.electronAPI.getSettings();
+        if (s.userAvatar) setUserAvatar(s.userAvatar);
 
         // 监听托盘导航
         window.electronAPI.onNavigate((view: string) => {
@@ -234,6 +238,14 @@ export default function App() {
     }, 3000);
     return () => clearInterval(interval);
   }, [isListening]);
+
+  // 删除单条消息
+  async function handleDeleteMessage(msgId: string) {
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    if (window.electronAPI) {
+      await window.electronAPI.deleteMessage(msgId).catch(() => {});
+    }
+  }
 
   // 自动滚动
   useEffect(() => {
@@ -638,9 +650,14 @@ export default function App() {
               {messages.map((msg) => (
                 <div key={msg.id} className={`message ${msg.role}`}>
                   <div className="message-avatar">
-                    {msg.role === 'bole' ? '🐴' : '👤'}
+                    {msg.role === 'bole' ? '🐴' : (userAvatar || '👤')}
                   </div>
                   <div className="message-bubble">
+                    <button
+                      className="msg-delete-btn"
+                      onClick={() => handleDeleteMessage(msg.id)}
+                      title="删除此消息"
+                    >×</button>
                     {msg.meta?.type === 'song_detected' && !msg.meta.confirmed ? (
                       <SongConfirmCard
                         msg={msg}

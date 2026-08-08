@@ -13,6 +13,7 @@ import {
   getMessages,
   addMessage,
   clearMessages,
+  deleteMessage,
   getSettings,
   updateSettings,
   getDiary,
@@ -274,6 +275,7 @@ ipcMain.handle('app:getTheme', async () => {
 ipcMain.handle('store:getMessages', async () => getMessages());
 ipcMain.handle('store:addMessage', async (_e, msg) => addMessage(msg));
 ipcMain.handle('store:clearMessages', async () => clearMessages());
+ipcMain.handle('store:deleteMessage', async (_e, id: string) => deleteMessage(id));
 
 // ----- 设置 -----
 
@@ -485,6 +487,20 @@ ipcMain.handle('audio:checkCapability', async () => {
 ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
   const result = await recognizeSong(audioPath);
   return result;
+});
+
+// 哼歌识别：接收音频 Buffer → 保存临时文件 → Shazam 识别
+ipcMain.handle('audio:recognizeBlob', async (_e, data: Buffer) => {
+  try {
+    const tmpPath = path.join(require('os').tmpdir(), `hum_${Date.now()}.webm`);
+    await fs.promises.writeFile(tmpPath, data);
+    const result = await recognizeSong(tmpPath);
+    fs.promises.unlink(tmpPath).catch(() => {});
+    return result;
+  } catch (err: any) {
+    console.error('[audio:recognizeBlob] Error:', err.message);
+    return null;
+  }
 });
 
 ipcMain.handle('desktop-capturer:getSources', async () => {

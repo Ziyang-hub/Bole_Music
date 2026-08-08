@@ -357,6 +357,24 @@ export default function SettingsPage() {
       {/* 更新 */}
       <UpdateSection />
 
+      {/* 用户头像 */}
+      <div className="section-card">
+        <div className="section-header">🧑 用户头像</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {['👤','🐴','🎵','🎸','🎹','🎧','🎤','🎼','🌟','🔥','😎','🎯'].map(emoji => (
+            <button
+              key={emoji}
+              onClick={() => updateField('userAvatar', emoji)}
+              style={{
+                fontSize: 28, padding: 8, borderRadius: 12, cursor: 'pointer',
+                background: settings.userAvatar === emoji ? 'var(--color-accent-bg)' : 'transparent',
+                border: settings.userAvatar === emoji ? '2px solid var(--color-accent)' : '2px solid transparent',
+              }}
+            >{emoji}</button>
+          ))}
+        </div>
+      </div>
+
       {/* 关于 */}
       <div className="section-card">
         <div className="section-header">ℹ️ 关于伯乐模拟器</div>

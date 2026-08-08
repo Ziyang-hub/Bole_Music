@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMessages: () => ipcRenderer.invoke('store:getMessages'),
   addMessage: (msg: any) => ipcRenderer.invoke('store:addMessage', msg),
   clearMessages: () => ipcRenderer.invoke('store:clearMessages'),
+  deleteMessage: (id: string) => ipcRenderer.invoke('store:deleteMessage', id),
 
   // ----- 设置 -----
   getSettings: () => ipcRenderer.invoke('store:getSettings'),
@@ -106,6 +107,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   trackUsage: (event: string, data?: any) =>
     ipcRenderer.invoke('stats:track', event, data),
   getUsageStats: () => ipcRenderer.invoke('stats:getUsage'),
+
+  // 哼歌识别
+  recognizeAudioBlob: (data: ArrayBuffer) =>
+    ipcRenderer.invoke('audio:recognizeBlob', Buffer.from(data)),
 
   // 监听歌曲检测事件
   onSongDetected: (callback: (result: any) => void) => {
