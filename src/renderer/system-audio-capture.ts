@@ -1,8 +1,8 @@
 /**
  * 伯乐模拟器 - 系统音频采集（渲染进程）
  *
- * 使用标准 Web API getDisplayMedia() 获取系统音频流。
- * 不依赖 Electron 专有 API（desktopCapturer），兼容性更好。
+ * 使用 chromeMediaSource: 'system' 直接捕获系统音频输出。
+ * 这是 Chromium/Electron 专有 API，不需要屏幕选择器。
  */
 
 let mediaRecorder: MediaRecorder | null = null;
@@ -14,19 +14,16 @@ export async function startSystemAudioCapture(): Promise<void> {
   stopSystemAudioCapture();
 
   try {
-    // getDisplayMedia 是标准 Web API，macOS 上自动触发权限对话框
-    // 请求最小视频 + 系统音频
-    stream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        width: { ideal: 1 },
-        height: { ideal: 1 },
-        frameRate: { ideal: 1 },
-      } as MediaTrackConstraints,
-      audio: true,
-    } as any);
-
-    // 停止视频轨道，只保留音频
-    stream.getVideoTracks().forEach((t) => t.stop());
+    // chromeMediaSource: 'system' — 直接捕获系统音频，不弹屏幕选择器
+    // macOS 首次调用会自动弹出「屏幕录制」权限对话框
+    stream = await (navigator.mediaDevices as any).getUserMedia({
+      audio: {
+        mandatory: {
+          chromeMediaSource: 'system',
+        },
+      },
+      video: false,
+    });
 
     const audioTracks = stream.getAudioTracks();
     if (audioTracks.length === 0) {
@@ -35,15 +32,15 @@ export async function startSystemAudioCapture(): Promise<void> {
       throw new Error(
         '未获取到系统音频轨道。\n\n请确认：\n' +
         '1. macOS 版本 ≥ 13 (Ventura)\n' +
-        '2. 在弹出的对话框中选择了屏幕并勾选音频\n' +
-        '3. 系统设置 → 隐私与安全性 → 屏幕录制 → 已勾选伯乐模拟器'
+        '2. 系统设置 → 隐私与安全性 → 屏幕录制 → 伯乐模拟器 已开启\n' +
+        '3. 当前有音频正在播放'
       );
     }
 
     // 监听流意外结束
     audioTracks.forEach((t) => {
       t.onended = () => {
-        console.log('[system-audio] Track ended unexpectedly');
+        console.log('[system-audio] Track ended');
         stopSystemAudioCapture();
       };
     });
@@ -77,7 +74,7 @@ export async function startSystemAudioCapture(): Promise<void> {
 
     mediaRecorder.start(CHUNK_SEC * 1000);
     _started = true;
-    console.log('[system-audio] Capture started via getDisplayMedia');
+    console.log('[system-audio] Capture started via chromeMediaSource:system');
 
     if (window.electronAPI) window.electronAPI.notifyCaptureStarted();
 
