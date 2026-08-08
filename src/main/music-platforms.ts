@@ -61,22 +61,37 @@ export function isSongUrl(text: string): boolean {
 /**
  * 搜索歌曲
  */
+/** 下载图片 → base64 data URI（绕过防盗链） */
+async function _fetchImageAsDataUri(url: string): Promise<string | null> {
+  try {
+    const resp = await fetch(url + '?param=80y80', {
+      headers: { 'Referer': 'https://music.163.com/' },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!resp.ok) return null;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    const ct = resp.headers.get('content-type') || 'image/jpeg';
+    return `data:${ct};base64,${buf.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function searchSongs(
   keyword: string,
   limit: number = 10,
   offset: number = 0
 ): Promise<SongInfo[]> {
   try {
-    // 动态导入 NeteaseCloudMusicApi
     const { search } = await import('NeteaseCloudMusicApi');
-
     const result = await search({ keywords: keyword, limit, offset, type: 1 });
 
     if (result.status === 200) {
       const body = result.body as any;
       const songs = body?.result?.songs;
       if (!songs) return [];
-      return songs.map((song: any) => ({
+
+      const mapped = songs.map((song: any) => ({
         id: String(song.id),
         name: song.name,
         artists: (song.artists || []).map((a: any) => a.name),
@@ -89,6 +104,17 @@ export async function searchSongs(
         duration: song.duration,
         platform: 'netease' as const,
       }));
+
+      // 并行下载前10张封面转 base64
+      const downloadPromises = mapped.slice(0, 10).map(async (s: any) => {
+        if (s.album?.picUrl && s.album.picUrl.startsWith('http')) {
+          const dataUri = await _fetchImageAsDataUri(s.album.picUrl);
+          if (dataUri) s.album.picUrl = dataUri;
+        }
+      });
+      await Promise.all(downloadPromises);
+
+      return mapped;
     }
 
     return [];
