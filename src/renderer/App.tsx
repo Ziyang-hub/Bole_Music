@@ -177,45 +177,21 @@ export default function App() {
       if (result.title && result.confidence > 40) {
         setCurrentView('chat');
 
-        // 先显示检测结果
+        // 显示确认卡片（不自动分析）
         const detectMsg: ChatMessage = {
           id: generateId(),
           role: 'user',
-          content: `🎧 自动检测到正在播放：**${result.title}** — ${result.artist}`,
+          content: `🎧 自动检测到正在播放`,
           timestamp: nowISO(),
+          meta: {
+            type: 'song_detected',
+            songTitle: result.title,
+            songArtist: result.artist || '',
+            confirmed: false,
+          },
         };
         setMessages((prev) => [...prev, detectMsg]);
         await window.electronAPI!.addMessage(detectMsg);
-
-        // 再尝试 AI 分析
-        try {
-          const analysis = await window.electronAPI!.analyzeSong(
-            result.title,
-            result.artist
-          );
-          if (analysis.success && analysis.data) {
-            const boleMsg: ChatMessage = {
-              id: generateId(),
-              role: 'bole',
-              content: formatAnalysis(analysis.data),
-              timestamp: nowISO(),
-            };
-            setMessages((prev) => [...prev, boleMsg]);
-            await window.electronAPI!.addMessage(boleMsg);
-          } else {
-            // AI 不可用时提示
-            const hintMsg: ChatMessage = {
-              id: generateId(),
-              role: 'bole',
-              content: `🎵 **${result.title}** — ${result.artist}\n\n识别成功！去「设置」页面配置 DeepSeek API Key 即可开启 AI 分析。`,
-              timestamp: nowISO(),
-            };
-            setMessages((prev) => [...prev, hintMsg]);
-            await window.electronAPI!.addMessage(hintMsg);
-          }
-        } catch {
-          // AI 分析失败不阻塞，至少已显示了检测结果
-        }
       }
     };
 
@@ -665,20 +641,34 @@ export default function App() {
                     {msg.role === 'bole' ? '🐴' : '👤'}
                   </div>
                   <div className="message-bubble">
-                    <div className="message-text">
-                      {msg.content.split('\n').map((line, i) => (
-                        <React.Fragment key={i}>
-                          {line}
-                          {i < msg.content.split('\n').length - 1 && <br />}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                    <div className="message-time">
-                      {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
+                    {msg.meta?.type === 'song_detected' && !msg.meta.confirmed ? (
+                      <SongConfirmCard
+                        msg={msg}
+                        onConfirm={async (title, artist) => {
+                          await handleConfirmSong(msg, title, artist, setMessages, messages);
+                        }}
+                        onIgnore={async () => {
+                          await handleIgnoreSong(msg, setMessages, messages);
+                        }}
+                      />
+                    ) : (
+                      <>
+                        <div className="message-text">
+                          {msg.content.split('\n').map((line, i) => (
+                            <React.Fragment key={i}>
+                              {line}
+                              {i < msg.content.split('\n').length - 1 && <br />}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                        <div className="message-time">
+                          {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -817,6 +807,90 @@ function diaryEntriesFromMessages(messages: ChatMessage[]): { title: string; art
 /**
  * 模拟回复（离线/开发模式使用）
  */
+// ============================================================
+// 歌曲确认卡片
+// ============================================================
+
+function SongConfirmCard({ msg, onConfirm, onIgnore }: {
+  msg: ChatMessage;
+  onConfirm: (title: string, artist: string) => void;
+  onIgnore: () => void;
+}) {
+  const [title, setTitle] = useState(msg.meta?.songTitle || '');
+  const [artist, setArtist] = useState(msg.meta?.songArtist || '');
+  const [editing, setEditing] = useState(false);
+
+  return (
+    <div className="song-confirm-card">
+      <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+        🎧 自动检测到正在播放
+      </div>
+      {editing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+          <input className="setting-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="歌曲名" />
+          <input className="setting-input" value={artist} onChange={e => setArtist(e.target.value)} placeholder="歌手" />
+        </div>
+      ) : (
+        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4, color: 'var(--color-accent-light)' }}>
+          {title}
+        </div>
+      )}
+      {artist && !editing && (
+        <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 10 }}>{artist}</div>
+      )}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button className="song-confirm-btn confirm" onClick={() => onConfirm(title, artist)}>
+          ✅ 确认分析
+        </button>
+        <button className="song-confirm-btn edit" onClick={() => setEditing(!editing)}>
+          ✏️ 修改
+        </button>
+        <button className="song-confirm-btn ignore" onClick={onIgnore}>
+          ❌ 忽略
+        </button>
+      </div>
+    </div>
+  );
+}
+
+async function handleConfirmSong(
+  msg: ChatMessage,
+  title: string,
+  artist: string,
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+  messages: ChatMessage[]
+) {
+  // 标记为已确认
+  setMessages(prev => prev.map(m =>
+    m.id === msg.id ? { ...m, meta: { ...m.meta, songTitle: title, songArtist: artist, confirmed: true }, content: `🎧 检测到：${title} — ${artist}` } : m
+  ));
+  if (window.electronAPI) {
+    await window.electronAPI.addMessage({ ...msg, meta: { ...msg.meta, songTitle: title, songArtist: artist, confirmed: true }, content: `🎧 检测到：${title} — ${artist}` });
+  }
+
+  // 调用 AI 分析
+  try {
+    const analysis = await window.electronAPI!.analyzeSong(title, artist);
+    if (analysis.success && analysis.data) {
+      const boleMsg: ChatMessage = { id: generateId(), role: 'bole', content: formatAnalysis(analysis.data), timestamp: nowISO() };
+      setMessages(prev => [...prev, boleMsg]);
+      await window.electronAPI!.addMessage(boleMsg);
+    } else {
+      const hintMsg: ChatMessage = { id: generateId(), role: 'bole', content: `🎵 ${title} — ${artist}\n\n识别成功！去「设置」页面配置 DeepSeek API Key 即可开启 AI 分析。`, timestamp: nowISO() };
+      setMessages(prev => [...prev, hintMsg]);
+      await window.electronAPI!.addMessage(hintMsg);
+    }
+  } catch {}
+}
+
+async function handleIgnoreSong(
+  msg: ChatMessage,
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+  messages: ChatMessage[]
+) {
+  setMessages(prev => prev.filter(m => m.id !== msg.id));
+}
+
 function getMockReply(input: string): string {
   return `🎵 关于「${input}」的分析（离线模式）...
 

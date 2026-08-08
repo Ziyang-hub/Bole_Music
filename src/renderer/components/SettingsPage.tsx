@@ -18,6 +18,7 @@ const PERSONAS = [
 export default function SettingsPage() {
   // 设置状态
   const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [appInfo, setAppInfo] = useState<any>(null);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
@@ -30,8 +31,12 @@ export default function SettingsPage() {
         return;
       }
       try {
-        const s = await window.electronAPI.getSettings();
+        const [s, info] = await Promise.all([
+          window.electronAPI.getSettings(),
+          window.electronAPI.getAppInfo(),
+        ]);
         setSettings(s);
+        setAppInfo(info);
       } catch (err) {
         console.error('加载设置失败:', err);
       }
@@ -356,9 +361,7 @@ export default function SettingsPage() {
       <div className="section-card">
         <div className="section-header">ℹ️ 关于伯乐模拟器</div>
         <div className="about-info">
-          <div className="about-row"><span>版本</span><span>1.0.0</span></div>
-          <div className="about-row"><span>技术栈</span><span>Electron + React + TypeScript</span></div>
-          <div className="about-row"><span>AI 服务</span><span>{settings.apiProvider.toUpperCase()}</span></div>
+          <div className="about-row"><span>版本</span><span>{appInfo?.version || '1.0.0'}</span></div>
           <div className="about-row"><span>理念</span><span>高山流水遇知音 🎵</span></div>
         </div>
       </div>

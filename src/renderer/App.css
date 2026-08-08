@@ -1465,3 +1465,42 @@ textarea {
 .search-song-artist { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 .search-song-album { font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
 .search-song-platform { font-size: 11px; color: var(--color-text-muted); flex-shrink: 0; }
+
+/* ============================================================
+   歌曲确认卡片
+   ============================================================ */
+.song-confirm-card {
+  padding: 4px 0;
+}
+.song-confirm-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.song-confirm-btn.confirm {
+  background: var(--color-accent);
+  color: #fff;
+}
+.song-confirm-btn.confirm:hover {
+  background: var(--color-accent-dark);
+}
+.song-confirm-btn.edit {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+.song-confirm-btn.edit:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-light);
+}
+.song-confirm-btn.ignore {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+.song-confirm-btn.ignore:hover {
+  color: var(--color-danger);
+}

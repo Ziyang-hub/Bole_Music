@@ -9,6 +9,12 @@ interface ChatMessage {
   role: 'user' | 'bole';
   content: string;
   timestamp: string;
+  meta?: {
+    type?: 'song_detected';
+    songTitle?: string;
+    songArtist?: string;
+    confirmed?: boolean;
+  };
 }
 
 interface UserSettings {

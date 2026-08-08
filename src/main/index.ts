@@ -316,8 +316,16 @@ ipcMain.handle(
 
       // 用 Agent 分析（自然语言，不再强制 JSON）
       const artistHint = artist ? ` — ${artist}` : '';
-      const message = `🎧 请帮我分析一下这首歌：《${songName}》${artistHint}`;
+      const message = `🎧 请帮我分析一下这首歌：《${songName}》${artistHint}\n\n请在回复中自然提及这首歌的音乐风格/流派（如：流行摇滚、民谣、电子、爵士等），并在回复最后一行单独写【曲风：XXX】来标注。`;
       const reply = await runAgent(message, []);
+
+      // 从回复中提取曲风，并清理显示文本
+      let genre = '';
+      const cleanReply = reply.replace(/【曲风[：:].+?】\s*/g, '').trim();
+      const genreMatch = reply.match(/【曲风[：:]\s*(.+?)】/);
+      if (genreMatch) {
+        genre = genreMatch[1].trim();
+      }
 
       // 将 Agent 的自然语言回复包装为 AnalysisResult
       const result = {
@@ -325,17 +333,18 @@ ipcMain.handle(
         artist: artist || '未知',
         lyrics: '',
         emotion: '',
-        genre: '',
+        genre,
         story: '',
-        personalThought: reply,
+        personalThought: cleanReply || reply,
         analyzedAt: new Date().toISOString(),
       };
 
       // 缓存结果
       cacheAnalysis(cacheKey, result);
 
-      // 更新统计数据
-      updateStats(songName, artist || '未知', '');
+      // 更新统计数据（使用提取到的曲风）
+      updateStats(songName, artist || '未知', genre);
+      console.log('[ipc:analyzeSong] Stats updated, genre:', genre || '(not found)');
 
       // 追踪使用
       trackUsage('analysis');
