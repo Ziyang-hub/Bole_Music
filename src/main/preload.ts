@@ -35,8 +35,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyzeSong: (songName: string, artist?: string, lyrics?: string) =>
     ipcRenderer.invoke('ai:analyzeSong', songName, artist, lyrics),
 
-  chat: (history: { role: string; content: string }[], userMessage: string) =>
-    ipcRenderer.invoke('ai:chat', history, userMessage),
+  chat: async (history: { role: string; content: string }[], userMessage: string) => {
+    try {
+      console.log('[preload] chat called, history len:', history.length, 'msg:', userMessage?.slice(0, 30));
+      const result = await ipcRenderer.invoke('ai:chat', history, userMessage);
+      console.log('[preload] chat result:', result?.success);
+      return result;
+    } catch (err: any) {
+      console.error('[preload] chat error:', err.message, err.stack?.split('\n').slice(0, 3).join('\n'));
+      return { success: false, error: err.message };
+    }
+  },
 
   generateReport: (type: string, songs: any[], stats: any) =>
     ipcRenderer.invoke('ai:generateReport', type, songs, stats),

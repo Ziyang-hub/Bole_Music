@@ -505,7 +505,7 @@ export default function App() {
       const errorMsg: ChatMessage = {
         id: generateId(),
         role: 'bole',
-        content: `抱歉，出了点问题 🙏\n\n${err.message || '未知错误'}\n\n请检查网络连接和 API 配置后重试。`,
+        content: `抱歉，出了点问题 🙏\n\n${err.message || '未知错误'}\n\n${err.stack?.split('\n').slice(0, 3).join('\n') || ''}`,
         timestamp: nowISO(),
       };
       setMessages((prev) => [...prev, errorMsg]);
