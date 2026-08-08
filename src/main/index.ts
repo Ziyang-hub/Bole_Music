@@ -368,20 +368,32 @@ let lastDetectedTime = 0;
 
 ipcMain.handle('audio:startCapture', async () => {
   const onChunk = async (audioPath: string) => {
-    if (!isMaybeMusic(audioPath)) return;
+    if (!isMaybeMusic(audioPath)) {
+      console.log('[audio] Skipped non-music file:', audioPath);
+      return;
+    }
 
+    console.log('[audio] Recognizing chunk:', audioPath);
     const result = await recognizeSong(audioPath);
-    if (result && result.confidence > 50) {
-      // 去重：同一首歌5分钟内不重复通知
+    if (result) {
+      console.log('[audio] Recognized:', result.title, '-', result.artist, 'confidence:', result.confidence);
+    } else {
+      console.log('[audio] No match for chunk');
+      return;
+    }
+
+    if (result.confidence > 50) {
       const key = `${result.title}|${result.artist}`;
       const now = Date.now();
       if (key === lastDetectedSong && now - lastDetectedTime < 5 * 60 * 1000) {
+        console.log('[audio] Dedup skipped:', key);
         return;
       }
       lastDetectedSong = key;
       lastDetectedTime = now;
 
       if (mainWindow) {
+        console.log('[audio] Sending songDetected:', result.title);
         mainWindow.webContents.send('audio:songDetected', result);
       }
     }
