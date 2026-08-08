@@ -124,7 +124,9 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
               onClick={() => handleSelect(song)}
             >
               {song.album?.picUrl ? (
-                <img className="search-album-cover" src={song.album.picUrl + '?param=80y80'} alt="" />
+                <img className="search-album-cover"
+                  src={song.album.picUrl.startsWith('data:') ? song.album.picUrl : song.album.picUrl + '?param=80y80'}
+                  alt="" />
               ) : (
                 <div className="search-album-placeholder">🎵</div>
               )}
