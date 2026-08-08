@@ -145,6 +145,8 @@ export default function App() {
       if (s.autoListen && !restored) {
         restored = true;
         try {
+          // 必须同时启动主进程采集（注册 onChunk 回调）和渲染进程采集（MediaRecorder）
+          await window.electronAPI!.startAudioCapture();
           const { startSystemAudioCapture } = await import('./system-audio-capture');
           await startSystemAudioCapture();
         } catch (e) {
@@ -157,7 +159,8 @@ export default function App() {
   // 订阅音频检测事件（自动采集识别到歌曲时）
   useEffect(() => {
     if (!window.electronAPI) return;
-    window.electronAPI.onSongDetected(async (result) => {
+
+    const handler = async (result: any) => {
       if (result.title && result.confidence > 40) {
         setCurrentView('chat');
 
@@ -201,9 +204,20 @@ export default function App() {
           // AI 分析失败不阻塞，至少已显示了检测结果
         }
       }
-    });
+    };
 
-    // 定期检查采集状态（macOS 额外检查渲染进程侧 MediaRecorder）
+    window.electronAPI.onSongDetected(handler);
+
+    return () => {
+      // 清理监听器，防止重复注册
+      if (window.electronAPI) {
+        window.electronAPI.removeSongDetectedListener?.();
+      }
+    };
+  }, []);  // 空依赖：只在挂载时注册一次
+
+  // 定期检查采集状态（macOS 额外检查渲染进程侧 MediaRecorder）
+  useEffect(() => {
     const interval = setInterval(async () => {
       if (window.electronAPI) {
         try {
@@ -399,15 +413,29 @@ export default function App() {
               summary: '',
             });
           } else {
-            // AI 分析失败，显示错误
-            const errorMsg: ChatMessage = {
-              id: generateId(),
-              role: 'bole',
-              content: `😅 ${result.error || '分析过程中出了点问题'}\n\n请确认：\n1. 去「设置」页面填入了正确的 API Key\n2. 网络连接正常\n3. API 账户余额充足`,
-              timestamp: nowISO(),
-            };
-            setMessages((prev) => [...prev, errorMsg]);
-            await window.electronAPI.addMessage(errorMsg);
+            // 歌曲分析失败 → 回退到自由对话模式
+            const history = messages.slice(-10).map((m) => ({
+              role: m.role === 'bole' ? 'assistant' : 'user',
+              content: m.content,
+            }));
+            history.push({ role: 'user', content: text });
+
+            const chatResult = await window.electronAPI.chat(history);
+            if (chatResult.success && chatResult.data) {
+              const boleMsg: ChatMessage = {
+                id: generateId(), role: 'bole', content: chatResult.data, timestamp: nowISO(),
+              };
+              setMessages((prev) => [...prev, boleMsg]);
+              await window.electronAPI.addMessage(boleMsg);
+            } else {
+              const errorMsg: ChatMessage = {
+                id: generateId(), role: 'bole',
+                content: `😅 ${chatResult.error || '出了点问题'}\n\n请确认：\n1. 去「设置」页面填入了正确的 API Key\n2. 网络连接正常`,
+                timestamp: nowISO(),
+              };
+              setMessages((prev) => [...prev, errorMsg]);
+              await window.electronAPI.addMessage(errorMsg);
+            }
           }
         } else {
           // 自由对话模式
@@ -719,9 +747,18 @@ function looksLikeRecommend(text: string): boolean {
   return text.includes('推荐') || text.includes('有什么好听的');
 }
 
-/** 是否像是要分析一首歌（而非聊天） */
+/** 是否明确像是在查询一首歌曲（而非普通聊天） */
 function looksLikeSongQuery(text: string): boolean {
-  return text.length < 100 && !text.includes('?') && !text.includes('？') && !looksLikeRecommend(text);
+  // 包含「歌手 - 歌名」或「歌手—歌名」分隔符
+  if (text.includes(' - ') || text.includes('—')) return true;
+  // 明确要求分析歌曲
+  if (/分析|是什么歌|什么歌|识别|歌名/.test(text)) return true;
+  // 太长的文本不可能是歌名
+  if (text.length > 50) return false;
+  // 包含问号或明显是聊天
+  if (/[?？]/.test(text)) return false;
+  // 短文本（≤50字）且不含问号，可能是歌名查询
+  return !looksLikeRecommend(text);
 }
 
 /**
