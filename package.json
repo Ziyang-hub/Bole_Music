@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "npm run build:main && concurrently -n renderer,electron \"npm run dev:renderer\" \"npm run dev:electron\"",
     "dev:renderer": "vite",
-    "dev:electron": "wait-on http://localhost:5173 && electron .",
+    "dev:electron": "wait-on http://localhost:5173 && electron . --dev",
     "dev:watch": "npm run build:main && concurrently -n main,renderer,electron \"tsc -p tsconfig.main.json -w\" \"npm run dev:renderer\" \"npm run dev:electron\"",
     "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "vite build",
