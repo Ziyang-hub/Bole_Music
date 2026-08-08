@@ -303,12 +303,16 @@ ipcMain.handle(
   'ai:analyzeSong',
   async (_e, songName: string, artist?: string, lyricsText?: string) => {
     try {
+      console.log('[ipc:analyzeSong] Called:', songName, artist || '(no artist)');
+
       // 先查缓存
       const cacheKey = `${songName}_${artist || ''}`.trim();
       const cached = getCachedAnalysis(cacheKey);
       if (cached) {
+        console.log('[ipc:analyzeSong] Cache HIT, returning cached result');
         return { success: true, data: cached, cached: true };
       }
+      console.log('[ipc:analyzeSong] Cache MISS, calling runAgent...');
 
       // 用 Agent 分析（自然语言，不再强制 JSON）
       const artistHint = artist ? ` — ${artist}` : '';

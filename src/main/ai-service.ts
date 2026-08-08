@@ -292,6 +292,11 @@ export async function runAgent(
   conversationHistory: { role: string; content: string }[]
 ): Promise<string> {
   const settings = getSettings();
+  console.log('[bole-agent] runAgent called');
+  console.log('[bole-agent] API provider:', settings.apiProvider);
+  console.log('[bole-agent] API key length:', settings.apiKey?.length || 0);
+  console.log('[bole-agent] API key empty?:', !settings.apiKey || settings.apiKey.trim() === '');
+  console.log('[bole-agent] User message:', userMessage.slice(0, 100));
   const personaPrompt = PERSONA_PROMPTS[settings.persona] || PERSONA_PROMPTS.literary;
 
   const systemPrompt = `${personaPrompt}
@@ -415,7 +420,9 @@ async function _callAI(
   withTools: boolean
 ): Promise<any> {
   const apiKey = settings.apiKey || '';
+  console.log('[bole-agent] _callAI: provider=', settings.apiProvider, 'keyLen=', apiKey.length, 'withTools=', withTools);
   if (!apiKey) {
+    console.error('[bole-agent] _callAI: NO API KEY! Throwing error.');
     throw new Error(
       `未配置 API 密钥。请去「设置」页面填入 ${settings.apiProvider} 的 API Key。\n\n` +
       `获取方式：\n` +
@@ -431,6 +438,7 @@ async function _callAI(
       : API_ENDPOINTS[settings.apiProvider] || API_ENDPOINTS.deepseek;
 
   const model = DEFAULT_MODELS[settings.apiProvider] || 'deepseek-chat';
+  console.log('[bole-agent] _callAI: endpoint=', endpoint, 'model=', model);
 
   const body: any = {
     model,
@@ -444,20 +452,24 @@ async function _callAI(
     body.tool_choice = 'auto';
   }
 
+  console.log('[bole-agent] _callAI: sending request...');
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey.slice(0, 8)}...`,
     },
     body: JSON.stringify(body),
   });
 
+  console.log('[bole-agent] _callAI: response status=', response.status);
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`AI API 请求失败 (${response.status}): ${errorText}`);
+    console.error('[bole-agent] _callAI: API error body:', errorText.slice(0, 500));
+    throw new Error(`AI API 请求失败 (${response.status}): ${errorText.slice(0, 200)}`);
   }
 
+  console.log('[bole-agent] _callAI: success');
   return response.json();
 }
 
