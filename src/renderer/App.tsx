@@ -685,7 +685,7 @@ export default function App() {
                 <button className="search-toggle-btn" onClick={() => setShowHumming(true)} title="哼歌识别">🎤</button>
                 <textarea
                   className="input-field"
-                  placeholder="输入歌名、粘贴网易云链接，或点🔍搜索..."
+                  placeholder="随便聊聊音乐... 查歌请说「搜索 周杰伦 晴天」"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -709,7 +709,7 @@ export default function App() {
                 </div>
               )}
               <div className="input-hint">
-                💡 输入歌名让伯乐分析 ｜ 输入「推荐歌曲」获取推荐 ｜ 也可以随便聊音乐
+                💡 随便聊天 ｜ 说「搜索 + 歌名」查歌 ｜ 自动检测到的歌曲会主动分析
               </div>
             </div>
           </>
