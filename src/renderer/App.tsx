@@ -99,7 +99,13 @@ export default function App() {
         // 加载聊天记录
         const saved = await window.electronAPI.getMessages();
         if (saved && saved.length > 0) {
-          setMessages(saved);
+          // 去重防止旧数据重复 id 导致的 React key 警告
+          const seen = new Set<string>();
+          setMessages(saved.filter((m: ChatMessage) => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+          }));
         } else {
           // 首次使用，显示欢迎消息
           const welcome: ChatMessage = {
@@ -136,33 +142,46 @@ export default function App() {
     if (!window.electronAPI) return;
     window.electronAPI.onSongDetected(async (result) => {
       if (result.title && result.confidence > 40) {
-        // 自动分析检测到的歌曲，切换到对话页展示
         setCurrentView('chat');
+
+        // 先显示检测结果
+        const detectMsg: ChatMessage = {
+          id: generateId(),
+          role: 'user',
+          content: `🎧 自动检测到正在播放：**${result.title}** — ${result.artist}`,
+          timestamp: nowISO(),
+        };
+        setMessages((prev) => [...prev, detectMsg]);
+        await window.electronAPI!.addMessage(detectMsg);
+
+        // 再尝试 AI 分析
         try {
           const analysis = await window.electronAPI!.analyzeSong(
             result.title,
             result.artist
           );
           if (analysis.success && analysis.data) {
-            const boleContent = formatAnalysis(analysis.data);
-            const userMsg: ChatMessage = {
-              id: generateId(),
-              role: 'user',
-              content: `🎧 自动检测到正在播放：**${result.title}** — ${result.artist}`,
-              timestamp: nowISO(),
-            };
             const boleMsg: ChatMessage = {
               id: generateId(),
               role: 'bole',
-              content: boleContent,
+              content: formatAnalysis(analysis.data),
               timestamp: nowISO(),
             };
-            setMessages((prev) => [...prev, userMsg, boleMsg]);
-            await window.electronAPI!.addMessage(userMsg);
+            setMessages((prev) => [...prev, boleMsg]);
             await window.electronAPI!.addMessage(boleMsg);
+          } else {
+            // AI 不可用时提示
+            const hintMsg: ChatMessage = {
+              id: generateId(),
+              role: 'bole',
+              content: `🎵 **${result.title}** — ${result.artist}\n\n识别成功！去「设置」页面配置 DeepSeek API Key 即可开启 AI 分析。`,
+              timestamp: nowISO(),
+            };
+            setMessages((prev) => [...prev, hintMsg]);
+            await window.electronAPI!.addMessage(hintMsg);
           }
         } catch {
-          // 自动分析失败，静默处理
+          // AI 分析失败不阻塞，至少已显示了检测结果
         }
       }
     });
