@@ -61,40 +61,48 @@ export function isSongUrl(text: string): boolean {
 /**
  * 搜索歌曲
  */
-/** 下载图片 → base64 data URI（绕过防盗链） */
+// 缓存 Cookie，避免每次都请求首页
+let _cachedCookies: string | null = null;
+
+/** 获取网易云 Cookie（访问首页获得） */
+async function _getNeteaseCookies(): Promise<string> {
+  if (_cachedCookies) return _cachedCookies;
+  try {
+    const resp = await fetch('https://music.163.com/', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+      signal: AbortSignal.timeout(5000),
+    });
+    const setCookie = resp.headers.get('set-cookie');
+    if (setCookie) {
+      _cachedCookies = setCookie.split(';')[0];
+      console.log('[cover] Got cookies:', _cachedCookies.slice(0, 30));
+    }
+  } catch {}
+  return _cachedCookies || '';
+}
+
+/** 下载图片 → base64 data URI */
 async function _fetchImageAsDataUri(url: string): Promise<string | null> {
   try {
-    console.log('[cover] Fetching:', url.slice(0, 80));
+    const cookie = await _getNeteaseCookies();
     const resp = await fetch(url, {
       headers: {
         'Referer': 'https://music.163.com/',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        ...(cookie ? { 'Cookie': cookie } : {}),
       },
       signal: AbortSignal.timeout(5000),
     });
-    console.log('[cover] Status:', resp.status, 'Content-Type:', resp.headers.get('content-type'), 'Size:', resp.headers.get('content-length'));
 
     if (!resp.ok) return null;
     const buf = Buffer.from(await resp.arrayBuffer());
 
-    // 诊断：保存第一张封面到磁盘，检查是否是真实图片
-    const fs = require('fs');
-    const tmpFile = '/tmp/bole-cover-test.jpg';
-    fs.writeFileSync(tmpFile, buf);
-    console.log('[cover] Saved to', tmpFile, 'size:', buf.length, 'first bytes:', buf.slice(0, 4).toString('hex'));
-
-    // 检查是否是 JPEG/PNG（不是防盗图占位符）
-    const header = buf.slice(0, 4).toString('hex');
-    if (header === 'ffd8ffe0' || header === 'ffd8ffe1' || header === '89504e47') {
-      console.log('[cover] Valid image header:', header);
-    } else {
-      console.log('[cover] WARNING: Unknown image header:', header, '— might be placeholder');
-    }
-
     const ct = resp.headers.get('content-type') || 'image/jpeg';
-    return `data:${ct};base64,${buf.toString('base64')}`;
+    const dataUri = `data:${ct};base64,${buf.toString('base64')}`;
+    console.log('[cover] Downloaded', buf.length, 'bytes, dataUri:', dataUri.slice(0, 50));
+    return dataUri;
   } catch (err: any) {
-    console.log('[cover] Fetch error:', err.message);
+    console.log('[cover] Error:', err.message);
     return null;
   }
 }
