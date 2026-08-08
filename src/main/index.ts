@@ -489,6 +489,24 @@ ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
   return result;
 });
 
+// 图片代理：绕过网易云防盗链（主进程带 Referer 下载 → data URI）
+ipcMain.handle('image:fetch', async (_e, url: string) => {
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        'Referer': 'https://music.163.com/',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+    });
+    if (!resp.ok) return null;
+    const buffer = Buffer.from(await resp.arrayBuffer());
+    const contentType = resp.headers.get('content-type') || 'image/jpeg';
+    return `data:${contentType};base64,${buffer.toString('base64')}`;
+  } catch {
+    return null;
+  }
+});
+
 // 哼歌识别：接收音频 Buffer → 保存临时文件 → Shazam 识别
 ipcMain.handle('audio:recognizeBlob', async (_e, data: Buffer) => {
   try {

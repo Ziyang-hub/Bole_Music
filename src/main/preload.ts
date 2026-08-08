@@ -108,6 +108,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('stats:track', event, data),
   getUsageStats: () => ipcRenderer.invoke('stats:getUsage'),
 
+  // 图片代理
+  fetchImage: (url: string) => ipcRenderer.invoke('image:fetch', url),
+
   // 哼歌识别
   recognizeAudioBlob: (data: ArrayBuffer) =>
     ipcRenderer.invoke('audio:recognizeBlob', Buffer.from(data)),
