@@ -72,14 +72,32 @@ echo ""
 echo "📦 安装依赖（可能需要几分钟）..."
 npm install
 
-# ---- 3.5 解除 macOS 隔离（否则 Electron 会被当作恶意软件删除）----
+# ---- 3.5 解除 macOS 隔离 + 验证 ----
 echo ""
 echo "🔐 解除 macOS 隔离标记..."
+
 ELECTRON_APP="$DEV_DIR/node_modules/electron/dist/Electron.app"
-if [ -d "$ELECTRON_APP" ]; then
+ELECTRON_BIN="$ELECTRON_APP/Contents/MacOS/Electron"
+
+# macOS 可能在 npm install 期间就删了二进制，需要检查并恢复
+if [ ! -f "$ELECTRON_BIN" ]; then
+  echo "⚠️ Electron 被 macOS 隔离删除了，重新下载..."
+  cd "$DEV_DIR"
+  # 强制重新下载 electron 二进制
+  node node_modules/electron/install.js 2>/dev/null || true
+fi
+
+# 再次检查
+if [ -f "$ELECTRON_BIN" ]; then
   xattr -cr "$ELECTRON_APP" 2>/dev/null || true
   codesign --force --deep --sign - "$ELECTRON_APP" 2>/dev/null || true
-  echo "✅ Electron 已签名"
+  echo "✅ Electron 已签名: $(ls -la "$ELECTRON_BIN" | awk '{print $5}') bytes"
+else
+  echo "❌ Electron 二进制仍然缺失，请手动运行："
+  echo "   cd ~/bole-dev"
+  echo "   npx electron --version"
+  echo "   xattr -cr node_modules/electron/dist/Electron.app"
+  echo "   codesign --force --deep --sign - node_modules/electron/dist/Electron.app"
 fi
 
 # 也处理 ffmpeg 二进制
