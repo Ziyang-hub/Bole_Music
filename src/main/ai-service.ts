@@ -102,7 +102,7 @@ const TOOLS = [
     type: 'function' as const,
     function: {
       name: 'web_search',
-      description: '搜索网络信息，用于查找歌曲的创作背景、歌手故事、乐评、最新资讯等实时信息。当需要了解歌曲背后的故事、歌手近况、或AI训练数据之外的信息时使用。',
+      description: '搜索网络实时信息（使用必应中国），用于查找歌曲的创作背景、歌手故事、乐评、最新资讯等。当需要了解歌曲背后的故事或AI训练数据之外的信息时使用。',
       parameters: {
         type: 'object',
         properties: {

@@ -1,11 +1,10 @@
 /**
  * 伯乐模拟器 - 网络搜索服务
  *
- * 使用 DuckDuckGo Instant Answer API（免费，无需 Key）
+ * 使用必应中国（cn.bing.com），国内可访问
  * 用于搜索歌曲背景、歌手信息、实时资讯等
  */
 
-/** 搜索结果 */
 export interface SearchResult {
   title: string;
   snippet: string;
@@ -13,86 +12,61 @@ export interface SearchResult {
 }
 
 /**
- * 搜索网络信息
- * @param query 搜索关键词
- * @returns 搜索结果列表（最多5条）
+ * 搜索网络信息（国内可用）
  */
 export async function webSearch(query: string): Promise<SearchResult[]> {
   const results: SearchResult[] = [];
 
-  // 1. DuckDuckGo Instant Answer API（知识图谱）
   try {
-    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    const data: any = await resp.json();
+    const url = `https://cn.bing.com/search?q=${encodeURIComponent(query)}&setlang=zh-cn`;
+    const resp = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+      },
+    });
+    const html = await resp.text();
 
-    // 摘要信息
-    if (data.Abstract && data.Abstract.length > 10) {
+    // 提取搜索结果摘要（必应的搜索结果结构）
+    // 匹配 <li class="b_algo"> 或 <div class="b_caption"> 中的内容
+    const captionRegex = /<div class="b_caption"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi;
+    const titleRegex = /<h2[^>]*><a[^>]*>([\s\S]*?)<\/a><\/h2>/gi;
+
+    let match;
+    const captions: string[] = [];
+    const titles: string[] = [];
+
+    while ((match = captionRegex.exec(html)) !== null && captions.length < 5) {
+      const text = match[1].replace(/<[^>]+>/g, '').trim();
+      if (text.length > 10) captions.push(text);
+    }
+
+    // Reset regex
+    const titleRegex2 = /<h2[^>]*><a[^>]*>([\s\S]*?)<\/a><\/h2>/gi;
+    while ((match = titleRegex2.exec(html)) !== null && titles.length < 5) {
+      const text = match[1].replace(/<[^>]+>/g, '').trim();
+      if (text.length > 2) titles.push(text);
+    }
+
+    for (let i = 0; i < Math.min(captions.length, 5); i++) {
       results.push({
-        title: data.Heading || query,
-        snippet: data.Abstract.slice(0, 1000),
-        url: data.AbstractURL || undefined,
+        title: titles[i] || query,
+        snippet: captions[i].slice(0, 600),
       });
     }
-
-    // 相关主题（取前3条）
-    const topics = data.RelatedTopics || [];
-    for (const topic of topics.slice(0, 3)) {
-      if (topic.Text) {
-        results.push({
-          title: topic.FirstURL ? topic.Text.split(' - ')[0] : query,
-          snippet: topic.Text.slice(0, 500),
-          url: topic.FirstURL || undefined,
-        });
-      }
-    }
-  } catch {
-    // DuckDuckGo API 失败时静默跳过
-  }
-
-  // 2. 如果 DuckDuckGo 没有结果，尝试直接搜索
-  if (results.length === 0) {
-    try {
-      const resp = await fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
-        {
-          signal: AbortSignal.timeout(8000),
-          headers: { 'User-Agent': 'BoleSimulator/1.0' },
-        }
-      );
-      const html = await resp.text();
-      // 简单提取搜索结果摘要
-      const snippetMatches = html.match(/class="result__snippet"[^>]*>([^<]+)</g);
-      if (snippetMatches) {
-        for (const m of snippetMatches.slice(0, 5)) {
-          const text = m.replace(/<[^>]+>/g, '').trim();
-          if (text.length > 10) {
-            results.push({ title: query, snippet: text });
-          }
-        }
-      }
-    } catch {
-      // HTML 搜索也失败，忽略
-    }
+  } catch (err: any) {
+    console.log('[web-search] Search failed:', err.message);
   }
 
   return results.slice(0, 5);
 }
 
-/**
- * 专门搜索歌曲信息（优化查询格式）
- */
-export async function searchSongInfo(
-  title: string,
-  artist?: string
-): Promise<SearchResult[]> {
+export async function searchSongInfo(title: string, artist?: string): Promise<SearchResult[]> {
   const q = artist ? `${artist} ${title} 歌曲 背景 创作` : `${title} 歌曲`;
   return webSearch(q);
 }
 
-/**
- * 专门搜索歌手信息
- */
 export async function searchArtistInfo(artist: string): Promise<SearchResult[]> {
   return webSearch(`${artist} 歌手 简介 音乐风格`);
 }
