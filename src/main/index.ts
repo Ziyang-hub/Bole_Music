@@ -680,3 +680,11 @@ ipcMain.handle('update:getStatus', async () => {
 
 ipcMain.handle('store:getAllData', async () => getAllData());
 ipcMain.handle('store:resetAllData', async () => resetAllData());
+
+// 清除缓存
+ipcMain.handle('app:clearCache', async () => {
+  const { session: { defaultSession } } = require('electron');
+  await defaultSession.clearCache();
+  await defaultSession.clearStorageData({ storages: ['cookies', 'localstorage'] });
+  return true;
+});

@@ -135,4 +135,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ----- 数据管理 -----
   getAllData: () => ipcRenderer.invoke('store:getAllData'),
   resetAllData: () => ipcRenderer.invoke('store:resetAllData'),
+  clearCache: () => ipcRenderer.invoke('app:clearCache'),
 });

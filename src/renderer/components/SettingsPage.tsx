@@ -534,6 +534,14 @@ function PrivacySection() {
     window.location.reload();
   }
 
+  async function handleClearCache() {
+    if (!window.confirm('清除图片和应用缓存？\n\n不会删除你的聊天记录和设置。')) return;
+    if (window.electronAPI && (window.electronAPI as any).clearCache) {
+      await (window.electronAPI as any).clearCache();
+    }
+    alert('✅ 缓存已清除');
+  }
+
   return (
     <div className="section-card">
       <div className="section-header">🔒 隐私与数据</div>
@@ -549,6 +557,16 @@ function PrivacySection() {
         }}
       >
         🗑️ 清除所有本地数据
+      </button>
+      <button
+        onClick={handleClearCache}
+        style={{
+          padding: '8px 20px', border: '1px solid var(--color-border)', borderRadius: 8,
+          background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)', cursor: 'pointer',
+          fontSize: 13, fontFamily: 'var(--font-sans)', marginLeft: 8,
+        }}
+      >
+        🧹 清除缓存
       </button>
       {cleared && <span style={{ color: 'var(--color-success)', fontSize: 12, marginLeft: 12 }}>✅ 已清除</span>}
     </div>
