@@ -34,10 +34,19 @@
   --color-border: #2a2a45;
   --color-border-light: #35355a;
 
+  /* 状态色 */
+  --color-success: #4caf50;
+  --color-success-bg: rgba(76, 175, 80, 0.1);
+  --color-danger: #f44336;
+  --color-danger-bg: rgba(244, 67, 54, 0.1);
+
   /* 阴影 */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.5);
+
+  /* 焦点环 */
+  --color-focus-ring: rgba(240, 160, 80, 0.5);
 
   /* 圆角 */
   --radius-sm: 8px;
@@ -51,7 +60,7 @@
   --color-bg-primary: #f5f5f7;
   --color-bg-secondary: #ffffff;
   --color-bg-tertiary: #eeeeef;
-  --color-bg-card: #ffffff;
+  --color-bg-card: #f0f0f2;
 
   --color-text-primary: #1a1a2e;
   --color-text-secondary: #555570;
@@ -118,6 +127,13 @@ body {
 input,
 textarea {
   user-select: text;
+}
+
+/* 焦点可见样式（键盘导航） */
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* ----- 应用布局 ----- */
@@ -297,11 +313,11 @@ textarea {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #4caf50;
+  background-color: var(--color-success);
   box-shadow: 0 0 6px rgba(76, 175, 80, 0.6);
 }
 .status-dot.listening {
-  background-color: #f0a050;
+  background-color: var(--color-accent);
   box-shadow: 0 0 8px rgba(240, 160, 80, 0.8);
   animation: pulse 1.5s ease-in-out infinite;
 }
@@ -663,7 +679,7 @@ textarea {
 
 /* 情绪总结卡片 */
 .mood-card {
-  background: linear-gradient(135deg, #1e1e35, #2a2040);
+  background: linear-gradient(135deg, var(--color-bg-card, #1e1e35), var(--color-bg-tertiary));
   border-color: var(--color-accent-dark);
 }
 
@@ -929,7 +945,7 @@ textarea {
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md);
-  background: linear-gradient(135deg, #1e1e35, #2a2040);
+  background: linear-gradient(135deg, var(--color-bg-card, #1e1e35), var(--color-bg-tertiary));
   border-radius: var(--radius-md);
   border: 1px solid var(--color-accent-bg);
 }
@@ -1222,7 +1238,7 @@ textarea {
 
 /* AI 报告卡片 */
 .ai-report-card {
-  background: linear-gradient(135deg, #1e1e35, #2a2040);
+  background: linear-gradient(135deg, var(--color-bg-card, #1e1e35), var(--color-bg-tertiary));
   border-color: var(--color-accent-dark);
 }
 .ai-report-header {

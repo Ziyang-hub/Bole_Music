@@ -53,7 +53,7 @@ import {
   parsePlaylistUrl,
   getPlaylistSongs,
 } from './music-platforms';
-import { getCachedAnalysis, cacheAnalysis, trackUsage, getUsageStats } from './store';
+import { getCachedAnalysis, cacheAnalysis, clearAnalysisCache, trackUsage, getUsageStats } from './store';
 
 // ----- 窗口管理 -----
 
@@ -280,6 +280,16 @@ ipcMain.handle('store:clearMessages', async () => clearMessages());
 ipcMain.handle('store:getSettings', async () => getSettings());
 ipcMain.handle('store:updateSettings', async (_e, partial) => {
   const updated = updateSettings(partial);
+
+  // 如果配置了新的 API Key，重置去重状态让下次检测立即生效
+  if (partial.apiKey && partial.apiKey.trim()) {
+    lastDetectedSong = '';
+    lastDetectedTime = 0;
+    // 同时清除歌曲分析缓存，让新 API Key 的分析结果生效
+    clearAnalysisCache();
+    console.log('[app] API key updated, reset dedup + cache');
+  }
+
   // 通知渲染进程设置已变更（主题等需要实时生效）
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('settings:changed', updated);

@@ -98,7 +98,7 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
           {!searched && (
             <div className="search-hint">
               <p>💡 输入关键词搜索歌曲，比如「晴天」「周杰伦」</p>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+              <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8 }}>
                 也支持直接粘贴网易云歌曲链接
               </p>
             </div>
@@ -127,7 +127,7 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
                 <div className="search-song-name">
                   {song.name}
                   {loadingLyrics === song.id && (
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 8 }}>
                       ⏳ 获取歌词...
                     </span>
                   )}

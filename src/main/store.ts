@@ -180,6 +180,10 @@ export function cacheAnalysis(songName: string, analysis: SongAnalysis): void {
   store.set('songCache', cache);
 }
 
+export function clearAnalysisCache(): void {
+  store.set('songCache', {});
+}
+
 // ============================================================
 // 听歌日记
 // ============================================================

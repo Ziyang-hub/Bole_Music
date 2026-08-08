@@ -2,75 +2,127 @@
  * 生成应用图标
  * 使用 sharp 库创建 PNG 图标
  * 运行：node scripts/generate-icon.js
+ *
+ * 设计：伯乐与千里马 — 简洁马头剪影 + 音符元素
+ * 无文字，暖琥珀色，深色圆角背景
  */
 
 const sharp = require('sharp');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const ICON_SIZE = 512;
 const OUTPUT_DIR = path.join(__dirname, '..', 'resources');
 
 async function generateIcon() {
-  // 创建 SVG 图标：深色背景 + 音乐符号 + 伯乐主题
+  // SVG 图标：伯乐与千里马
+  // 简洁几何风格 — 马头侧影 + 音符线条
   const svg = `
     <svg width="${ICON_SIZE}" height="${ICON_SIZE}" xmlns="http://www.w3.org/2000/svg">
-      <!-- 背景：深色圆角矩形 -->
       <defs>
         <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" style="stop-color:#1a1a2e"/>
-          <stop offset="100%" style="stop-color:#2a2040"/>
+          <stop offset="100%" style="stop-color:#252540"/>
         </linearGradient>
-        <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id="horse" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" style="stop-color:#f0a050"/>
-          <stop offset="100%" style="stop-color:#f5c080"/>
+          <stop offset="100%" style="stop-color:#e08830"/>
         </linearGradient>
       </defs>
 
       <!-- 圆角矩形背景 -->
-      <rect width="${ICON_SIZE}" height="${ICON_SIZE}" rx="80" fill="url(#bg)"/>
+      <rect width="${ICON_SIZE}" height="${ICON_SIZE}" rx="96" fill="url(#bg)"/>
 
-      <!-- 装饰圆形（模拟唱片/音符光晕）-->
-      <circle cx="256" cy="220" r="120" fill="none" stroke="url(#accent)" stroke-width="3" opacity="0.3"/>
-      <circle cx="256" cy="220" r="90" fill="none" stroke="url(#accent)" stroke-width="2" opacity="0.2"/>
-      <circle cx="256" cy="220" r="60" fill="none" stroke="url(#accent)" stroke-width="1" opacity="0.15"/>
+      <!-- 千里马：简约几何马头侧影（向右） -->
+      <g transform="translate(256, 256)" fill="url(#horse)">
+        <!-- 马头 + 颈 + 鬃毛 — 流畅的几何路径 -->
+        <path d="
+          M 20 -120
+          C 30 -130, 50 -138, 70 -140
+          C 85 -142, 95 -138, 100 -128
+          C 105 -118, 105 -105, 100 -92
+          C 95 -80, 85 -72, 75 -68
+          L 60 -50
+          C 70 -40, 80 -28, 88 -14
+          C 92 -6, 96 4, 98 14
+          L 100 30
+          C 100 40, 95 45, 88 42
+          C 76 38, 60 30, 44 22
+          C 32 16, 18 14, 4 14
+          L -20 14
+          L -24 8
+          C -10 4, 4 2, 16 4
+          C 30 6, 42 12, 52 18
+          C 48 8, 42 -4, 34 -16
+          C 26 -28, 16 -40, 6 -52
+          L 12 -58
+          C 24 -44, 36 -30, 46 -20
+          C 42 -38, 36 -56, 30 -72
+          C 26 -84, 22 -94, 20 -104
+          C 18 -114, 20 -120, 20 -120
+          Z
+        "/>
 
-      <!-- 音乐音符 -->
-      <g transform="translate(256, 200)" fill="url(#accent)">
-        <!-- 八分音符 -->
-        <text x="-60" y="40" font-size="140" font-family="Arial" text-anchor="middle" dominant-baseline="middle">🎵</text>
+        <!-- 音符元素：竖线 + 符头（融入马颈线条） -->
+        <rect x="-30" y="-90" width="6" height="80" rx="3"/>
+        <ellipse cx="-10" cy="-10" rx="18" ry="12" transform="rotate(-15 -10 -10)"/>
+
+        <!-- 小音符 -->
+        <circle cx="-46" cy="-100" r="5"/>
       </g>
-
-      <!-- 底部文字 -->
-      <text x="256" y="390" font-size="36" font-family="Arial" font-weight="bold" fill="#f0a050" text-anchor="middle">伯 乐</text>
-      <text x="256" y="430" font-size="18" font-family="Arial" fill="#9898b0" text-anchor="middle">Bole Simulator</text>
-
-      <!-- 装饰星光 -->
-      <circle cx="80" cy="100" r="2" fill="#f5c080" opacity="0.6"/>
-      <circle cx="420" cy="80" r="1.5" fill="#f5c080" opacity="0.5"/>
-      <circle cx="450" cy="350" r="2" fill="#f5c080" opacity="0.4"/>
-      <circle cx="60" cy="400" r="1.5" fill="#f5c080" opacity="0.5"/>
-      <circle cx="180" cy="60" r="1" fill="#f5c080" opacity="0.6"/>
     </svg>
   `;
 
-  // 生成 PNG
+  // 生成 512x512 PNG
   await sharp(Buffer.from(svg))
     .resize(ICON_SIZE, ICON_SIZE)
     .png()
     .toFile(path.join(OUTPUT_DIR, 'icon.png'));
 
-  // 也生成小尺寸版本
+  // 生成 256x256 PNG
   await sharp(Buffer.from(svg))
     .resize(256, 256)
     .png()
     .toFile(path.join(OUTPUT_DIR, 'icon-256.png'));
 
-  console.log('✅ 图标已生成到 resources/ 目录');
+  console.log('✅ PNG 图标已生成:');
   console.log('  - resources/icon.png (512x512)');
   console.log('  - resources/icon-256.png (256x256)');
+
+  // macOS: 生成 .icns
+  try {
+    const png512 = path.join(OUTPUT_DIR, 'icon.png');
+    const iconset = path.join(OUTPUT_DIR, 'icon.iconset');
+    execSync(`mkdir -p "${iconset}"`);
+    // 生成各种尺寸
+    const sizes = {
+      'icon_16x16.png': 16,
+      'icon_16x16@2x.png': 32,
+      'icon_32x32.png': 32,
+      'icon_32x32@2x.png': 64,
+      'icon_128x128.png': 128,
+      'icon_128x128@2x.png': 256,
+      'icon_256x256.png': 256,
+      'icon_256x256@2x.png': 512,
+      'icon_512x512.png': 512,
+      'icon_512x512@2x.png': 1024,
+    };
+    for (const [name, size] of Object.entries(sizes)) {
+      await sharp(png512)
+        .resize(size, size)
+        .png()
+        .toFile(path.join(iconset, name));
+    }
+    execSync(`iconutil -c icns "${iconset}" -o "${path.join(OUTPUT_DIR, 'icon.icns')}"`);
+    execSync(`rm -rf "${iconset}"`);
+    console.log('  - resources/icon.icns (macOS)');
+  } catch (e) {
+    console.log('⚠️  无法生成 .icns（非 macOS 环境，CI 中会由 mac 机器生成）');
+  }
+
   console.log('');
-  console.log('💡 macOS 需要 .icns 格式，请在 Mac 上用以下命令转换：');
-  console.log('  sips -s format icns resources/icon.png --out resources/icon.icns');
+  console.log('🎨 图标设计：伯乐与千里马 — 几何马头剪影 + 音符元素');
+  console.log('   暖琥珀色，深色圆角背景，无文字');
 }
 
 generateIcon().catch((err) => {

@@ -284,7 +284,7 @@ export default function SettingsPage() {
             <label className="setting-label">🎵 歌曲识别</label>
             <span className="setting-desc">使用 Shazam 引擎，免费、零配置、即开即用</span>
           </div>
-          <span style={{ color: '#4caf50', fontSize: 13, fontWeight: 600 }}>✅ 已启用</span>
+          <span style={{ color: 'var(--color-success)', fontSize: 13, fontWeight: 600 }}>✅ 已启用</span>
         </div>
 
         {/* 音频采集配置引导 */}
@@ -397,7 +397,7 @@ function ApiKeyGuide({ type }: { type: 'ai' | 'recognition' }) {
             <div>2. 用手机号注册（1分钟）</div>
             <div>3. 点击左侧「API Keys」→「创建 API Key」</div>
             <div>4. 复制 Key，粘贴到上方输入框</div>
-            <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>💰 新用户送 500 万 tokens，够用很久</div>
+            <div style={{ color: 'var(--color-text-muted)', marginTop: 4 }}>💰 新用户送 500 万 tokens，够用很久</div>
 
             <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 8, color: 'var(--color-accent-light)' }}>
               🆓 备选：通义千问（阿里云）
@@ -405,7 +405,7 @@ function ApiKeyGuide({ type }: { type: 'ai' | 'recognition' }) {
             <div>1. 打开 <a href="https://dashscope.aliyun.com" target="_blank" style={{ color: 'var(--color-accent)' }}>dashscope.aliyun.com</a></div>
             <div>2. 用支付宝/淘宝账号登录</div>
             <div>3. 点击「API Key 管理」→「创建 API Key」</div>
-            <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>💰 新用户有百万 tokens 免费额度</div>
+            <div style={{ color: 'var(--color-text-muted)', marginTop: 4 }}>💰 新用户有百万 tokens 免费额度</div>
           </div>
         )}
       </div>
@@ -466,7 +466,7 @@ function AudioSetupGuide() {
 
       {capability.platform === 'win32' && (
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
-          <div style={{ color: '#4caf50', fontWeight: 600 }}>🎉 Windows 零安装！</div>
+          <div style={{ color: 'var(--color-success)', fontWeight: 600 }}>🎉 Windows 零安装！</div>
           <div>系统内置 WASAPI 音频采集，打开开关即可使用。</div>
           <div style={{ marginTop: 4 }}>如果无法采集到声音，可安装 <a href="https://vb-audio.com/Cable/" style={{ color: 'var(--color-accent)' }}>VB-Cable</a>（免费）作为备选。</div>
         </div>
@@ -474,20 +474,20 @@ function AudioSetupGuide() {
 
       {capability.platform === 'darwin' && (
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
-          <div style={{ color: '#4caf50', fontWeight: 600 }}>🎉 macOS 零安装！</div>
+          <div style={{ color: 'var(--color-success)', fontWeight: 600 }}>🎉 macOS 零安装！</div>
           <div>使用 macOS 内置的 ScreenCaptureKit 采集系统音频，无需安装任何软件。</div>
           <div style={{ marginTop: 4 }}>📌 首次使用步骤：</div>
           <div>1. 打开自动采集开关</div>
           <div>2. 在弹出的系统对话框中点击「允许屏幕录制」</div>
           <div>3. 即可自动监听电脑播放的音乐</div>
-          <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>⚠️ 需要 macOS 13 (Ventura) 或更新版本</div>
-          <div style={{ color: 'var(--text-muted)' }}>⚠️ 如提示权限被拒绝，请前往 系统设置 → 隐私与安全性 → 屏幕录制 中开启</div>
+          <div style={{ color: 'var(--color-text-muted)', marginTop: 4 }}>⚠️ 需要 macOS 13 (Ventura) 或更新版本</div>
+          <div style={{ color: 'var(--color-text-muted)' }}>⚠️ 如提示权限被拒绝，请前往 系统设置 → 隐私与安全性 → 屏幕录制 中开启</div>
         </div>
       )}
 
       {capability.platform === 'linux' && (
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, lineHeight: 1.6 }}>
-          <div style={{ color: '#4caf50', fontWeight: 600 }}>🎉 Linux 零安装！</div>
+          <div style={{ color: 'var(--color-success)', fontWeight: 600 }}>🎉 Linux 零安装！</div>
           <div>系统内置 PulseAudio 音频采集，打开开关即可使用。</div>
         </div>
       )}
@@ -516,20 +516,20 @@ function PrivacySection() {
   return (
     <div className="section-card">
       <div className="section-header">🔒 隐私与数据</div>
-      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
         所有数据保存在本地，不上传任何服务器。卸载 App 后请先清除数据。
       </p>
       <button
         onClick={handleClear}
         style={{
           padding: '8px 20px', border: '1px solid #f44336', borderRadius: 8,
-          background: 'rgba(244,67,54,0.1)', color: '#f44336', cursor: 'pointer',
+          background: 'var(--color-danger-bg)', color: 'var(--color-danger)', cursor: 'pointer',
           fontSize: 13, fontFamily: 'var(--font-sans)',
         }}
       >
         🗑️ 清除所有本地数据
       </button>
-      {cleared && <span style={{ color: '#4caf50', fontSize: 12, marginLeft: 12 }}>✅ 已清除</span>}
+      {cleared && <span style={{ color: 'var(--color-success)', fontSize: 12, marginLeft: 12 }}>✅ 已清除</span>}
     </div>
   );
 }
@@ -550,7 +550,7 @@ function UsageSection() {
     return (
       <div className="section-card">
         <div className="section-header">📊 使用统计</div>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>还没有使用数据，开始使用伯乐吧！</p>
+        <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>还没有使用数据，开始使用伯乐吧！</p>
       </div>
     );
   }
@@ -560,22 +560,22 @@ function UsageSection() {
       <div className="section-header">📊 使用统计</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div className="stat-card">
-          <div className="stat-val">{usage.totalAnalyses}</div>
-          <div className="stat-lbl">歌曲分析次数</div>
+          <div className="stat-value">{usage.totalAnalyses}</div>
+          <div className="stat-label">歌曲分析次数</div>
         </div>
         <div className="stat-card">
-          <div className="stat-val">{usage.totalChats}</div>
-          <div className="stat-lbl">对话次数</div>
+          <div className="stat-value">{usage.totalChats}</div>
+          <div className="stat-label">对话次数</div>
         </div>
         <div className="stat-card">
-          <div className="stat-val">{usage.playlistImports}</div>
-          <div className="stat-lbl">歌单导入</div>
+          <div className="stat-value">{usage.playlistImports}</div>
+          <div className="stat-label">歌单导入</div>
         </div>
         <div className="stat-card">
-          <div className="stat-val">
+          <div className="stat-value">
             {usage.firstUsed ? new Date(usage.firstUsed).toLocaleDateString('zh-CN') : '-'}
           </div>
-          <div className="stat-lbl">首次使用</div>
+          <div className="stat-label">首次使用</div>
         </div>
       </div>
     </div>
@@ -651,12 +651,12 @@ function UpdateSection() {
           </p>
         )}
         {updateInfo.status === 'downloaded' && (
-          <p style={{ color: '#4caf50', fontSize: 13, fontWeight: 600 }}>
+          <p style={{ color: 'var(--color-success)', fontSize: 13, fontWeight: 600 }}>
             ✅ 更新已下载，重启后生效
           </p>
         )}
         {updateInfo.status === 'error' && (
-          <p style={{ color: '#f44336', fontSize: 13 }}>
+          <p style={{ color: 'var(--color-danger)', fontSize: 13 }}>
             ❌ {updateInfo.error || '检查更新失败'}
           </p>
         )}
@@ -669,13 +669,13 @@ function UpdateSection() {
         </button>
         {updateInfo.status === 'available' && (
           <button className="send-button" onClick={handleDownload}
-            style={{ fontSize: 12, padding: '6px 16px', height: 'auto', background: '#4caf50' }}>
+            style={{ fontSize: 12, padding: '6px 16px', height: 'auto', background: 'var(--color-success)' }}>
             下载更新
           </button>
         )}
         {updateInfo.status === 'downloaded' && (
           <button className="send-button" onClick={handleInstall}
-            style={{ fontSize: 12, padding: '6px 16px', height: 'auto', background: '#4caf50' }}>
+            style={{ fontSize: 12, padding: '6px 16px', height: 'auto', background: 'var(--color-success)' }}>
             重启安装
           </button>
         )}

@@ -75,7 +75,7 @@ export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
 
         {!playlist ? (
           <div style={{ padding: 20 }}>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+            <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 12 }}>
               粘贴网易云歌单链接，比如：<br />
               <code>https://music.163.com/playlist?id=3778678</code>
             </p>
@@ -92,7 +92,7 @@ export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
           <div style={{ padding: 20 }}>
             <div style={{ fontWeight: 600, marginBottom: 8 }}>
               🎵 {playlist.name}
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginLeft: 8 }}>
                 {playlist.songs.length} 首歌
               </span>
             </div>
@@ -121,9 +121,9 @@ export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
                   display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
                   borderBottom: '1px solid var(--color-border)', fontSize: 13,
                 }}>
-                  <span style={{ color: 'var(--text-muted)', width: 24 }}>{i + 1}</span>
+                  <span style={{ color: 'var(--color-text-muted)', width: 24 }}>{i + 1}</span>
                   <span style={{ flex: 1 }}>{song.name}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                  <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
                     {song.artists.join(' / ')}
                   </span>
                   {results[i]?.done && <span>✅</span>}
@@ -131,7 +131,7 @@ export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
                 </div>
               ))}
               {playlist.songs.length > 50 && (
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: 12 }}>
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'center', padding: 12 }}>
                   还有 {playlist.songs.length - 50} 首...（仅显示前50首）
                 </p>
               )}
