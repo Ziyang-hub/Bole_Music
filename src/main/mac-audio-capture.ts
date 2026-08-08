@@ -139,15 +139,26 @@ export function registerIpcHandlers(): void {
     const tmpWav = path.join(AUDIO_DIR, `chunk_${id}.wav`);
 
     fs.promises.writeFile(tmpWebm, data).then(() => {
+      // 验证 webm 文件写入成功
+      const webmSize = fs.statSync(tmpWebm).size;
+      if (webmSize < 1000) {
+        console.log('[mac-audio] webm too small, skipping:', webmSize, 'bytes');
+        fs.promises.unlink(tmpWebm).catch(() => {});
+        return;
+      }
+
       const { spawn } = require('child_process');
       let ffmpegPath = 'ffmpeg';
       try { ffmpegPath = require('ffmpeg-static'); } catch {}
 
+      let stderr = '';
       const p = spawn(ffmpegPath, [
         '-y', '-i', tmpWebm,
         '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
         tmpWav,
-      ], { stdio: 'ignore' });
+      ], { stdio: ['ignore', 'ignore', 'pipe'] });
+
+      p.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
 
       p.on('close', (code: number) => {
         // 无论成功失败都删除 webm 源文件
@@ -162,7 +173,8 @@ export function registerIpcHandlers(): void {
             cleanupOldChunks();
           }).catch(() => { cleanupOldChunks(); });
         } else {
-          console.log('[mac-audio] ffmpeg conversion failed, code:', code);
+          console.log('[mac-audio] ffmpeg failed, code:', code);
+          console.log('[mac-audio] ffmpeg stderr:', stderr.slice(-300));
           // 转换失败也清理 wav 残留
           fs.promises.unlink(tmpWav).catch(() => {});
           cleanupOldChunks();
