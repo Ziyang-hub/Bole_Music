@@ -137,6 +137,23 @@ export default function App() {
     init();
   }, []);
 
+  // macOS: 自动恢复采集（设置中 autoListen=true 时）
+  useEffect(() => {
+    if (!window.electronAPI || window.electronAPI.platform !== 'darwin') return;
+    let restored = false;
+    window.electronAPI.getSettings().then(async (s: any) => {
+      if (s.autoListen && !restored) {
+        restored = true;
+        try {
+          const { startSystemAudioCapture } = await import('./system-audio-capture');
+          await startSystemAudioCapture();
+        } catch (e) {
+          console.log('[app] Auto-restore capture failed:', e);
+        }
+      }
+    });
+  }, []);
+
   // 订阅音频检测事件（自动采集识别到歌曲时）
   useEffect(() => {
     if (!window.electronAPI) return;

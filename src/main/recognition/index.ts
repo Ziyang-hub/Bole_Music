@@ -51,13 +51,26 @@ function parseShazamResponse(data: any): { title: string; artist: string; album?
  * 识别音频文件中的歌曲（串行化以避免 st-shazam 内部临时文件竞争）
  */
 export async function recognize(audioPath: string): Promise<RecognitionResult | null> {
+  // 串行队列：记录前一个任务，但不阻塞超过 35 秒
   const prev = _pending;
   let resolveOuter: (v: RecognitionResult | null) => void;
   _pending = new Promise(r => { resolveOuter = r; });
 
   try {
-    await prev; // 等待前一个识别完成
-    const raw = await shazamRecognize(audioPath);
+    // 前一个超时也不影响当前（最多等 35 秒）
+    await Promise.race([
+      prev,
+      new Promise<void>(r => setTimeout(r, 35000)),
+    ]);
+
+    // 30 秒超时，防止网络请求卡住导致整个队列阻塞
+    const raw = await Promise.race([
+      shazamRecognize(audioPath),
+      new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error('Shazam timeout')), 30000)
+      ),
+    ]);
+
     const song = parseShazamResponse(raw);
     if (song) {
       return {
