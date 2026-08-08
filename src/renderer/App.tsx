@@ -437,6 +437,7 @@ export default function App() {
             }));
 
             const chatResult = await window.electronAPI.chat(history, text);
+            console.log('[app] Fallback chat result:', chatResult?.success, chatResult?.error?.slice(0, 50));
             if (chatResult.success && chatResult.data) {
               const boleMsg: ChatMessage = {
                 id: generateId(), role: 'bole', content: chatResult.data, timestamp: nowISO(),
@@ -474,6 +475,7 @@ export default function App() {
           }));
 
           const result = await window.electronAPI.chat(history, text);
+          console.log('[app] Chat result:', result?.success, result?.error?.slice(0, 50));
 
           if (result.success && result.data) {
             const boleMsg: ChatMessage = {
