@@ -8,7 +8,7 @@
 let mediaRecorder: MediaRecorder | null = null;
 let stream: MediaStream | null = null;
 let _started = false;
-const CHUNK_SEC = 10;
+const CHUNK_SEC = 15; // 15 秒足够 Shazam 匹配
 
 export async function startSystemAudioCapture(): Promise<void> {
   stopSystemAudioCapture();
