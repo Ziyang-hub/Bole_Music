@@ -59,22 +59,49 @@ async function searchBing(query: string): Promise<SearchResult[]> {
   if (!resp.ok) return results;
 
   const html = await resp.text();
-  const snippetRe = /<div class="b_caption"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi;
-  const titleRe = /<h2[^>]*><a[^>]*>([\s\S]*?)<\/a><\/h2>/gi;
 
-  const snippets: string[] = [], titles: string[] = [];
-  let m;
-  while ((m = snippetRe.exec(html)) !== null && snippets.length < 5) {
-    const t = m[1].replace(/<[^>]+>/g, '').trim();
-    if (t.length > 10) snippets.push(t);
+  // 多重策略提取文本
+  // 策略1：b_caption 段落
+  let snippets = _extractByRe(html, /<div class="b_caption"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi, 10);
+  // 策略2：通用 p 标签
+  if (snippets.length < 3) {
+    snippets = _extractByRe(html, /<p[^>]*>([\s\S]{20,200}?)<\/p>/gi, 10);
   }
-  while ((m = titleRe.exec(html)) !== null && titles.length < 5) {
-    const t = m[1].replace(/<[^>]+>/g, '').trim();
-    if (t.length > 2) titles.push(t);
+  // 策略3：meta description
+  if (snippets.length === 0) {
+    const metaMatch = html.match(/<meta[^>]+name="description"[^>]+content="([^"]+)"/i);
+    if (metaMatch) snippets = [metaMatch[1]];
   }
 
+  // 提取标题
+  let titles = _extractByRe(html, /<h2[^>]*><a[^>]*>([\s\S]*?)<\/a><\/h2>/gi, 2);
+  if (titles.length === 0) {
+    titles = _extractByRe(html, /<a[^>]*href="[^"]*"[^>]*>([\s\S]{3,40}?)<\/a>/gi, 2);
+  }
+
+  // 去重 + 去 HTML 标签
+  const seen = new Set<string>();
   for (let i = 0; i < snippets.length; i++) {
-    results.push({ title: titles[i] || query, snippet: snippets[i].slice(0, 600) });
+    const clean = snippets[i].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ').trim();
+    if (clean.length > 15 && !seen.has(clean.slice(0, 50))) {
+      seen.add(clean.slice(0, 50));
+      results.push({
+        title: (titles[i] || '').replace(/<[^>]+>/g, '').trim() || query,
+        snippet: clean.slice(0, 600),
+      });
+    }
+  }
+
+  console.log('[web-search] bing extracted', results.length, 'snippets');
+  return results;
+}
+
+function _extractByRe(html: string, regex: RegExp, minLen: number): string[] {
+  const results: string[] = [];
+  let m;
+  while ((m = regex.exec(html)) !== null && results.length < 5) {
+    const t = m[1].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ').trim();
+    if (t.length > minLen) results.push(t);
   }
   return results;
 }

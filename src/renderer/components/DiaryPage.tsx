@@ -46,6 +46,37 @@ export default function DiaryPage() {
     loadDiary();
   }
 
+  // 删除某一天中的某首歌
+  async function deleteSong(date: string, songIndex: number) {
+    if (!window.electronAPI) return;
+    const day = diary.find(d => d.date === date);
+    if (!day) return;
+    const updatedSongs = day.songs.filter((_, i) => i !== songIndex);
+    if (updatedSongs.length === 0) {
+      await deleteDay(date);
+    } else {
+      await window.electronAPI.updateDiaryEntry(date, { songs: updatedSongs });
+      loadDiary();
+    }
+  }
+
+  // 手动添加歌曲到某一天
+  async function addSong(date: string) {
+    if (!window.electronAPI) return;
+    const title = prompt('歌曲名：');
+    if (!title) return;
+    const artist = prompt('歌手（可选）：') || '';
+    const day = diary.find(d => d.date === date);
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const newSong = { title, artist, time, note: '' };
+    if (day) {
+      await window.electronAPI.updateDiaryEntry(date, { songs: [...day.songs, newSong] });
+    } else {
+      await window.electronAPI.addDiaryEntry({ date, songs: [newSong], mood: '', summary: '' });
+    }
+    loadDiary();
+  }
+
   // AI 生成当天小结
   async function generateSummary(date: string) {
     if (!window.electronAPI) return;
@@ -118,6 +149,9 @@ export default function DiaryPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <span className="diary-mood-badge">{day.mood || '未知'}</span>
+                    <button className="diary-action-btn" onClick={() => addSong(day.date)} title="添加歌曲">
+                      ➕
+                    </button>
                     <button className="diary-action-btn" onClick={() => addUserNote(day.date)} title="添加感想">
                       ✏️
                     </button>
@@ -134,6 +168,14 @@ export default function DiaryPage() {
                         <span className="diary-song-title">{song.title}</span>
                         {song.artist && <span className="diary-song-artist"> — {song.artist}</span>}
                         {song.time && <span className="diary-song-time">{song.time}</span>}
+                        <button
+                          className="diary-action-btn"
+                          onClick={() => { if (confirm(`删除歌曲「${song.title}」？`)) deleteSong(day.date, i); }}
+                          title="删除此歌曲"
+                          style={{ marginLeft: 8, fontSize: 12 }}
+                        >
+                          ❌
+                        </button>
                       </div>
 
                       {/* 笔记编辑 */}
