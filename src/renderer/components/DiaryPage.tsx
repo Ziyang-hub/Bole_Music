@@ -55,12 +55,8 @@ export default function DiaryPage() {
     setGeneratingFor(date);
 
     try {
-      const result = await window.electronAPI.chat([
-        {
-          role: 'user',
-          content: `今天听了以下几首歌：\n${day.songs.map((s) => `- ${s.title} (${s.artist})`).join('\n')}\n\n请为今天的听歌日记写一段温馨的小结（100-200字）。直接回复文字，不要JSON。`,
-        },
-      ]);
+      const userMsg = `今天听了以下几首歌：\n${day.songs.map((s) => `- ${s.title} (${s.artist})`).join('\n')}\n\n请为今天的听歌日记写一段温馨的小结（100-200字）。直接回复文字，不要JSON。`;
+      const result = await window.electronAPI.chat([], userMsg);
 
       if (result.success && result.data) {
         await window.electronAPI.updateDiaryEntry(date, { summary: result.data });

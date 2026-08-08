@@ -748,15 +748,24 @@ function looksLikeRecommend(text: string): boolean {
 
 /** 是否明确像是在查询一首歌曲（而非普通聊天） */
 function looksLikeSongQuery(text: string): boolean {
-  // 包含「歌手 - 歌名」或「歌手—歌名」分隔符
+  // 包含「歌手 - 歌名」或「歌手—歌名」分隔符 → 歌曲查询
   if (text.includes(' - ') || text.includes('—')) return true;
   // 明确要求分析歌曲
-  if (/分析|是什么歌|什么歌|识别|歌名/.test(text)) return true;
-  // 太长的文本不可能是歌名
-  if (text.length > 50) return false;
-  // 包含问号或明显是聊天
+  if (/分析|是什么歌|什么歌|识别|查歌/.test(text)) return true;
+  // 包含音乐/歌曲关键词 → 可能是歌曲查询
+  if (/^(歌|曲|唱|专辑|歌手|乐队|单曲)/.test(text)) return true;
+  // URL 链接 → 歌曲查询
+  if (/https?:\/\//.test(text)) return true;
+  // 太长的文本 → 聊天
+  if (text.length > 30) return false;
+  // 纯标点、纯数字、单字 → 聊天
+  if (/^[\s\d\p{P}]+$/u.test(text) || text.length <= 1) return false;
+  // 包含问号 → 聊天
   if (/[?？]/.test(text)) return false;
-  // 短文本（≤50字）且不含问号，可能是歌名查询
+  // 短文本（2-30字）且不含问号 → 检查是否像聊天寒暄
+  // 常见聊天寒暄词 → 不走歌曲查询
+  if (/^(你好|嗨|哈|嘿嘿|哈哈|嗯|哦|好|谢谢|再见|在吗|早|晚安|早安|午安)/.test(text)) return false;
+  // 其余短文本 → 可能是歌曲查询
   return !looksLikeRecommend(text);
 }
 

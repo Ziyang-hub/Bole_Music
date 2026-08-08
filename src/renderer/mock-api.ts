@@ -53,7 +53,7 @@ export function installMockAPI() {
         analyzedAt: new Date().toISOString(),
       } as SongAnalysis,
     }),
-    chat: async () => ({ success: true, data: '你好！我是伯乐。在浏览器测试模式下，我会尽量回复你的问题。输入歌名我会尝试分析，也可以随便聊聊音乐～' }),
+    chat: async (_history: any, _userMessage: string) => ({ success: true, data: '你好！我是伯乐。在浏览器测试模式下，我会尽量回复你的问题。输入歌名我会尝试分析，也可以随便聊聊音乐～' }),
     generateReport: async () => ({ success: true, data: { summary: '测试报告', mood: '愉快', keywords: ['测试'], highlights: ['这是测试模式'] } }),
     recommendSongs: async () => ({ success: true, data: { recommendations: [{ songName: '晴天', artist: '周杰伦', reason: '经典华语流行' }], comment: '这是测试推荐' } }),
 
