@@ -103,7 +103,7 @@ export default function App() {
         } else {
           // 首次使用，显示欢迎消息
           const welcome: ChatMessage = {
-            id: 'welcome',
+            id: 'welcome-1',
             role: 'bole',
             content:
               '你好，我是伯乐 🎵\n\n我是你的AI音乐知音。当你听到一首好歌，输入歌名告诉我，我来帮你分析和品味。\n\n比如你可以试试输入：「周杰伦 晴天」 或者 「Coldplay Yellow」\n\n💡 提示：在使用之前，请先去「设置」页面配置 AI 服务的 API Key。',
@@ -117,7 +117,7 @@ export default function App() {
         console.warn('Electron API 不可用，使用离线模式:', err);
         setMessages([
           {
-            id: 'welcome',
+            id: 'welcome-fallback',
             role: 'bole',
             content: '你好，我是伯乐 🎵\n\n离线模式：请在 Electron 环境中运行以连接 AI 服务。',
             timestamp: nowISO(),
