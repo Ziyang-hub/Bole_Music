@@ -72,6 +72,29 @@ echo ""
 echo "📦 安装依赖（可能需要几分钟）..."
 npm install
 
+# ---- 3.5 解除 macOS 隔离（否则 Electron 会被当作恶意软件删除）----
+echo ""
+echo "🔐 解除 macOS 隔离标记..."
+ELECTRON_APP="$DEV_DIR/node_modules/electron/dist/Electron.app"
+if [ -d "$ELECTRON_APP" ]; then
+  xattr -cr "$ELECTRON_APP" 2>/dev/null || true
+  codesign --force --deep --sign - "$ELECTRON_APP" 2>/dev/null || true
+  echo "✅ Electron 已签名"
+fi
+
+# 也处理 ffmpeg 二进制
+FFMPEG_BIN=$(find "$DEV_DIR/node_modules/ffmpeg-static" -name ffmpeg -type f 2>/dev/null | head -1)
+if [ -n "$FFMPEG_BIN" ]; then
+  xattr -cr "$FFMPEG_BIN" 2>/dev/null || true
+  echo "✅ ffmpeg 已解除隔离"
+fi
+
+FFMPEG_INST=$(find "$DEV_DIR/node_modules/@ffmpeg-installer" -name ffmpeg -type f 2>/dev/null | head -1)
+if [ -n "$FFMPEG_INST" ]; then
+  xattr -cr "$FFMPEG_INST" 2>/dev/null || true
+  echo "✅ ffmpeg-installer 已解除隔离"
+fi
+
 # ---- 4. 完成 ----
 echo ""
 echo "========================================"
