@@ -76,7 +76,7 @@ export async function searchSongs(
       const body = result.body as any;
       const songs = body?.result?.songs;
       if (!songs) return [];
-      return songs.map((song: any) => ({
+      const mapped = songs.map((song: any) => ({
         id: String(song.id),
         name: song.name,
         artists: (song.artists || []).map((a: any) => a.name),
@@ -89,6 +89,15 @@ export async function searchSongs(
         duration: song.duration,
         platform: 'netease' as const,
       }));
+      // 诊断：打印前3首歌的封面URL
+      const withCover = mapped.filter((s: any) => s.album?.picUrl);
+      console.log(`[music] searchSongs: ${mapped.length} results, ${withCover.length} have covers`);
+      if (withCover.length > 0) {
+        console.log('[music] Sample cover URLs:', withCover.slice(0, 3).map((s: any) => s.album!.picUrl));
+      } else if (mapped.length > 0) {
+        console.log('[music] First result album data:', JSON.stringify(mapped[0].album));
+      }
+      return mapped;
     }
 
     return [];

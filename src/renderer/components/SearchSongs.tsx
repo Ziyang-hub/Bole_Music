@@ -124,9 +124,17 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
               onClick={() => handleSelect(song)}
             >
               {song.album?.picUrl ? (
-                <img className="search-album-cover" src={song.album.picUrl + '?param=80y80'} alt="" />
+                <img className="search-album-cover"
+                  src={song.album.picUrl}
+                  alt=""
+                  onLoad={() => console.log('[search] Cover loaded:', song.album?.picUrl?.slice(0, 60))}
+                  onError={(e) => console.log('[search] Cover FAILED:', song.album?.picUrl?.slice(0, 60), 'album:', song.album?.name)}
+                />
               ) : (
-                <div className="search-album-placeholder">🎵</div>
+                <div className="search-album-placeholder" title="无封面URL">
+                  🎵
+                  <span style={{display:'block',fontSize:9,color:'var(--color-text-muted)'}}>无封面</span>
+                </div>
               )}
               <div className="search-song-info">
                 <div className="search-song-name">
