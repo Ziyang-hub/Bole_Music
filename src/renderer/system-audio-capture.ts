@@ -27,6 +27,21 @@ export async function startSystemAudioCapture(): Promise<void> {
 
   if (!window.electronAPI) throw new Error('Electron API not available');
 
+  // ---- 优先：ScreenCaptureKit 原生采集（不激活录音会话，蓝牙耳机音质零影响）----
+  // 原生模式由主进程 spawn helper 完成，渲染进程无需 getUserMedia
+  if (window.electronAPI.platform === 'darwin') {
+    try {
+      const r = await window.electronAPI.startAudioCapture();
+      if (r.success && r.native) {
+        console.log('[system-audio] ✅ Native ScreenCaptureKit capture started (no getUserMedia)');
+        return;
+      }
+      console.log('[system-audio] Native capture unavailable, falling back to getUserMedia:', r.error);
+    } catch (e: any) {
+      console.log('[system-audio] Native capture attempt failed:', e?.message, ', falling back to getUserMedia');
+    }
+  }
+
   // 1. 通过主进程获取屏幕源
   const sources = await window.electronAPI.getScreenSources();
   console.log('[system-audio] Sources:', sources);

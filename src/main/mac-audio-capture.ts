@@ -1,51 +1,139 @@
 /**
- * 伯乐模拟器 - macOS 零安装系统音频采集
+ * 伯乐模拟器 - macOS 系统音频采集（ScreenCaptureKit 原生）
  *
- * 使用 getDisplayMedia + macOS ScreenCaptureKit 捕获系统音频输出。
- * 无需安装 BlackHole 等第三方虚拟音频设备。
+ * 主进程 spawn 预编译的 Swift helper（ScreenCaptureKit 捕获系统音频），
+ * 直接产出 16kHz mono WAV 分块 → onChunk 喂给识别管道。
+ *
+ * 关键优势：ScreenCaptureKit 捕获系统输出流，不激活录音会话
+ * → 蓝牙耳机保持 A2DP 高音质，任何输出设备音质零影响。
+ *
+ * 降级策略：helper 缺失/spawn 失败 → startCapture 返回 false，
+ * 渲染进程回退到 getUserMedia 方案（旧行为）。
  *
  * 要求 macOS 13+（Ventura）
- *
- * 架构：
- *   1. 主进程通知渲染进程「需要采集」
- *   2. 渲染进程调用 getDisplayMedia → macOS 弹出屏幕选择器
- *   3. 用户选择屏幕 → 权限授予 → 系统音频流开始
- *   4. 渲染进程 MediaRecorder 录制 → IPC → 主进程保存 WAV
- *   5. 已有识别流程处理 WAV 文件
  */
 
 import { ipcMain, systemPreferences } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
+import { spawn, ChildProcess } from 'child_process';
+import * as readline from 'readline';
 import { cleanupOldChunks } from './audio-capture';
 
 export type AudioChunkCallback = (audioPath: string, createdAt?: number) => void;
 
 const AUDIO_DIR = path.join(os.tmpdir(), 'bole-simulator-audio');
-const CHUNK_SEC = 15; // 15 秒足够 Shazam 匹配
 
 let isRunning = false;
 let onChunk: AudioChunkCallback | null = null;
-let chunkIndex = 0;
+let helperProc: ChildProcess | null = null;
+
+// ============================================================
+// helper 二进制定位
+// ============================================================
+
+function helperBinaryPath(): string | null {
+  const archName = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const binName = `bole-capture-${archName}`;
+
+  // 候选路径：打包后（resources/）> 开发模式（项目 resources/）
+  const candidates = [
+    path.join(process.resourcesPath || '', 'mac-helper', binName),
+    path.join(__dirname, '../../resources/mac-helper', binName),
+  ];
+
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        fs.accessSync(p, fs.constants.X_OK);
+        return p;
+      }
+    } catch {}
+  }
+  return null;
+}
 
 // ============================================================
 // 公开 API
 // ============================================================
 
+/**
+ * 启动 ScreenCaptureKit 原生采集。
+ * @returns true = helper 启动成功（原生模式）；false = 需要降级到 getUserMedia
+ */
 export function startCapture(callback: AudioChunkCallback): boolean {
-  if (isRunning) return false;
-  if (!fs.existsSync(AUDIO_DIR)) fs.mkdirSync(AUDIO_DIR, { recursive: true });
+  if (isRunning) return true;
 
-  onChunk = callback;
-  isRunning = true;
-  chunkIndex = 0;
-  // 渲染进程通过 SettingsPage 直接调用 startSystemAudioCapture()
-  return true;
+  const bin = helperBinaryPath();
+  if (!bin) {
+    console.warn('[mac-audio] Helper binary not found, falling back to getUserMedia');
+    return false;
+  }
+
+  try {
+    if (!fs.existsSync(AUDIO_DIR)) fs.mkdirSync(AUDIO_DIR, { recursive: true });
+
+    helperProc = spawn(bin, ['--out', AUDIO_DIR, '--sec', '15'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    onChunk = callback;
+    isRunning = true;
+
+    // stdout：READY 表示启动成功；CHUNK:<path> 表示一块音频就绪
+    const rl = readline.createInterface({ input: helperProc.stdout! });
+    rl.on('line', (line: string) => {
+      line = line.trim();
+      if (line.startsWith('CHUNK:')) {
+        const p = line.slice(6);
+        if (onChunk && fs.existsSync(p)) {
+          console.log('[mac-audio] Chunk ready:', p);
+          onChunk(p, Date.now());
+          cleanupOldChunks();
+        }
+      } else if (line === 'READY') {
+        console.log('[mac-audio] Helper READY');
+      } else {
+        console.log('[mac-audio] Helper stdout:', line);
+      }
+    });
+
+    // stderr：错误信息
+    helperProc.stderr?.on('data', (d: Buffer) => {
+      const msg = d.toString().trim();
+      if (msg) console.error('[mac-audio] Helper stderr:', msg);
+    });
+
+    helperProc.on('error', (err) => {
+      console.error('[mac-audio] Helper spawn error:', err.message);
+      isRunning = false;
+      helperProc = null;
+    });
+
+    helperProc.on('exit', (code, signal) => {
+      console.log('[mac-audio] Helper exited:', code, signal);
+      helperProc = null;
+      isRunning = false;
+    });
+
+    return true;
+  } catch (err: any) {
+    console.error('[mac-audio] startCapture error:', err.message);
+    isRunning = false;
+    helperProc = null;
+    return false;
+  }
 }
 
 export function stopCapture(): void {
   isRunning = false;
+  if (helperProc) {
+    try {
+      helperProc.kill('SIGTERM');
+    } catch {}
+    helperProc = null;
+  }
 }
 
 export function isCapturing(): boolean { return isRunning; }
@@ -62,11 +150,9 @@ export async function checkCaptureCapability(): Promise<{
     };
   }
 
-  const perm = systemPreferences.getMediaAccessStatus('screen');
   const needs: string[] = [];
-
-  if (perm !== 'granted') {
-    needs.push('需要屏幕录制权限（开启采集时会弹出系统对话框）');
+  if (!helperBinaryPath()) {
+    needs.push('缺少音频捕获组件（bole-capture）');
   }
 
   return { available: true, platform: 'darwin', needs };
@@ -84,9 +170,15 @@ export async function diagnose(): Promise<{
 
   const majorVer = await _macosMajorVersion();
   if (majorVer >= 13) {
-    ok.push('macOS ' + majorVer + '（支持 ScreenCaptureKit，零安装）');
+    ok.push('macOS ' + majorVer + '（支持 ScreenCaptureKit 原生采集）');
   } else {
     issues.push('macOS ' + majorVer + '（需要 BlackHole 虚拟音频设备）');
+  }
+
+  if (helperBinaryPath()) {
+    ok.push('音频捕获组件已就绪');
+  } else {
+    issues.push('音频捕获组件缺失（请运行 scripts/build-mac-helper.sh 编译）');
   }
 
   const perm = systemPreferences.getMediaAccessStatus('screen');
@@ -98,13 +190,10 @@ export async function diagnose(): Promise<{
     issues.push('屏幕录制权限被拒绝（请在弹窗中点击「打开系统设置」开启）');
   }
 
-  // 关键修改：ready 只检查 macOS 版本，不检查权限状态
-  // 因为 getDisplayMedia() 会自然触发权限对话框
-  // 即使之前被拒，也让用户尝试——失败了再引导去系统设置
   return {
     ok,
     issues,
-    ready: majorVer >= 13,
+    ready: majorVer >= 13 && !!helperBinaryPath(),
   };
 }
 
@@ -113,14 +202,13 @@ export async function diagnose(): Promise<{
  */
 export async function openScreenRecordingSettings(): Promise<void> {
   const { shell } = require('electron');
-  // macOS 13+ 的隐私设置 URL
   await shell.openExternal(
     'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
   );
 }
 
 // ============================================================
-// IPC：接收渲染进程发来的音频数据 + 捕获状态
+// IPC：兼容旧链路（getUserMedia 降级路径仍会用到）
 // ============================================================
 
 let ipcRegistered = false;
@@ -129,17 +217,16 @@ export function registerIpcHandlers(): void {
   if (ipcRegistered) return;
   ipcRegistered = true;
 
-  // 接收音频数据块（webm/opus 格式）
+  // 接收音频数据块（webm/opus 格式）——降级路径使用
   ipcMain.on('audio:chunk', (_event, data: Buffer) => {
     if (!isRunning || !onChunk) return;
 
     const now = Date.now();
-    const id = `${now}_${chunkIndex++}`;
+    const id = `${now}_${Date.now().toString(36)}${Math.floor(Math.random() * 10000)}`;
     const tmpWebm = path.join(AUDIO_DIR, `chunk_${id}.webm`);
     const tmpWav = path.join(AUDIO_DIR, `chunk_${id}.wav`);
 
     fs.promises.writeFile(tmpWebm, data).then(() => {
-      // 验证 webm 文件写入成功
       const webmSize = fs.statSync(tmpWebm).size;
       if (webmSize < 1000) {
         console.log('[mac-audio] webm too small, skipping:', webmSize, 'bytes');
@@ -147,12 +234,12 @@ export function registerIpcHandlers(): void {
         return;
       }
 
-      const { spawn } = require('child_process');
+      const { spawn: spawnFfmpeg } = require('child_process');
       let ffmpegPath = 'ffmpeg';
       try { ffmpegPath = require('ffmpeg-static'); } catch {}
 
       let stderr = '';
-      const p = spawn(ffmpegPath, [
+      const p = spawnFfmpeg(ffmpegPath, [
         '-y', '-i', tmpWebm,
         '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
         tmpWav,
@@ -161,50 +248,46 @@ export function registerIpcHandlers(): void {
       p.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
 
       p.on('close', (code: number) => {
-        // 无论成功失败都删除 webm 源文件
         fs.promises.unlink(tmpWebm).catch(() => {});
         if (code === 0) {
           fs.promises.stat(tmpWav).then(s => {
             if (s.size > 1000 && onChunk) {
-              console.log('[mac-audio] Chunk ready:', tmpWav, 'size:', s.size);
-              // 传入创建时间戳，方便判断是否过期
+              console.log('[mac-audio] (fallback) Chunk ready:', tmpWav);
               onChunk(tmpWav, now);
             }
             cleanupOldChunks();
           }).catch(() => { cleanupOldChunks(); });
         } else {
-          console.log('[mac-audio] ffmpeg failed, code:', code);
-          console.log('[mac-audio] ffmpeg stderr:', stderr.slice(-300));
-          // 转换失败也清理 wav 残留
+          console.log('[mac-audio] (fallback) ffmpeg failed, code:', code);
+          console.log('[mac-audio] (fallback) ffmpeg stderr:', stderr.slice(-300));
           fs.promises.unlink(tmpWav).catch(() => {});
           cleanupOldChunks();
         }
       });
 
       p.on('error', (err: any) => {
-        console.log('[mac-audio] ffmpeg spawn error:', err.message);
+        console.log('[mac-audio] (fallback) ffmpeg spawn error:', err.message);
         fs.promises.unlink(tmpWebm).catch(() => {});
         fs.promises.unlink(tmpWav).catch(() => {});
       });
     }).catch((err) => {
-      console.log('[mac-audio] writeFile error:', err.message);
+      console.log('[mac-audio] (fallback) writeFile error:', err.message);
     });
   });
 
   // 接收捕获错误
   ipcMain.on('audio:captureError', (_event, msg: string) => {
-    console.error('[mac-audio] Capture error from renderer:', msg);
+    console.error('[mac-audio] (fallback) Capture error from renderer:', msg);
   });
 
   // 渲染进程通知捕获已开始
   ipcMain.on('audio:captureStarted', () => {
-    console.log('[mac-audio] Renderer capture started');
+    console.log('[mac-audio] (fallback) Renderer capture started');
   });
 
   // 渲染进程通知捕获已停止
   ipcMain.on('audio:captureStopped', () => {
-    console.log('[mac-audio] Renderer capture stopped');
-    isRunning = false;
+    console.log('[mac-audio] (fallback) Renderer capture stopped');
   });
 }
 
@@ -217,7 +300,7 @@ export function unregisterIpcHandlers(): void {
   ipcMain.removeAllListeners('audio:captureStopped');
 }
 
-// macOS 版本缓存（避免每次 spawn sw_vers）
+// macOS 版本缓存
 let _cachedMacVersion: number | null = null;
 
 async function _macosMajorVersion(): Promise<number> {

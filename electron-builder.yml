@@ -13,6 +13,14 @@ files:
   - dist/**/*
   - package.json
   - resources/**/*
+  - '!resources/mac-helper/**'
+
+# 原生 helper（ScreenCaptureKit 音频捕获）需要真实文件路径，不打包进 asar
+extraResources:
+  - from: resources/mac-helper
+    to: mac-helper
+    filter:
+      - bole-capture-*
 
 # 将原生二进制从 ASAR 中提取出来（spawn 需要文件系统路径）
 asarUnpack:

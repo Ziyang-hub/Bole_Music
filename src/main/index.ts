@@ -540,8 +540,9 @@ ipcMain.handle('audio:startCapture', async () => {
     }
   };
 
-  startCapture(onChunk);
-  return { success: true };
+  // 返回 native=true 表示 ScreenCaptureKit 原生采集已启动（渲染进程无需 getUserMedia）
+  const native = startCapture(onChunk);
+  return { success: true, native };
 });
 
 ipcMain.handle('audio:stopCapture', async () => {
