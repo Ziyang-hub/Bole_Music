@@ -276,82 +276,17 @@ export default function SettingsPage() {
 
         <div className="setting-row">
           <div className="setting-info">
-            <label className="setting-label">自动音频采集</label>
-            <span className="setting-desc">自动监听电脑播放的音乐（macOS 需授予屏幕录制权限）</span>
+            <label className="setting-label">允许音频采集</label>
+            <span className="setting-desc">允许应用采集电脑播放的音乐（macOS 需授予屏幕录制权限）。开启后，在对话工具栏点击 🎧 即可开始采集</span>
           </div>
           <button
             className={`toggle ${settings.autoListen ? 'on' : 'off'}`}
-            onClick={async () => {
-              const newVal = !settings.autoListen;
-              updateField('autoListen', newVal);
-
-              if (window.electronAPI) {
-                if (newVal) {
-                  // 诊断
-                  const diag = await window.electronAPI.diagnoseAudio();
-                  const isMacOS = window.electronAPI.platform === 'darwin';
-
-                  // 非 macOS：诊断不通过就阻止（Linux 无 PulseAudio 等硬问题）
-                  if (!isMacOS && !diag.ready) {
-                    const msg = '⚠️ 自动采集无法启动：\n\n' +
-                      diag.issues.map((i: string) => '• ' + i).join('\n') +
-                      '\n\n✅ 已就绪：\n' + diag.ok.map((o: string) => '• ' + o).join('\n');
-                    alert(msg);
-                    updateField('autoListen', false);
-                    return;
-                  }
-                  // macOS：权限问题不阻塞，getDisplayMedia 会触发系统弹窗
-                  if (isMacOS && diag.issues.length > 0) {
-                    console.log('采集诊断警告:', diag.issues.join(', '));
-                  }
-
-                  // macOS：调用 getDisplayMedia 触发系统权限弹窗
-                  if (isMacOS) {
-                    try {
-                      const { startSystemAudioCapture } = await import('../system-audio-capture');
-                      await window.electronAPI.startAudioCapture();
-                      await startSystemAudioCapture();
-                    } catch (err: any) {
-                      // 用户取消不算错误
-                      if (err.name === 'AbortError') {
-                        updateField('autoListen', false);
-                        await window.electronAPI.stopAudioCapture();
-                        return;
-                      }
-                      // 显示真实错误，帮助排查
-                      const errMsg = err.message || err.name || '未知错误';
-                      const isDenied = err.name === 'NotAllowedError' || errMsg.includes('permission');
-                      if (isDenied) {
-                        const goSettings = window.confirm(
-                          '⚠️ 屏幕录制权限未授权\n\n' +
-                          '请前往系统设置中开启权限。\n\n' +
-                          '点击「确定」自动打开系统设置 → 隐私与安全性 → 屏幕录制 → 勾选「伯乐模拟器」'
-                        );
-                        if (goSettings) {
-                          try { await window.electronAPI.openScreenRecordingSettings(); } catch {}
-                        }
-                      } else {
-                        alert('❌ 采集启动失败:\n\n' + errMsg);
-                      }
-                      updateField('autoListen', false);
-                      await window.electronAPI.stopAudioCapture();
-                      return;
-                    }
-                  } else {
-                    await window.electronAPI.startAudioCapture();
-                  }
-                } else {
-                  // 停止采集
-                  if (window.electronAPI.platform === 'darwin') {
-                    const { stopSystemAudioCapture } = await import('../system-audio-capture');
-                    stopSystemAudioCapture();
-                  }
-                  await window.electronAPI.stopAudioCapture();
-                }
-              }
+            onClick={() => {
+              // 仅授予/撤销采集许可，不在此处启动采集
+              updateField('autoListen', !settings.autoListen);
             }}
           >
-            {settings.autoListen ? '已开启' : '已关闭'}
+            {settings.autoListen ? '已允许' : '未允许'}
           </button>
         </div>
 
@@ -584,9 +519,9 @@ function AudioSetupGuide() {
           <div style={{ color: 'var(--color-success)', fontWeight: 600 }}>🎉 macOS 零安装！</div>
           <div>使用 macOS 内置的 ScreenCaptureKit 采集系统音频，无需安装任何软件。</div>
           <div style={{ marginTop: 4 }}>📌 首次使用步骤：</div>
-          <div>1. 打开自动采集开关</div>
+          <div>1. 打开「允许音频采集」开关</div>
           <div>2. 在弹出的系统对话框中点击「允许屏幕录制」</div>
-          <div>3. 即可自动监听电脑播放的音乐</div>
+          <div>3. 回到对话页，点击工具栏的 🎧 按钮开始采集</div>
           <div style={{ color: 'var(--color-text-muted)', marginTop: 4 }}>⚠️ 需要 macOS 13 (Ventura) 或更新版本</div>
           <div style={{ color: 'var(--color-text-muted)' }}>⚠️ 如提示权限被拒绝，请前往 系统设置 → 隐私与安全性 → 屏幕录制 中开启</div>
         </div>

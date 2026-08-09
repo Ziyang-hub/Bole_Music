@@ -54,9 +54,6 @@ function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// 模块级变量：防止 React Strict Mode 双重挂载导致重复启动采集
-let _autoRestoreDone = false;
-
 // ============================================================
 // 新建对话 Modal
 // ============================================================
@@ -160,6 +157,8 @@ export default function App() {
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showHumming, setShowHumming] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  // 音频采集许可（设置页「允许音频采集」，仅许可不启动）
+  const [allowCapture, setAllowCapture] = useState(false);
 
   // 主题 + 头像
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -203,10 +202,12 @@ export default function App() {
           if (s.theme) setTheme(s.theme);
           if (s.userAvatar) setUserAvatar(s.userAvatar);
           if (s.persona) setDefaultPersona(s.persona);
+          if (typeof s.autoListen === 'boolean') setAllowCapture(s.autoListen);
         });
         const s = await window.electronAPI.getSettings();
         if (s.userAvatar) setUserAvatar(s.userAvatar);
         if (s.persona) setDefaultPersona(s.persona);
+        if (typeof s.autoListen === 'boolean') setAllowCapture(s.autoListen);
 
         // 监听托盘导航
         window.electronAPI.onNavigate((view: string) => {
@@ -262,35 +263,6 @@ export default function App() {
     }
 
     init();
-  }, []);
-
-  // macOS: 自动恢复采集（设置中 autoListen=true 时）
-  // restored 在模块级，防止 React Strict Mode 双重挂载
-  useEffect(() => {
-    if (!window.electronAPI || window.electronAPI.platform !== 'darwin') return;
-
-    let cancelled = false;
-    window.electronAPI.getSettings().then(async (s: any) => {
-      if (s.autoListen && !cancelled && !_autoRestoreDone) {
-        _autoRestoreDone = true;
-        try {
-          // 必须同时启动主进程采集（注册 onChunk 回调）和渲染进程采集（MediaRecorder）
-          await window.electronAPI!.startAudioCapture();
-          const { startSystemAudioCapture } = await import('./system-audio-capture');
-          await startSystemAudioCapture();
-        } catch (e) {
-          console.log('[app] Auto-restore capture failed:', e);
-          _autoRestoreDone = false;
-        }
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      // Strict Mode 清理：停止采集
-      window.electronAPI?.stopAudioCapture().catch(() => {});
-      import('./system-audio-capture').then(m => m.stopSystemAudioCapture()).catch(() => {});
-    };
   }, []);
 
   // 订阅音频检测事件（自动采集识别到歌曲时）
@@ -362,16 +334,8 @@ export default function App() {
             capturing = capturing || isSystemAudioCapturing();
           }
           if (capturing !== isListening) {
+            // 仅同步状态（不写入会话——采集提示用输入区上方的 listening-hint 展示）
             setIsListening(capturing);
-            // 状态变化时在对话中提示
-            if (capturing) {
-              const msg: ChatMessage = {
-                id: generateId(), role: 'bole',
-                content: '🎧 自动监听已开启！\n\n正在监听系统音频... 播放音乐后会自动识别和分析。\n\n💡 提示：切换回本页面，检测到歌曲时会自动显示分析结果。',
-                timestamp: nowISO(),
-              };
-              await persistMessage(msg);
-            }
           }
         } catch {}
       }
@@ -387,11 +351,75 @@ export default function App() {
     }
   }
 
+  // 工具栏 🎧：开始/停止音频采集（需先在设置中允许）
+  async function handleToggleCapture() {
+    if (!window.electronAPI) return;
+
+    // 停止
+    if (isListening) {
+      if (window.electronAPI.platform === 'darwin') {
+        const { stopSystemAudioCapture } = await import('./system-audio-capture');
+        stopSystemAudioCapture();
+      }
+      await window.electronAPI.stopAudioCapture();
+      setIsListening(false);
+      return;
+    }
+
+    // 未允许 → 提醒去设置开启
+    if (!allowCapture) {
+      const go = window.confirm(
+        '🎧 尚未开启「允许音频采集」\n\n' +
+        '请先在 设置 → 功能设置 中开启「允许音频采集」。\n\n' +
+        '点击「确定」前往设置页'
+      );
+      if (go) setCurrentView('settings');
+      return;
+    }
+
+    // 启动采集
+    try {
+      const diag = await window.electronAPI.diagnoseAudio();
+      const isMacOS = window.electronAPI.platform === 'darwin';
+
+      // 非 macOS：诊断不通过就阻止
+      if (!isMacOS && !diag.ready) {
+        alert('⚠️ 音频采集无法启动：\n\n' +
+          diag.issues.map((i: string) => '• ' + i).join('\n'));
+        return;
+      }
+
+      if (isMacOS) {
+        const { startSystemAudioCapture } = await import('./system-audio-capture');
+        await window.electronAPI.startAudioCapture();
+        await startSystemAudioCapture();
+      } else {
+        await window.electronAPI.startAudioCapture();
+      }
+    } catch (err: any) {
+      const errMsg = err.message || err.name || '未知错误';
+      const isDenied = err.name === 'NotAllowedError' || errMsg.includes('permission');
+      if (isDenied) {
+        const goSettings = window.confirm(
+          '⚠️ 屏幕录制权限未授权\n\n' +
+          '请前往系统设置中开启权限。\n\n' +
+          '点击「确定」自动打开系统设置 → 隐私与安全性 → 屏幕录制 → 勾选「伯乐模拟器」'
+        );
+        if (goSettings) {
+          try { await window.electronAPI.openScreenRecordingSettings(); } catch {}
+        }
+      } else {
+        alert('❌ 采集启动失败:\n\n' + errMsg);
+      }
+    }
+  }
+
   // ----- 多对话辅助函数 -----
 
   /** 保存消息到当前对话（state + store 同步） */
   async function persistMessage(msg: ChatMessage, convId?: string) {
-    const cid = convId || activeConvId;
+    // activeConvId 未初始化时（启动早期）兜底到第一个对话
+    const cid = convId || activeConvId || conversations[0]?.id || '';
     setMessages((prev) => [...prev, msg]);
     if (window.electronAPI && cid) {
       try {
@@ -1049,8 +1077,8 @@ export default function App() {
           <SettingsPage />
         </div>
 
-        {currentView === 'chat' && (
-          <div className="chat-layout">
+        {/* chat 视图常驻挂载（display:none 切换），滚动位置在切换视图时保留 */}
+        <div className="chat-layout" style={{ display: currentView === 'chat' ? undefined : 'none' }}>
             <div className="chat-main">
             <div className="messages-container" ref={messagesContainerRef} onScroll={handleScroll}>
               {messages.map((msg) => (
@@ -1123,6 +1151,11 @@ export default function App() {
                 <button className="search-toggle-btn" onClick={() => setShowSearch(true)} title="搜索歌曲">🔍</button>
                 <button className="search-toggle-btn" onClick={() => setShowPlaylist(true)} title="导入歌单">📋</button>
                 <button className="search-toggle-btn" onClick={() => setShowHumming(true)} title="哼歌识别">🎤</button>
+                <button
+                  className={`search-toggle-btn ${isListening ? 'listening-active' : ''}`}
+                  onClick={handleToggleCapture}
+                  title={isListening ? '停止音频采集' : '音频采集（需先在设置中允许）'}
+                >🎧</button>
                 <textarea
                   className="input-field"
                   placeholder="随便聊聊音乐... 查歌请说「搜索 周杰伦 晴天」"
@@ -1189,7 +1222,6 @@ export default function App() {
               </div>
             </div>
             </div>
-        )}
       </main>
     </div>
   );

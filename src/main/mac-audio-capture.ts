@@ -55,27 +55,11 @@ function findHelperBinary(): string | null {
   return null;
 }
 
-/**
- * 确保 helper 存在：已有二进制直接用；缺失时用 swiftc 自动编译（开发模式）。
- * 打包后的安装包自带二进制（extraResources），不会走到编译。
- */
-function ensureHelperBinary(): string | null {
-  const existing = findHelperBinary();
-  if (existing) return existing;
-
-  // 自动编译（仅开发模式有源码；打包后 src 不在 asar 中）
-  const srcPath = path.join(__dirname, '../../src/main/mac-helper/BoleCapture.swift');
-  if (!fs.existsSync(srcPath)) {
-    console.warn('[mac-audio] Helper source not found, cannot auto-compile');
-    return null;
-  }
-
-  const archName = process.arch === 'arm64' ? 'arm64' : 'x64';
-  const outDir = path.join(__dirname, '../../resources/mac-helper');
-  const outPath = path.join(outDir, `bole-capture-${archName}`);
+/** 用 swiftc 编译 helper（含 ad-hoc 签名） */
+function compileHelper(srcPath: string, outPath: string): string | null {
   try {
-    fs.mkdirSync(outDir, { recursive: true });
-    console.log('[mac-audio] Helper missing, compiling with swiftc...');
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    console.log('[mac-audio] Compiling helper with swiftc...');
     const { execFileSync } = require('child_process');
     execFileSync('swiftc', ['-O', srcPath, '-o', outPath], {
       timeout: 120000,
@@ -90,12 +74,45 @@ function ensureHelperBinary(): string | null {
       console.warn('[mac-audio] codesign failed (non-fatal):', e?.message || e);
     }
     fs.chmodSync(outPath, 0o755);
-    console.log('[mac-audio] ✅ Helper auto-compiled:', outPath);
+    console.log('[mac-audio] ✅ Helper compiled:', outPath);
     return outPath;
   } catch (err: any) {
-    console.warn('[mac-audio] Auto-compile failed:', err?.message || err);
+    console.warn('[mac-audio] Compile failed:', err?.message || err);
     return null;
   }
+}
+
+/**
+ * 确保 helper 存在且是最新版：
+ * 已有二进制且比源码新 → 直接复用；缺失或源码更新 → swiftc 自动编译（开发模式）。
+ * 打包后的安装包自带二进制（extraResources），不会走到编译。
+ */
+function ensureHelperBinary(): string | null {
+  const srcPath = path.join(__dirname, '../../src/main/mac-helper/BoleCapture.swift');
+  const hasSource = fs.existsSync(srcPath);
+
+  const existing = findHelperBinary();
+  if (existing) {
+    if (hasSource) {
+      // 源码比二进制新 → 重新编译（开发时改了 Swift 生效）
+      const srcMtime = fs.statSync(srcPath).mtimeMs;
+      const binMtime = fs.statSync(existing).mtimeMs;
+      if (binMtime < srcMtime) {
+        console.log('[mac-audio] Helper outdated (source newer), recompiling...');
+        return compileHelper(srcPath, existing);
+      }
+    }
+    return existing;
+  }
+
+  // 缺失：开发模式自动编译；打包后 src 不在 asar 中，走降级
+  if (!hasSource) {
+    console.warn('[mac-audio] Helper source not found, cannot auto-compile');
+    return null;
+  }
+  const archName = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const outPath = path.join(__dirname, '../../resources/mac-helper', `bole-capture-${archName}`);
+  return compileHelper(srcPath, outPath);
 }
 
 // ============================================================

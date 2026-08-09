@@ -1959,6 +1959,19 @@ textarea {
   background: var(--color-accent-bg);
 }
 
+/* 音频采集进行中：按钮高亮 */
+.search-toggle-btn.listening-active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+  animation: pulseGlow 1.6s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240, 160, 80, 0.4); }
+  50% { box-shadow: 0 0 0 5px rgba(240, 160, 80, 0); }
+}
+
 .search-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.6);
