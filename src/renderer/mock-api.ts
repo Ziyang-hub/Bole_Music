@@ -29,6 +29,66 @@ export function installMockAPI() {
     addMessage: async (m: ChatMessage) => { const ms = lsGet<ChatMessage[]>('msgs', []); ms.push(m); lsSet('msgs', ms); },
     clearMessages: async () => { lsSet('msgs', []); },
 
+    // 对话（多会话 Mock）
+    getConversations: async () => {
+      let convs = lsGet<Conversation[]>('convs', []);
+      if (convs.length === 0) {
+        convs = [{
+          id: 'default',
+          name: '默认对话',
+          persona: 'literary',
+          messages: lsGet<ChatMessage[]>('msgs', [{
+            id: 'w1', role: 'bole' as const, content: '你好！我是伯乐 🎵\n\n这是浏览器测试模式，所有功能都可以交互。\n\n💡 试试输入歌名，点击🔍搜索，或者粘贴网易云链接～', timestamp: new Date().toISOString(),
+          }]),
+          createdAt: new Date().toISOString(),
+          lastActiveAt: new Date().toISOString(),
+        }];
+        lsSet('convs', convs);
+        lsSet('activeConv', 'default');
+      }
+      return convs;
+    },
+    getActiveConversationId: async () => lsGet<string>('activeConv', 'default'),
+    createConversation: async (name: string, persona: string) => {
+      const conv: Conversation = {
+        id: 'c' + Date.now().toString(36), name: name || '新对话', persona: persona as any,
+        messages: [], createdAt: new Date().toISOString(), lastActiveAt: new Date().toISOString(),
+      };
+      const convs = lsGet<Conversation[]>('convs', []);
+      convs.push(conv);
+      lsSet('convs', convs);
+      lsSet('activeConv', conv.id);
+      return conv;
+    },
+    deleteConversation: async (id: string) => {
+      let convs = lsGet<Conversation[]>('convs', []);
+      convs = convs.filter((c) => c.id !== id);
+      lsSet('convs', convs);
+      if (lsGet<string>('activeConv', '') === id) lsSet('activeConv', convs[0]?.id || '');
+      return { success: true };
+    },
+    switchConversation: async (id: string) => {
+      lsSet('activeConv', id);
+      return lsGet<Conversation[]>('convs', []).find((c) => c.id === id) || null;
+    },
+    renameConversation: async (id: string, name: string) => {
+      const convs = lsGet<Conversation[]>('convs', []);
+      const c = convs.find((x) => x.id === id);
+      if (c) { c.name = name; lsSet('convs', convs); }
+    },
+    getMessagesForConversation: async (id: string) => lsGet<Conversation[]>('convs', []).find((c) => c.id === id)?.messages || [],
+    addMessageToConversation: async (id: string, m: ChatMessage) => {
+      const convs = lsGet<Conversation[]>('convs', []);
+      const c = convs.find((x) => x.id === id);
+      if (c) { c.messages.push(m); lsSet('convs', convs); }
+    },
+    deleteMessageFromConversation: async (id: string, msgId: string) => {
+      const convs = lsGet<Conversation[]>('convs', []);
+      const c = convs.find((x) => x.id === id);
+      if (c) { c.messages = c.messages.filter((m) => m.id !== msgId); lsSet('convs', convs); }
+    },
+    getAllMessages: async () => lsGet<Conversation[]>('convs', []).flatMap((c) => c.messages),
+
     // 设置
     getSettings: async () => lsGet<UserSettings>('settings', {
       persona: 'literary', apiProvider: 'deepseek', apiKeys: {}, models: {}, customEndpoint: '',

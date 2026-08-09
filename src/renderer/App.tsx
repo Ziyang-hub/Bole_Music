@@ -11,17 +11,25 @@ import SettingsPage from './components/SettingsPage';
 import SearchSongs from './components/SearchSongs';
 import PlaylistImport from './components/PlaylistImport';
 import HummingRecorder from './components/HummingRecorder';
+import Modal from './components/Modal';
 
 // ----- 类型 -----
 
 type View = 'chat' | 'report' | 'diary' | 'settings';
 
 const NAV_ITEMS: { view: View; icon: string; label: string }[] = [
-  { view: 'chat', icon: '💬', label: '知音对话' },
   { view: 'report', icon: '📊', label: '听歌报告' },
   { view: 'diary', icon: '📝', label: '听歌日记' },
   { view: 'settings', icon: '⚙️', label: '设置' },
 ];
+
+/** 人格信息（用于对话列表和新对话选择器） */
+const PERSONA_INFO: Record<string, { icon: string; label: string; desc: string }> = {
+  literary: { icon: '🖋️', label: '文学诗人', desc: '敏感细腻，用诗意解读音乐' },
+  professional: { icon: '🎙️', label: '专业乐评', desc: '从业十五年，专业不失温度' },
+  warm: { icon: '💛', label: '温暖挚友', desc: '最懂你也最懂音乐的好朋友' },
+  humorous: { icon: '😎', label: '幽默发烧友', desc: '三千张黑胶，一肚子音乐段子' },
+};
 
 const VIEW_TITLES: Record<View, string> = {
   chat: '知音对话',
@@ -49,6 +57,69 @@ function todayLocal(): string {
 let _autoRestoreDone = false;
 
 // ============================================================
+// 新建对话 Modal
+// ============================================================
+
+function NewConversationModal({
+  isOpen,
+  onClose,
+  onCreate,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreate: (name: string, persona: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const [persona, setPersona] = useState('literary');
+
+  const handleCreate = () => {
+    onCreate(name.trim() || '新对话', persona);
+    setName('');
+    setPersona('literary');
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="＋ 新建对话" maxWidth={480}>
+      <div className="new-conv-body">
+        <label className="new-conv-label">对话名称</label>
+        <input
+          className="search-input new-conv-input"
+          placeholder="给这个对话起个名字（可选）"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+          autoFocus
+        />
+
+        <label className="new-conv-label">选择聊天人格</label>
+        <div className="persona-picker">
+          {Object.entries(PERSONA_INFO).map(([id, info]) => (
+            <div
+              key={id}
+              className={`persona-pick-card ${persona === id ? 'selected' : ''}`}
+              onClick={() => setPersona(id)}
+            >
+              <div className="persona-pick-icon">{info.icon}</div>
+              <div className="persona-pick-name">{info.label}</div>
+              <div className="persona-pick-desc">{info.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="new-conv-actions">
+          <button className="search-btn" onClick={handleCreate} disabled={!persona}>
+            创建对话
+          </button>
+          <button className="report-export-btn" onClick={onClose}>
+            取消
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ============================================================
 // 主组件
 // ============================================================
 
@@ -63,6 +134,11 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
+
+  // 多对话
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState('');
+  const [showNewConvModal, setShowNewConvModal] = useState(false);
 
   // 搜索面板
   const [showSearch, setShowSearch] = useState(false);
@@ -124,8 +200,14 @@ export default function App() {
         const info = await window.electronAPI.getAppInfo();
         setAppInfo(info);
 
-        // 加载聊天记录
-        const saved = await window.electronAPI.getMessages();
+        // 加载对话列表
+        const convs = await window.electronAPI.getConversations();
+        setConversations(convs || []);
+        const activeId = await window.electronAPI.getActiveConversationId();
+        setActiveConvId(activeId || (convs?.[0]?.id ?? ''));
+
+        // 加载当前对话的消息
+        const saved = await window.electronAPI.getMessagesForConversation(activeId);
         if (saved && saved.length > 0) {
           // 去重防止旧数据重复 id 导致的 React key 警告
           const seen = new Set<string>();
@@ -144,7 +226,7 @@ export default function App() {
             timestamp: nowISO(),
           };
           setMessages([welcome]);
-          await window.electronAPI.addMessage(welcome);
+          await window.electronAPI.addMessageToConversation(activeId, welcome);
         }
       } catch (err) {
         // Electron API 不可用时（浏览器开发模式）使用模拟数据
@@ -220,22 +302,19 @@ export default function App() {
             confirmed: autoDiary,
           },
         };
-        setMessages((prev) => [...prev, detectMsg]);
-        await window.electronAPI!.addMessage(detectMsg);
+        await persistMessage(detectMsg);
 
         if (autoDiary) {
           // 自动分析并写入日记
           console.log('[app] auto-diary: auto confirming', result.title);
           try {
-            const analysis = await window.electronAPI!.analyzeSong(result.title, result.artist || '');
+            const analysis = await window.electronAPI!.analyzeSong(result.title, result.artist || '', undefined, activePersona);
             if (analysis.success && analysis.data) {
               const boleMsg: ChatMessage = { id: generateId(), role: 'bole', content: formatAnalysis(analysis.data), timestamp: nowISO() };
-              setMessages((prev) => [...prev, boleMsg]);
-              await window.electronAPI!.addMessage(boleMsg);
+              await persistMessage(boleMsg);
             } else {
               const hintMsg: ChatMessage = { id: generateId(), role: 'bole', content: `🎵 ${result.title} — ${result.artist || ''}\n\n识别成功！去「设置」页面配置 DeepSeek API Key 即可开启 AI 分析。`, timestamp: nowISO() };
-              setMessages((prev) => [...prev, hintMsg]);
-              await window.electronAPI!.addMessage(hintMsg);
+              await persistMessage(hintMsg);
             }
           } catch (err) {
             console.error('[app] auto-diary analysis failed:', err);
@@ -274,8 +353,7 @@ export default function App() {
                 content: '🎧 自动监听已开启！\n\n正在监听系统音频... 播放音乐后会自动识别和分析。\n\n💡 提示：切换回本页面，检测到歌曲时会自动显示分析结果。',
                 timestamp: nowISO(),
               };
-              setMessages((prev) => [...prev, msg]);
-              if (window.electronAPI) window.electronAPI.addMessage(msg).catch(() => {});
+              await persistMessage(msg);
             }
           }
         } catch {}
@@ -287,10 +365,74 @@ export default function App() {
   // 删除单条消息
   async function handleDeleteMessage(msgId: string) {
     setMessages(prev => prev.filter(m => m.id !== msgId));
-    if (window.electronAPI) {
-      await window.electronAPI.deleteMessage(msgId).catch(() => {});
+    if (window.electronAPI && activeConvId) {
+      await window.electronAPI.deleteMessageFromConversation(activeConvId, msgId).catch(() => {});
     }
   }
+
+  // ----- 多对话辅助函数 -----
+
+  /** 保存消息到当前对话（state + store 同步） */
+  async function persistMessage(msg: ChatMessage, convId?: string) {
+    const cid = convId || activeConvId;
+    setMessages((prev) => [...prev, msg]);
+    if (window.electronAPI && cid) {
+      await window.electronAPI.addMessageToConversation(cid, msg).catch(() => {});
+    }
+  }
+
+  /** 加载指定对话的消息到 state */
+  async function loadConversationMessages(convId: string) {
+    if (!window.electronAPI) return;
+    const msgs = await window.electronAPI.getMessagesForConversation(convId);
+    setMessages(msgs || []);
+  }
+
+  /** 切换对话 */
+  async function handleSwitchConversation(convId: string) {
+    if (!window.electronAPI || convId === activeConvId) return;
+    setActiveConvId(convId);
+    await window.electronAPI.switchConversation(convId).catch(() => {});
+    await loadConversationMessages(convId);
+    setIsNearBottom(true);
+    setIsLoading(false);
+  }
+
+  /** 新建对话（带人格选择） */
+  async function handleCreateConversation(name: string, persona: string) {
+    if (!window.electronAPI) return;
+    const conv = await window.electronAPI.createConversation(name, persona);
+    setConversations(await window.electronAPI.getConversations());
+    setActiveConvId(conv.id);
+    setMessages([]);
+    const info = PERSONA_INFO[persona] || PERSONA_INFO.literary;
+    const welcome: ChatMessage = {
+      id: 'welcome-' + conv.id,
+      role: 'bole',
+      content: `你好，我是伯乐 🎵（${info.icon} ${info.label}）\n\n${info.desc}。\n\n从现在开始，我们就以这个身份聊天吧～直接输入歌名或随便聊聊都行！`,
+      timestamp: nowISO(),
+    };
+    await persistMessage(welcome, conv.id);
+    setShowNewConvModal(false);
+  }
+
+  /** 删除对话 */
+  async function handleDeleteConversation(convId: string) {
+    if (!window.electronAPI) return;
+    const conv = conversations.find((c) => c.id === convId);
+    const ok = window.confirm(`确定删除对话「${conv?.name || ''}」？该对话的所有消息将无法恢复。`);
+    if (!ok) return;
+    await window.electronAPI.deleteConversation(convId).catch(() => {});
+    const convs = await window.electronAPI.getConversations();
+    setConversations(convs);
+    const nextId = await window.electronAPI.getActiveConversationId();
+    setActiveConvId(nextId);
+    await loadConversationMessages(nextId);
+    setIsNearBottom(true);
+  }
+
+  /** 当前对话的人格 */
+  const activePersona = conversations.find((c) => c.id === activeConvId)?.persona || 'literary';
 
   // 自动滚动：仅在用户靠近底部时跟随新消息
   useEffect(() => {
@@ -337,18 +479,9 @@ export default function App() {
       content: text,
       timestamp: nowISO(),
     };
-    setMessages((prev) => [...prev, userMsg]);
     // 用户自己发消息 → 强制回到底部
     setIsNearBottom(true);
-
-    // 保存到存储
-    if (window.electronAPI) {
-      try {
-        await window.electronAPI.addMessage(userMsg);
-      } catch (err) {
-        console.error('保存消息失败:', err);
-      }
-    }
+    await persistMessage(userMsg);
 
     setIsLoading(true);
 
@@ -379,7 +512,8 @@ export default function App() {
               const result = await window.electronAPI.analyzeSong(
                 song.name,
                 song.artists.join('、'),
-                lyrics || undefined
+                lyrics || undefined,
+                activePersona
               );
 
               if (result.success && result.data) {
@@ -387,8 +521,7 @@ export default function App() {
                 const boleMsg: ChatMessage = {
                   id: generateId(), role: 'bole', content: boleContent, timestamp: nowISO(),
                 };
-                setMessages((prev) => [...prev, boleMsg]);
-                await window.electronAPI.addMessage(boleMsg);
+                await persistMessage(boleMsg);
 
                 // 日记
                 const today = todayLocal();
@@ -421,7 +554,9 @@ export default function App() {
             .slice(0, 3)
             .map(([a]) => a);
 
-          const recentSongs = diaryEntriesFromMessages(messages);
+          // 推荐参考所有对话的消息（聚合用户全部听歌偏好）
+          const allMsgs = await window.electronAPI.getAllMessages().catch(() => messages);
+          const recentSongs = diaryEntriesFromMessages(allMsgs && allMsgs.length > 0 ? allMsgs : messages);
 
           const result = await window.electronAPI.recommendSongs(
             recentSongs,
@@ -434,14 +569,13 @@ export default function App() {
             const boleMsg: ChatMessage = {
               id: generateId(), role: 'bole', content: text, timestamp: nowISO(),
             };
-            setMessages((prev) => [...prev, boleMsg]);
-            await window.electronAPI.addMessage(boleMsg);
+            await persistMessage(boleMsg);
           } else {
             throw new Error(result.error || '推荐失败');
           }
         } else if (isSongQuery) {
           // 尝试歌曲分析
-          const result = await window.electronAPI.analyzeSong(text);
+          const result = await window.electronAPI.analyzeSong(text, undefined, undefined, activePersona);
 
           if (result.success && result.data) {
             const analysis = result.data;
@@ -464,8 +598,7 @@ export default function App() {
               content: boleContent,
               timestamp: nowISO(),
             };
-            setMessages((prev) => [...prev, boleMsg]);
-            await window.electronAPI.addMessage(boleMsg);
+            await persistMessage(boleMsg);
 
             // 更新听歌日记
             const today = todayLocal();
@@ -496,22 +629,20 @@ export default function App() {
               content: m.content,
             }));
 
-            const chatResult = await window.electronAPI.chat(history, text);
+            const chatResult = await window.electronAPI.chat(history, text, activePersona);
             console.log('[app] Fallback chat result:', chatResult?.success, chatResult?.error?.slice(0, 50));
             if (chatResult.success && chatResult.data) {
               const boleMsg: ChatMessage = {
                 id: generateId(), role: 'bole', content: chatResult.data, timestamp: nowISO(),
               };
-              setMessages((prev) => [...prev, boleMsg]);
-              await window.electronAPI.addMessage(boleMsg);
+              await persistMessage(boleMsg);
             } else {
               const errorMsg: ChatMessage = {
                 id: generateId(), role: 'bole',
                 content: `😅 ${chatResult.error || '出了点问题'}\n\n请确认：\n1. 去「设置」页面填入了正确的 API Key\n2. 网络连接正常`,
                 timestamp: nowISO(),
               };
-              setMessages((prev) => [...prev, errorMsg]);
-              await window.electronAPI.addMessage(errorMsg);
+              await persistMessage(errorMsg);
             }
           }
         } else {
@@ -534,7 +665,7 @@ export default function App() {
             content: m.content,
           }));
 
-          const result = await window.electronAPI.chat(history, text);
+          const result = await window.electronAPI.chat(history, text, activePersona);
           console.log('[app] Chat result:', result?.success, result?.error?.slice(0, 50));
 
           if (result.success && result.data) {
@@ -544,8 +675,7 @@ export default function App() {
               content: result.data,
               timestamp: nowISO(),
             };
-            setMessages((prev) => [...prev, boleMsg]);
-            await window.electronAPI.addMessage(boleMsg);
+            await persistMessage(boleMsg);
           } else {
             throw new Error(result.error || '对话失败');
           }
@@ -568,10 +698,7 @@ export default function App() {
         content: `抱歉，出了点问题 🙏\n\n${err.message || '未知错误'}\n\n${err.stack?.split('\n').slice(0, 3).join('\n') || ''}`,
         timestamp: nowISO(),
       };
-      setMessages((prev) => [...prev, errorMsg]);
-      if (window.electronAPI) {
-        await window.electronAPI.addMessage(errorMsg).catch(() => {});
-      }
+      await persistMessage(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -590,19 +717,17 @@ export default function App() {
       const userMsg: ChatMessage = {
         id: generateId(), role: 'user', content: `🔍 ${songName} - ${artist}`, timestamp: nowISO(),
       };
-      setMessages((prev) => [...prev, userMsg]);
-      await window.electronAPI.addMessage(userMsg);
+      await persistMessage(userMsg);
 
       setIsLoading(true);
       try {
-        const result = await window.electronAPI.analyzeSong(songName, artist, lyrics);
+        const result = await window.electronAPI.analyzeSong(songName, artist, lyrics, activePersona);
         if (result.success && result.data) {
           const boleContent = formatAnalysis(result.data);
           const boleMsg: ChatMessage = {
             id: generateId(), role: 'bole', content: boleContent, timestamp: nowISO(),
           };
-          setMessages((prev) => [...prev, boleMsg]);
-          await window.electronAPI.addMessage(boleMsg);
+          await persistMessage(boleMsg);
 
           // 日记
           const today = todayLocal();
@@ -628,8 +753,7 @@ export default function App() {
                   content: `🗨️ 网易云热评精选\n\n${commentsText}`,
                   timestamp: nowISO(),
                 };
-                setMessages((prev) => [...prev, commentsMsg]);
-                await window.electronAPI.addMessage(commentsMsg);
+                await persistMessage(commentsMsg);
                 console.log('[app] hot comments appended for', songName);
               }
             } catch (e) {
@@ -675,6 +799,44 @@ export default function App() {
           <h1>伯乐模拟器</h1>
         </div>
 
+        {/* 对话列表 */}
+        <div className="sidebar-section-label">💬 知音对话</div>
+        <nav className="conversation-list">
+          {conversations.map((conv) => {
+            const pInfo = PERSONA_INFO[conv.persona] || PERSONA_INFO.literary;
+            const isActive = currentView === 'chat' && conv.id === activeConvId;
+            return (
+              <div
+                key={conv.id}
+                className={`conv-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  setCurrentView('chat');
+                  handleSwitchConversation(conv.id);
+                }}
+                title={`${conv.name} · ${pInfo.label}`}
+              >
+                <span className="conv-icon">{pInfo.icon}</span>
+                <span className="conv-name">{conv.name}</span>
+                <span className="conv-msg-count">{conv.messages.length}</span>
+                <button
+                  className="conv-delete-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteConversation(conv.id);
+                  }}
+                  title="删除对话"
+                >×</button>
+              </div>
+            );
+          })}
+        </nav>
+        <button
+          className="new-conv-btn"
+          onClick={() => setShowNewConvModal(true)}
+        >
+          ＋ 新建对话
+        </button>
+
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => (
             <button
@@ -698,7 +860,15 @@ export default function App() {
       {/* 主内容区 */}
       <main className="main">
         <header className="topbar">
-          <div className="topbar-title">{VIEW_TITLES[currentView]}</div>
+          <div className="topbar-title">
+            {currentView === 'chat' && activeConvId
+              ? (() => {
+                  const c = conversations.find((x) => x.id === activeConvId);
+                  const pi = PERSONA_INFO[c?.persona || 'literary'];
+                  return c ? `${c.name}${pi ? ` · ${pi.icon} ${pi.label}` : ''}` : VIEW_TITLES.chat;
+                })()
+              : VIEW_TITLES[currentView]}
+          </div>
           <div className="topbar-status">
             {isListening ? (
               <><span className="status-dot listening"></span><span>🎧 监听中</span></>
@@ -722,8 +892,7 @@ export default function App() {
               const boleMsg: ChatMessage = {
                 id: generateId(), role: 'bole', content, timestamp: nowISO(),
               };
-              setMessages((prev) => [...prev, boleMsg]);
-              if (window.electronAPI) await window.electronAPI.addMessage(boleMsg);
+              await persistMessage(boleMsg);
             }}
           />
         )}
@@ -736,6 +905,13 @@ export default function App() {
             }}
           />
         )}
+
+        {/* 新建对话 Modal */}
+        <NewConversationModal
+          isOpen={showNewConvModal}
+          onClose={() => setShowNewConvModal(false)}
+          onCreate={handleCreateConversation}
+        />
 
         {currentView === 'report' && <ReportPage />}
         {currentView === 'diary' && <DiaryPage />}
@@ -760,10 +936,10 @@ export default function App() {
                       <SongConfirmCard
                         msg={msg}
                         onConfirm={async (title, artist) => {
-                          await handleConfirmSong(msg, title, artist, setMessages, messages);
+                          await handleConfirmSong(msg, title, artist, setMessages, messages, activeConvId);
                         }}
                         onIgnore={async () => {
-                          await handleIgnoreSong(msg, setMessages, messages);
+                          await handleIgnoreSong(msg, setMessages, messages, activeConvId);
                         }}
                       />
                     ) : (
@@ -1012,27 +1188,28 @@ async function handleConfirmSong(
   title: string,
   artist: string,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  convId: string
 ) {
   // 标记为已确认
   setMessages(prev => prev.map(m =>
     m.id === msg.id ? { ...m, meta: { ...m.meta, songTitle: title, songArtist: artist, confirmed: true }, content: `🎧 检测到：${title} — ${artist}` } : m
   ));
   if (window.electronAPI) {
-    await window.electronAPI.addMessage({ ...msg, meta: { ...msg.meta, songTitle: title, songArtist: artist, confirmed: true }, content: `🎧 检测到：${title} — ${artist}` });
+    await window.electronAPI.addMessageToConversation(convId, { ...msg, meta: { ...msg.meta, songTitle: title, songArtist: artist, confirmed: true }, content: `🎧 检测到：${title} — ${artist}` });
   }
 
   // 调用 AI 分析
   try {
-    const analysis = await window.electronAPI!.analyzeSong(title, artist);
+    const analysis = await window.electronAPI!.analyzeSong(title, artist, undefined, activePersona);
     if (analysis.success && analysis.data) {
       const boleMsg: ChatMessage = { id: generateId(), role: 'bole', content: formatAnalysis(analysis.data), timestamp: nowISO() };
       setMessages(prev => [...prev, boleMsg]);
-      await window.electronAPI!.addMessage(boleMsg);
+      await window.electronAPI!.addMessageToConversation(convId, boleMsg);
     } else {
       const hintMsg: ChatMessage = { id: generateId(), role: 'bole', content: `🎵 ${title} — ${artist}\n\n识别成功！去「设置」页面配置 DeepSeek API Key 即可开启 AI 分析。`, timestamp: nowISO() };
       setMessages(prev => [...prev, hintMsg]);
-      await window.electronAPI!.addMessage(hintMsg);
+      await window.electronAPI!.addMessageToConversation(convId, hintMsg);
     }
   } catch {}
 }
@@ -1040,9 +1217,13 @@ async function handleConfirmSong(
 async function handleIgnoreSong(
   msg: ChatMessage,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  convId: string
 ) {
   setMessages(prev => prev.filter(m => m.id !== msg.id));
+  if (window.electronAPI) {
+    await window.electronAPI.deleteMessageFromConversation(convId, msg.id).catch(() => {});
+  }
 }
 
 function getMockReply(input: string): string {

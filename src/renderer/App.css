@@ -293,6 +293,185 @@ textarea {
   gap: 6px;
 }
 
+/* ----- 对话列表（多会话） ----- */
+.sidebar-section-label {
+  padding: var(--space-sm) var(--space-md) 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--space-sm);
+  max-height: 40vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.conversation-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.conversation-list::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-light);
+  border-radius: 2px;
+}
+
+.conv-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.conv-item:hover {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.conv-item.active {
+  background-color: var(--color-accent-bg);
+  color: var(--color-text-primary);
+}
+
+.conv-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.conv-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conv-msg-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background-color: var(--color-bg-secondary);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+
+.conv-delete-btn {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.conv-item:hover .conv-delete-btn {
+  opacity: 1;
+}
+
+.conv-delete-btn:hover {
+  background-color: var(--color-danger, #e05555);
+  color: #fff;
+}
+
+.new-conv-btn {
+  margin: 6px var(--space-sm) var(--space-sm);
+  padding: 8px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.new-conv-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background-color: var(--color-accent-bg);
+}
+
+/* ----- 新建对话 Modal ----- */
+.new-conv-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.new-conv-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.new-conv-input {
+  width: 100%;
+}
+
+.persona-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.persona-pick-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.persona-pick-card:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+}
+
+.persona-pick-card.selected {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent-bg);
+}
+
+.persona-pick-icon {
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+
+.persona-pick-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.persona-pick-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.new-conv-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
 /* ============================================================
    主内容区
    ============================================================ */

@@ -39,6 +39,16 @@ interface HotComment {
   likedCount: number;
 }
 
+/** 对话（会话） */
+interface Conversation {
+  id: string;
+  name: string;
+  persona: 'literary' | 'professional' | 'warm' | 'humorous';
+  messages: ChatMessage[];
+  createdAt: string;
+  lastActiveAt: string;
+}
+
 interface SongAnalysis {
   songName: string;
   artist: string;
@@ -100,16 +110,28 @@ interface ElectronAPI {
   clearMessages: () => Promise<void>;
   deleteMessage: (id: string) => Promise<void>;
 
+  // 对话（多会话）
+  getConversations: () => Promise<Conversation[]>;
+  getActiveConversationId: () => Promise<string>;
+  createConversation: (name: string, persona: string) => Promise<Conversation>;
+  deleteConversation: (id: string) => Promise<{ success: boolean; error?: string }>;
+  switchConversation: (id: string) => Promise<Conversation | null>;
+  renameConversation: (id: string, name: string) => Promise<void>;
+  getMessagesForConversation: (id: string) => Promise<ChatMessage[]>;
+  addMessageToConversation: (id: string, msg: ChatMessage) => Promise<void>;
+  deleteMessageFromConversation: (id: string, msgId: string) => Promise<void>;
+  getAllMessages: () => Promise<ChatMessage[]>;
+
   // 设置
   getSettings: () => Promise<UserSettings>;
   updateSettings: (partial: Partial<UserSettings>) => Promise<UserSettings>;
 
   // AI
-  analyzeSong: (songName: string, artist?: string, lyrics?: string) =>
+  analyzeSong: (songName: string, artist?: string, lyrics?: string, persona?: string) =>
     Promise<{ success: boolean; data?: SongAnalysis; cached?: boolean; error?: string }>;
   analyzePlaylist: (playlistName: string, songs: { name: string; artist: string }[], history?: { role: string; content: string }[]) =>
     Promise<{ success: boolean; data?: string; error?: string }>;
-  chat: (history: { role: string; content: string }[], userMessage: string) =>
+  chat: (history: { role: string; content: string }[], userMessage: string, persona?: string) =>
     Promise<{ success: boolean; data?: string; error?: string }>;
   generateReport: (type: string, songs: any[], stats: any) =>
     Promise<{ success: boolean; data?: ReportData; error?: string }>;

@@ -16,8 +16,12 @@ import Store from 'electron-store';
 
 // 定义存储的数据结构
 interface StoredData {
-  /** 聊天消息历史 */
+  /** 聊天消息历史（旧版单一数组，迁移后不再使用） */
   messages: ChatMessage[];
+  /** 多对话列表 */
+  conversations: Conversation[];
+  /** 当前活跃对话 ID */
+  activeConversationId: string;
   /** 用户设置 */
   settings: UserSettings;
   /** 歌曲分析缓存 key=歌曲名, value=分析结果 */
@@ -35,6 +39,16 @@ export interface ChatMessage {
   role: 'user' | 'bole';
   content: string;
   timestamp: string; // ISO 字符串，方便 JSON 存储
+}
+
+/** 对话（会话） */
+export interface Conversation {
+  id: string;
+  name: string;
+  persona: 'literary' | 'professional' | 'warm' | 'humorous';
+  messages: ChatMessage[];
+  createdAt: string; // ISO
+  lastActiveAt: string; // ISO
 }
 
 export interface UserSettings {
@@ -131,6 +145,8 @@ const store = new Store<StoredData>({
   name: 'bole-data',
   defaults: {
     messages: [],
+    conversations: [],
+    activeConversationId: '',
     settings: defaultSettings,
     songCache: {},
     diary: [],
@@ -139,32 +155,175 @@ const store = new Store<StoredData>({
 });
 
 // ============================================================
-// 消息存储
+// 对话（多会话）存储
+// ============================================================
+
+function genId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/**
+ * 获取全部对话；首次使用时迁移旧版单一 messages 数组为默认对话
+ */
+export function getConversations(): Conversation[] {
+  let conversations = store.get('conversations', []);
+  if (!conversations || conversations.length === 0) {
+    // 旧版迁移：把 messages 里的历史消息导入默认对话
+    const legacyMessages = store.get('messages', []);
+    const settings = getSettings();
+    const defaultConv: Conversation = {
+      id: 'default',
+      name: '默认对话',
+      persona: settings.persona || 'literary',
+      messages: legacyMessages,
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+    };
+    conversations = [defaultConv];
+    store.set('conversations', conversations);
+    store.set('activeConversationId', 'default');
+    // 清理旧数据
+    store.set('messages', []);
+    console.log('[store] migrated legacy messages to default conversation:', legacyMessages.length, 'msgs');
+  }
+  return conversations;
+}
+
+export function getConversation(id: string): Conversation | null {
+  const conv = getConversations().find((c) => c.id === id);
+  return conv || null;
+}
+
+export function createConversation(
+  name: string,
+  persona: Conversation['persona']
+): Conversation {
+  const conv: Conversation = {
+    id: genId(),
+    name: name || '新对话',
+    persona: persona || 'literary',
+    messages: [],
+    createdAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+  };
+  const conversations = getConversations();
+  conversations.push(conv);
+  store.set('conversations', conversations);
+  setActiveConversation(conv.id);
+  console.log('[store] created conversation:', conv.id, conv.name, conv.persona);
+  return conv;
+}
+
+export function deleteConversation(id: string): void {
+  let conversations = getConversations();
+  if (conversations.length <= 1) {
+    console.warn('[store] cannot delete the last conversation');
+    return;
+  }
+  conversations = conversations.filter((c) => c.id !== id);
+  store.set('conversations', conversations);
+  // 如果删除的是当前活跃对话，切换到第一个
+  if (getActiveConversationId() === id) {
+    setActiveConversation(conversations[0].id);
+  }
+  console.log('[store] deleted conversation:', id);
+}
+
+export function updateConversation(id: string, partial: Partial<Conversation>): void {
+  const conversations = getConversations();
+  const idx = conversations.findIndex((c) => c.id === id);
+  if (idx === -1) return;
+  conversations[idx] = { ...conversations[idx], ...partial };
+  store.set('conversations', conversations);
+}
+
+export function getActiveConversationId(): string {
+  const id = store.get('activeConversationId', '');
+  // 如果无效（例如首次），返回第一个对话
+  if (!id || !getConversations().some((c) => c.id === id)) {
+    const first = getConversations()[0];
+    if (first) {
+      store.set('activeConversationId', first.id);
+      return first.id;
+    }
+  }
+  return id;
+}
+
+export function setActiveConversation(id: string): void {
+  store.set('activeConversationId', id);
+  const conversations = getConversations();
+  const idx = conversations.findIndex((c) => c.id === id);
+  if (idx !== -1) {
+    conversations[idx].lastActiveAt = new Date().toISOString();
+    store.set('conversations', conversations);
+  }
+}
+
+// ----- 对话内消息操作 -----
+
+export function getMessagesForConversation(convId: string): ChatMessage[] {
+  const conv = getConversation(convId);
+  return conv ? conv.messages : [];
+}
+
+export function addMessageToConversation(convId: string, msg: ChatMessage): void {
+  const conversations = getConversations();
+  const idx = conversations.findIndex((c) => c.id === convId);
+  if (idx === -1) return;
+  conversations[idx].messages.push(msg);
+  conversations[idx].lastActiveAt = new Date().toISOString();
+  store.set('conversations', conversations);
+}
+
+export function deleteMessageFromConversation(convId: string, msgId: string): void {
+  const conversations = getConversations();
+  const idx = conversations.findIndex((c) => c.id === convId);
+  if (idx === -1) return;
+  conversations[idx].messages = conversations[idx].messages.filter((m) => m.id !== msgId);
+  store.set('conversations', conversations);
+}
+
+export function clearMessagesInConversation(convId: string): void {
+  const conversations = getConversations();
+  const idx = conversations.findIndex((c) => c.id === convId);
+  if (idx === -1) return;
+  conversations[idx].messages = [];
+  store.set('conversations', conversations);
+}
+
+// ============================================================
+// 消息存储（旧版兼容：操作默认对话）
 // ============================================================
 
 export function getMessages(): ChatMessage[] {
-  return store.get('messages', []);
+  return getMessagesForConversation('default');
 }
 
 export function addMessage(msg: ChatMessage): void {
-  const messages = store.get('messages', []);
-  messages.push(msg);
-  store.set('messages', messages);
+  addMessageToConversation('default', msg);
 }
 
 export function clearMessages(): void {
-  store.set('messages', []);
+  clearMessagesInConversation('default');
 }
 
 export function deleteMessage(id: string): void {
-  const messages = store.get('messages', []);
-  store.set('messages', messages.filter(m => m.id !== id));
+  deleteMessageFromConversation('default', id);
 }
 
 export function deleteMessages(ids: string[]): void {
-  const messages = store.get('messages', []);
+  const conversations = getConversations();
+  const idx = conversations.findIndex((c) => c.id === 'default');
+  if (idx === -1) return;
   const idSet = new Set(ids);
-  store.set('messages', messages.filter(m => !idSet.has(m.id)));
+  conversations[idx].messages = conversations[idx].messages.filter((m) => !idSet.has(m.id));
+  store.set('conversations', conversations);
+}
+
+/** 聚合所有对话的消息（用于日记/报告） */
+export function getAllMessages(): ChatMessage[] {
+  return getConversations().flatMap((c) => c.messages);
 }
 
 // ============================================================
@@ -303,6 +462,8 @@ export function updateStats(songName: string, artist: string, genre: string): vo
 export function getAllData(): StoredData {
   return {
     messages: getMessages(),
+    conversations: getConversations(),
+    activeConversationId: getActiveConversationId(),
     settings: getSettings(),
     songCache: store.get('songCache', {}),
     diary: getDiary(),
@@ -361,6 +522,8 @@ export function getUsageStats(): UsageData {
 export function resetAllData(): void {
   store.clear();
   store.set('messages', []);
+  store.set('conversations', []);
+  store.set('activeConversationId', '');
   store.set('settings', { ...defaultSettings });
   store.set('songCache', {});
   store.set('diary', []);

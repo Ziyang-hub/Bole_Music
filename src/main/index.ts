@@ -24,6 +24,17 @@ import {
   updateStats,
   getAllData,
   resetAllData,
+  getConversations,
+  getActiveConversationId,
+  createConversation,
+  deleteConversation,
+  getConversation,
+  setActiveConversation,
+  updateConversation,
+  getMessagesForConversation,
+  addMessageToConversation,
+  deleteMessageFromConversation,
+  getAllMessages,
 } from './store';
 import { runAgent, generateReport, recommendSongs, analyzePlaylistSongs } from './ai-service';
 import {
@@ -288,6 +299,29 @@ ipcMain.handle('store:addMessage', async (_e, msg) => addMessage(msg));
 ipcMain.handle('store:clearMessages', async () => clearMessages());
 ipcMain.handle('store:deleteMessage', async (_e, id: string) => deleteMessage(id));
 
+// ----- 对话（多会话）-----
+ipcMain.handle('conversation:list', async () => getConversations());
+ipcMain.handle('conversation:getActiveId', async () => getActiveConversationId());
+ipcMain.handle('conversation:create', async (_e, name: string, persona: string) =>
+  createConversation(name, persona as 'literary' | 'professional' | 'warm' | 'humorous'));
+ipcMain.handle('conversation:delete', async (_e, id: string) => {
+  try {
+    deleteConversation(id);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+});
+ipcMain.handle('conversation:switch', async (_e, id: string) => {
+  setActiveConversation(id);
+  return getConversation(id);
+});
+ipcMain.handle('conversation:rename', async (_e, id: string, name: string) => updateConversation(id, { name }));
+ipcMain.handle('conversation:getMessages', async (_e, id: string) => getMessagesForConversation(id));
+ipcMain.handle('conversation:addMessage', async (_e, id: string, msg) => addMessageToConversation(id, msg));
+ipcMain.handle('conversation:deleteMessage', async (_e, id: string, msgId: string) => deleteMessageFromConversation(id, msgId));
+ipcMain.handle('conversation:getAllMessages', async () => getAllMessages());
+
 // ----- 设置 -----
 
 ipcMain.handle('store:getSettings', async () => getSettings());
@@ -317,9 +351,9 @@ ipcMain.handle('store:updateSettings', async (_e, partial) => {
 
 ipcMain.handle(
   'ai:analyzeSong',
-  async (_e, songName: string, artist?: string, lyricsText?: string) => {
+  async (_e, songName: string, artist?: string, lyricsText?: string, persona?: string) => {
     try {
-      console.log('[ipc:analyzeSong] Called:', songName, artist || '(no artist)');
+      console.log('[ipc:analyzeSong] Called:', songName, artist || '(no artist)', 'persona:', persona);
 
       // 先查缓存
       const cacheKey = `${songName}_${artist || ''}`.trim();
@@ -333,7 +367,7 @@ ipcMain.handle(
       // 用 Agent 分析（自然语言，不再强制 JSON）
       const artistHint = artist ? ` — ${artist}` : '';
       const message = `🎧 请帮我分析一下这首歌：《${songName}》${artistHint}\n\n请在回复中自然提及这首歌的音乐风格/流派（如：流行摇滚、民谣、电子、爵士等），并在回复最后一行单独写【曲风：XXX】来标注。`;
-      const reply = await runAgent(message, []);
+      const reply = await runAgent(message, [], persona as any);
 
       // 从回复中提取曲风，并清理显示文本
       let genre = '';
@@ -390,10 +424,10 @@ ipcMain.handle(
 
 ipcMain.handle(
   'ai:chat',
-  async (_e, history: { role: string; content: string }[], userMessage: string) => {
+  async (_e, history: { role: string; content: string }[], userMessage: string, persona?: string) => {
     try {
-      console.log('[ipc:chat] Called, historyLen:', history?.length, 'msg:', userMessage?.slice(0, 30));
-      const reply = await runAgent(userMessage, history);
+      console.log('[ipc:chat] Called, historyLen:', history?.length, 'msg:', userMessage?.slice(0, 30), 'persona:', persona);
+      const reply = await runAgent(userMessage, history, persona as any);
       console.log('[ipc:chat] Reply length:', reply?.length);
       trackUsage('chat');
       return { success: true, data: reply };

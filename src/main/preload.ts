@@ -27,22 +27,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearMessages: () => ipcRenderer.invoke('store:clearMessages'),
   deleteMessage: (id: string) => ipcRenderer.invoke('store:deleteMessage', id),
 
+  // ----- 对话（多会话）-----
+  getConversations: () => ipcRenderer.invoke('conversation:list'),
+  getActiveConversationId: () => ipcRenderer.invoke('conversation:getActiveId'),
+  createConversation: (name: string, persona: string) => ipcRenderer.invoke('conversation:create', name, persona),
+  deleteConversation: (id: string) => ipcRenderer.invoke('conversation:delete', id),
+  switchConversation: (id: string) => ipcRenderer.invoke('conversation:switch', id),
+  renameConversation: (id: string, name: string) => ipcRenderer.invoke('conversation:rename', id, name),
+  getMessagesForConversation: (id: string) => ipcRenderer.invoke('conversation:getMessages', id),
+  addMessageToConversation: (id: string, msg: any) => ipcRenderer.invoke('conversation:addMessage', id, msg),
+  deleteMessageFromConversation: (id: string, msgId: string) => ipcRenderer.invoke('conversation:deleteMessage', id, msgId),
+  getAllMessages: () => ipcRenderer.invoke('conversation:getAllMessages'),
+
   // ----- 设置 -----
   getSettings: () => ipcRenderer.invoke('store:getSettings'),
   updateSettings: (partial: any) =>
     ipcRenderer.invoke('store:updateSettings', partial),
 
   // ----- AI 分析 -----
-  analyzeSong: (songName: string, artist?: string, lyrics?: string) =>
-    ipcRenderer.invoke('ai:analyzeSong', songName, artist, lyrics),
+  analyzeSong: (songName: string, artist?: string, lyrics?: string, persona?: string) =>
+    ipcRenderer.invoke('ai:analyzeSong', songName, artist, lyrics, persona),
 
   analyzePlaylist: (playlistName: string, songs: { name: string; artist: string }[], history?: { role: string; content: string }[]) =>
     ipcRenderer.invoke('ai:analyzePlaylist', playlistName, songs, history),
 
-  chat: async (history: { role: string; content: string }[], userMessage: string) => {
+  chat: async (history: { role: string; content: string }[], userMessage: string, persona?: string) => {
     try {
-      console.log('[preload] chat called, history len:', history.length, 'msg:', userMessage?.slice(0, 30));
-      const result = await ipcRenderer.invoke('ai:chat', history, userMessage);
+      console.log('[preload] chat called, history len:', history.length, 'msg:', userMessage?.slice(0, 30), 'persona:', persona);
+      const result = await ipcRenderer.invoke('ai:chat', history, userMessage, persona);
       console.log('[preload] chat result:', result?.success);
       return result;
     } catch (err: any) {

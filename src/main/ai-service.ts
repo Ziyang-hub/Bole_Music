@@ -289,7 +289,8 @@ const MAX_TOOL_ROUNDS = 6;
  */
 export async function runAgent(
   userMessage: string,
-  conversationHistory: { role: string; content: string }[]
+  conversationHistory: { role: string; content: string }[],
+  persona?: 'literary' | 'professional' | 'warm' | 'humorous'
 ): Promise<string> {
   const settings = getSettings();
   const currentKey = (settings.apiKeys?.[settings.apiProvider] || '').trim();
@@ -298,7 +299,8 @@ export async function runAgent(
   console.log('[bole-agent] API key length:', currentKey.length);
   console.log('[bole-agent] API key empty?:', currentKey === '');
   console.log('[bole-agent] User message:', userMessage.slice(0, 100));
-  const personaPrompt = PERSONA_PROMPTS[settings.persona] || PERSONA_PROMPTS.literary;
+  console.log('[bole-agent] Persona:', persona || settings.persona);
+  const personaPrompt = PERSONA_PROMPTS[persona || settings.persona] || PERSONA_PROMPTS.literary;
 
   const systemPrompt = `${personaPrompt}
 
