@@ -452,6 +452,10 @@ export default function App() {
   /** 当前对话的人格 */
   const activePersona = conversations.find((c) => c.id === activeConvId)?.persona || 'literary';
 
+  /** 当前对话的用户提问列表（用于右侧导航栏） */
+  const userMsgs = messages.filter((m) => m.role === 'user');
+  const lastUserId = userMsgs.length > 0 ? userMsgs[userMsgs.length - 1].id : '';
+
   // 自动滚动：仅在用户靠近底部时跟随新消息
   useEffect(() => {
     if (isNearBottom) {
@@ -1042,48 +1046,38 @@ export default function App() {
             </div>
             </div>
 
-            {/* 对话列表栏：右侧透明细条显示对话标记"—"，悬停展开对话列表（DeepSeek风格） */}
+            {/* 对话导航栏：右侧透明细条"—"= 当前对话的每条用户提问，悬停展开提问列表（DeepSeek风格） */}
             <div className="nav-sidebar">
-              {/* 收起态：一列"—"，当前对话粗体高亮 */}
+              {/* 收起态：一列"—"，每条对应当前对话的一个用户提问，最新提问粗体高亮（最多显示20条） */}
               <div className="nav-sidebar-dashes">
-                {conversations.map((c) => (
+                {userMsgs.slice(-20).map((m) => (
                   <div
-                    key={c.id}
-                    className={`nav-dash ${c.id === activeConvId ? 'active' : ''}`}
-                    title={c.name}
-                    onClick={() => {
-                      setCurrentView('chat');
-                      handleSwitchConversation(c.id);
-                    }}
+                    key={m.id}
+                    className={`nav-dash ${m.id === lastUserId ? 'active' : ''}`}
+                    title={m.content}
+                    onClick={() => jumpToMessage(m.id)}
                   >—</div>
                 ))}
               </div>
-              {/* 展开态：对话列表 */}
+              {/* 展开态：当前对话的用户提问列表 */}
               <div className="nav-sidebar-header">
-                📜 对话列表（{conversations.length}）
+                📜 对话记录（{userMsgs.length}）
               </div>
               <div className="nav-sidebar-list">
-                {conversations.length === 0 ? (
-                  <div className="nav-sidebar-empty">还没有对话</div>
+                {userMsgs.length === 0 ? (
+                  <div className="nav-sidebar-empty">还没有对话记录</div>
                 ) : (
-                  conversations.map((c) => {
-                    const pInfo = PERSONA_INFO[c.persona] || PERSONA_INFO.literary;
-                    return (
-                      <button
-                        key={c.id}
-                        className={`nav-sidebar-item ${c.id === activeConvId ? 'active' : ''}`}
-                        onClick={() => {
-                          setCurrentView('chat');
-                          handleSwitchConversation(c.id);
-                        }}
-                        title={`${c.name} · ${pInfo.label}`}
-                      >
-                        <span className="nav-index">{pInfo.icon}</span>
-                        <span>{c.name}</span>
-                        <span className="nav-msg-count">{c.messages.length}</span>
-                      </button>
-                    );
-                  })
+                  userMsgs.map((m, i) => (
+                    <button
+                      key={m.id}
+                      className={`nav-sidebar-item ${m.id === lastUserId ? 'active' : ''}`}
+                      onClick={() => jumpToMessage(m.id)}
+                      title={m.content}
+                    >
+                      <span className="nav-index">{i + 1}</span>
+                      <span>{m.content}</span>
+                    </button>
+                  ))
                 )}
               </div>
             </div>
