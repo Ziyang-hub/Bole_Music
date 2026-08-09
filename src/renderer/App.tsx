@@ -142,6 +142,9 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
+  // 当前查看位置对应的用户消息ID（右侧"—"粗体跟随）
+  const [activeMsgId, setActiveMsgId] = useState('');
+  const lastScrollCalcRef = useRef(0);
 
   // 多对话
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -454,7 +457,16 @@ export default function App() {
 
   /** 当前对话的用户提问列表（用于右侧导航栏） */
   const userMsgs = messages.filter((m) => m.role === 'user');
-  const lastUserId = userMsgs.length > 0 ? userMsgs[userMsgs.length - 1].id : '';
+
+  // 消息变化（切换对话/新消息/删除）时：若 activeMsgId 已不在当前提问列表中，回到最新一条
+  useEffect(() => {
+    if (userMsgs.length === 0) {
+      setActiveMsgId('');
+    } else {
+      setActiveMsgId((prev) => (userMsgs.some((m) => m.id === prev) ? prev : userMsgs[userMsgs.length - 1].id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, activeConvId]);
 
   // 自动滚动：仅在用户靠近底部时跟随新消息
   useEffect(() => {
@@ -463,12 +475,29 @@ export default function App() {
     }
   }, [messages, isNearBottom]);
 
-  // 监听滚动位置，判断是否靠近底部
+  // 监听滚动位置：判断是否靠近底部 + 更新当前查看的用户消息（"—"粗体跟随）
   const handleScroll = () => {
     const el = messagesContainerRef.current;
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
     setIsNearBottom(distance < 80);
+
+    // 节流：100ms 内只计算一次当前可见的用户消息
+    const now = Date.now();
+    if (now - lastScrollCalcRef.current < 100) return;
+    lastScrollCalcRef.current = now;
+
+    // 找视口上部区域（35%处）覆盖到的最后一条用户消息
+    const threshold = el.scrollTop + el.clientHeight * 0.35;
+    const msgEls = el.querySelectorAll<HTMLElement>('[data-message-id]');
+    let lastUserMsgId: string | null = null;
+    for (const msgEl of msgEls) {
+      if (msgEl.offsetTop > threshold) break;
+      if (msgEl.classList.contains('user')) {
+        lastUserMsgId = msgEl.dataset.messageId || null;
+      }
+    }
+    if (lastUserMsgId) setActiveMsgId(lastUserMsgId);
   };
 
   // 一键滚动到底部
@@ -483,6 +512,8 @@ export default function App() {
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setIsNearBottom(false);
+      // 点击跳转 → 该提问的"—"立即变为粗体
+      setActiveMsgId(msgId);
     }
   };
 
@@ -1048,12 +1079,12 @@ export default function App() {
 
             {/* 对话导航栏：右侧透明细条"—"= 当前对话的每条用户提问，悬停展开提问列表（DeepSeek风格） */}
             <div className="nav-sidebar">
-              {/* 收起态：一列"—"，每条对应当前对话的一个用户提问，最新提问粗体高亮（最多显示20条） */}
+              {/* 收起态：一列"—"，每条对应当前对话的一个用户提问，当前查看的提问粗体高亮（最多显示20条） */}
               <div className="nav-sidebar-dashes">
                 {userMsgs.slice(-20).map((m) => (
                   <div
                     key={m.id}
-                    className={`nav-dash ${m.id === lastUserId ? 'active' : ''}`}
+                    className={`nav-dash ${m.id === activeMsgId ? 'active' : ''}`}
                     title={m.content}
                     onClick={() => jumpToMessage(m.id)}
                   >—</div>
@@ -1070,7 +1101,7 @@ export default function App() {
                   userMsgs.map((m, i) => (
                     <button
                       key={m.id}
-                      className={`nav-sidebar-item ${m.id === lastUserId ? 'active' : ''}`}
+                      className={`nav-sidebar-item ${m.id === activeMsgId ? 'active' : ''}`}
                       onClick={() => jumpToMessage(m.id)}
                       title={m.content}
                     >
