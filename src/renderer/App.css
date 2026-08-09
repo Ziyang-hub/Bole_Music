@@ -604,14 +604,16 @@ textarea {
   transform: translateY(0) scale(0.92);
 }
 
-/* ----- 对话浏览栏（右侧导航，窄条悬停展开） ----- */
+/* ----- 对话浏览栏（右侧导航，窄条悬停展开，悬浮覆盖不挤占聊天区） ----- */
 .nav-sidebar {
-  position: relative;
+  position: fixed;
+  top: 50%;
+  right: 16px; /* 让出滚动条位置（8px滚动条+8px间距），滑块永远可见可拖 */
+  transform: translateY(-50%);
+  z-index: 50;
   width: 16px;
-  height: 55%;
+  height: 55vh;
   min-height: 220px;
-  align-self: center; /* 垂直居中悬浮，像 DeepSeek 网页版风格 */
-  margin: 36px 0; /* 与顶部/底部输入框保持间距，不紧贴 */
   background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-card) 100%);
   border-left: 1px solid var(--color-border);
   border-radius: 8px;
@@ -620,14 +622,14 @@ textarea {
   overflow: hidden;
   flex-shrink: 0;
   /* 收起延迟 0.5s：鼠标移开时从容收回，不会误收起 */
-  transition: width 0.28s ease 0.5s, height 0.28s ease 0.5s;
+  transition: width 0.28s ease 0.5s;
 }
 
 .nav-sidebar:hover {
   width: 260px;
   box-shadow: -6px 0 20px rgba(0, 0, 0, 0.12);
   /* 展开延迟 0.25s：快速划过细条时不误展开 */
-  transition: width 0.28s ease 0.25s, height 0.28s ease 0.25s;
+  transition: width 0.28s ease 0.25s;
 }
 
 /* 收起时显示的竖排标签 */
