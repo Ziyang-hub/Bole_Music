@@ -31,3 +31,6 @@ npm-debug.log*
 # 内置工具二进制（通过 scripts/download-fpcalc.sh 下载）
 resources/fpcalc/
 resources/icon.iconset/
+
+# Claude Code 内部数据（skills、settings、plans 等）
+.claude/
