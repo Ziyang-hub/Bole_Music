@@ -78,8 +78,8 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    minWidth: 900,
-    minHeight: 600,
+    minWidth: 1024,
+    minHeight: 700,
     title: '伯乐模拟器',
     backgroundColor: '#1a1a2e',
     titleBarStyle: 'hiddenInset',

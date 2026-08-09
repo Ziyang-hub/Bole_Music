@@ -306,9 +306,10 @@ textarea {
   flex-direction: column;
   gap: 2px;
   padding: 0 var(--space-sm);
-  max-height: 40vh;
+  max-height: 28vh;
+  min-height: 60px;
   overflow-y: auto;
-  flex-shrink: 0;
+  flex-shrink: 1;
 }
 
 .conversation-list::-webkit-scrollbar {
@@ -614,8 +615,7 @@ textarea {
   width: 16px;
   height: 55vh;
   min-height: 220px;
-  background: rgba(128, 128, 160, 0.08); /* 收起态半透明 */
-  backdrop-filter: blur(2px);
+  background: transparent; /* 收起态全透明 */
   border-radius: 8px;
   display: flex;
   flex-direction: column;
