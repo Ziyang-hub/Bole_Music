@@ -374,10 +374,10 @@ ipcMain.handle(
 
 ipcMain.handle(
   'ai:analyzePlaylist',
-  async (_e, playlistName: string, songs: { name: string; artist: string }[]) => {
+  async (_e, playlistName: string, songs: { name: string; artist: string }[], history?: { role: string; content: string }[]) => {
     try {
-      console.log('[ipc:analyzePlaylist] Called:', playlistName, songs?.length, 'songs');
-      const data = await analyzePlaylistSongs(playlistName, songs || []);
+      console.log('[ipc:analyzePlaylist] Called:', playlistName, songs?.length, 'songs, history:', history?.length || 0);
+      const data = await analyzePlaylistSongs(playlistName, songs || [], history);
       console.log('[ipc:analyzePlaylist] Reply length:', data?.length);
       trackUsage('playlist_import');
       return { success: true, data };

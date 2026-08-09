@@ -10,9 +10,11 @@ import Modal from './Modal';
 interface Props {
   onClose: () => void;
   onAnalyzed: (boleContent: string) => void;
+  /** 用户最近的对话历史，用于整体分析时提取用户风格 */
+  history?: { role: string; content: string }[];
 }
 
-export default function PlaylistImport({ onClose, onAnalyzed }: Props) {
+export default function PlaylistImport({ onClose, onAnalyzed, history }: Props) {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [playlist, setPlaylist] = useState<{ name: string; songs: SongInfo[] } | null>(null);
@@ -42,7 +44,7 @@ export default function PlaylistImport({ onClose, onAnalyzed }: Props) {
     setAnalyzing(true);
     try {
       const songs = playlist.songs.map((s) => ({ name: s.name, artist: s.artists.join('、') }));
-      const r = await window.electronAPI.analyzePlaylist(playlist.name, songs);
+      const r = await window.electronAPI.analyzePlaylist(playlist.name, songs, history);
       if (r.success && r.data) {
         onAnalyzed(r.data);
       } else {

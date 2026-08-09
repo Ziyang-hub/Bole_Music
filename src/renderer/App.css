@@ -429,7 +429,7 @@ textarea {
 .nav-sidebar {
   position: relative;
   width: 16px;
-  background-color: var(--color-bg-card);
+  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-card) 100%);
   border-left: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
@@ -447,18 +447,21 @@ textarea {
 .nav-sidebar-tab {
   position: absolute;
   top: 50%;
-  left: 2px;
-  transform: translateY(-50%);
+  left: 50%;
+  transform: translate(-50%, -50%);
   writing-mode: vertical-rl;
   font-size: 12px;
-  color: var(--color-text-muted);
-  letter-spacing: 2px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--color-text-secondary);
   user-select: none;
   pointer-events: none;
   white-space: nowrap;
+  transition: color 0.2s ease;
 }
 
 .nav-sidebar:hover .nav-sidebar-tab {
+  color: var(--color-accent);
   opacity: 0;
 }
 
@@ -623,6 +626,9 @@ textarea {
   font-size: 14px;
   line-height: 1.8;
   color: var(--color-text-primary);
+  user-select: text; /* 允许复制聊天内容 */
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 .message-bubble:hover {

@@ -717,6 +717,7 @@ export default function App() {
         {showPlaylist && (
           <PlaylistImport
             onClose={() => setShowPlaylist(false)}
+            history={messages.slice(-30).map((m) => ({ role: m.role, content: m.content }))}
             onAnalyzed={async (content) => {
               const boleMsg: ChatMessage = {
                 id: generateId(), role: 'bole', content, timestamp: nowISO(),
@@ -847,7 +848,7 @@ export default function App() {
 
             {/* 对话浏览栏：右侧窄条，鼠标移到上面展开，列出用户的所有问题 */}
             <div className="nav-sidebar">
-              <div className="nav-sidebar-tab">📜 对话</div>
+              <div className="nav-sidebar-tab">对话记录</div>
               <div className="nav-sidebar-header">
                 📜 对话记录（{messages.filter((m) => m.role === 'user').length}）
               </div>

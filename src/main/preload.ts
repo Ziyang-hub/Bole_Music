@@ -36,8 +36,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyzeSong: (songName: string, artist?: string, lyrics?: string) =>
     ipcRenderer.invoke('ai:analyzeSong', songName, artist, lyrics),
 
-  analyzePlaylist: (playlistName: string, songs: { name: string; artist: string }[]) =>
-    ipcRenderer.invoke('ai:analyzePlaylist', playlistName, songs),
+  analyzePlaylist: (playlistName: string, songs: { name: string; artist: string }[], history?: { role: string; content: string }[]) =>
+    ipcRenderer.invoke('ai:analyzePlaylist', playlistName, songs, history),
 
   chat: async (history: { role: string; content: string }[], userMessage: string) => {
     try {
