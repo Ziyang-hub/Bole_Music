@@ -144,6 +144,7 @@ export default function App() {
   const [activeMsgId, setActiveMsgId] = useState('');
   const lastScrollCalcRef = useRef(0);
   const dashesRef = useRef<HTMLDivElement>(null);
+  const navListRef = useRef<HTMLDivElement>(null);
 
   // 多对话
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -614,6 +615,22 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     setIsNearBottom(true);
   };
+
+  // 展开的导航列表跟随当前查看位置：active 项滚动到列表中央
+  const scrollNavToActive = () => {
+    const list = navListRef.current;
+    if (!list) return;
+    const activeEl = list.querySelector<HTMLElement>('.nav-sidebar-item.active');
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'center', behavior: 'auto' });
+    }
+  };
+
+  // activeMsgId 变化 → 等展开动画完成后再滚动定位（450ms）
+  useEffect(() => {
+    const t = setTimeout(scrollNavToActive, 450);
+    return () => clearTimeout(t);
+  }, [activeMsgId, userMsgs.length]);
 
   // 对话浏览栏：跳转到指定消息
   const jumpToMessage = (msgId: string) => {
@@ -1196,7 +1213,7 @@ export default function App() {
             </div>
 
             {/* 对话导航栏：右侧透明细条"—"= 当前对话的每条用户提问，悬停展开提问列表（DeepSeek风格） */}
-            <div className="nav-sidebar">
+            <div className="nav-sidebar" onMouseEnter={scrollNavToActive}>
               {/* 收起态：一列"—"，每条对应当前对话的一个用户提问，当前查看的提问粗体高亮；像标尺一样滑动跟随 */}
               <div className="nav-sidebar-dashes" ref={dashesRef}>
                 <div className="nav-dash-track">
@@ -1214,7 +1231,7 @@ export default function App() {
               <div className="nav-sidebar-header">
                 📜 对话记录（{userMsgs.length}）
               </div>
-              <div className="nav-sidebar-list">
+              <div className="nav-sidebar-list" ref={navListRef}>
                 {userMsgs.length === 0 ? (
                   <div className="nav-sidebar-empty">还没有对话记录</div>
                 ) : (

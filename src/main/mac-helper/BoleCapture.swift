@@ -142,50 +142,72 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
     }
 
     private var frameLogCount = 0
+    private var lastErrorLog = 0
 
     // SCStreamOutput: 音频采样回调（48kHz stereo s16le）
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .audio else { return }
-        if frameLogCount < 3 {
-            FileHandle.standardError.write("AUDIO callback #\(frameLogCount)\n".data(using: .utf8)!)
-            frameLogCount += 1
+
+        // 心跳日志：每 500 次回调打印一次缓冲状态
+        frameLogCount += 1
+        if frameLogCount % 500 == 0 || frameLogCount == 1 {
+            FileHandle.standardError.write("AUDIO cb #\(frameLogCount) buffered=\(monoBuffer.count)\n".data(using: .utf8)!)
         }
 
+        // 分配足够大的 AudioBufferList（SCK 可能输出多 buffer 非交错格式）
+        let maxBuffers = 8
+        let bufferListSize = MemoryLayout<AudioBufferList>.size + MemoryLayout<AudioBuffer>.size * (maxBuffers - 1)
+        let memory = UnsafeMutableRawPointer.allocate(
+            byteCount: bufferListSize,
+            alignment: MemoryLayout<AudioBufferList>.alignment
+        )
+        defer { memory.deallocate() }
+        let audioBufferList = memory.bindMemory(to: AudioBufferList.self, capacity: 1)
+
         var blockBuffer: CMBlockBuffer?
-        var audioBufferList = AudioBufferList()
         let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
             sampleBuffer,
             bufferListSizeNeededOut: nil,
-            bufferListOut: &audioBufferList,
-            bufferListSize: MemoryLayout<AudioBufferList>.size,
+            bufferListOut: audioBufferList,
+            bufferListSize: bufferListSize,
             blockBufferAllocator: kCFAllocatorDefault,
             blockBufferMemoryAllocator: kCFAllocatorDefault,
             flags: 0,
             blockBufferOut: &blockBuffer
         )
-        guard status == noErr else { return }
+        guard status == noErr else {
+            // 打印失败错误码（限频）
+            if frameLogCount - lastErrorLog > 200 {
+                FileHandle.standardError.write("AUDIO bufferlist error: \(status)\n".data(using: .utf8)!)
+                lastErrorLog = frameLogCount
+            }
+            return
+        }
 
-        let bytes = audioBufferList.mBuffers.mData?.assumingMemoryBound(to: Int16.self)
-        let frameCount = Int(audioBufferList.mBuffers.mDataByteSize) / 2
-        guard let bytes, frameCount > 0 else { return }
+        let bufCount = Int(audioBufferList.pointee.mNumberBuffers)
+        var totalFrames = 0
+        for b in 0..<bufCount {
+            totalFrames += Int(audioBufferList.pointee.mBuffers[b].mDataByteSize) / 2
+        }
+        guard totalFrames > 0 else { return }
 
-        let channels = Int(audioBufferList.mNumberBuffers > 0 ? 2 : 2)
+        // 处理每个 buffer（交错或非交错都按 L,R 交错累积）
+        var frames: [Int16] = []
+        frames.reserveCapacity(totalFrames)
+        for b in 0..<bufCount {
+            let buf = audioBufferList.pointee.mBuffers[b]
+            guard let p = buf.mData?.assumingMemoryBound(to: Int16.self) else { continue }
+            let n = Int(buf.mDataByteSize) / 2
+            frames.append(contentsOf: UnsafeBufferPointer(start: p, count: n))
+        }
 
         // 48k → 16k 整数下采样（每 3 帧取 LR 均值），单声道
-        if channels == 2 {
-            for f in 0..<(frameCount / 2) {
-                let i = f * 2
-                let l = Int(bytes[i])
-                let r = Int(bytes[i + 1])
-                if f % 3 == 0 {
-                    monoBuffer.append(Int16((l + r) / 2))
-                }
-            }
-        } else {
-            for f in 0..<frameCount {
-                if f % 3 == 0 {
-                    monoBuffer.append(bytes[f])
-                }
+        for f in 0..<(frameCount / 2) {
+            let i = f * 2
+            let l = Int(frames[i])
+            let r = Int(frames[i + 1])
+            if f % 3 == 0 {
+                monoBuffer.append(Int16((l + r) / 2))
             }
         }
 
