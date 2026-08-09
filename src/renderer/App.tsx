@@ -469,21 +469,24 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, activeConvId]);
 
-  // dash 列底部锚定：当前粗体的"—"始终贴在面板底部（最新提问时就在底部，无空白）
+  // dash 列固定窗口滑动：可视区最多显示 VISIBLE_DASHES 条，当前粗体"—"保持在窗口中央
   useEffect(() => {
     const el = dashesRef.current;
     if (!el) return;
-    const panelH = el.clientHeight;
     const idx = userMsgs.findIndex((m) => m.id === activeMsgId);
     const itemH = 19; // 12px dash + 6px gap（active 14px，取均值）
+    const K = 7; // 固定可见数量
     const N = userMsgs.length;
     if (idx === -1 || N === 0) {
       el.style.setProperty('--dash-shift', '0px');
       return;
     }
-    // 让 active dash 底部 = 面板底部；clamp 保证 track 顶部不露出面板
-    const shift = Math.min((N - 1 - idx) * itemH, Math.max(0, N * itemH - panelH));
-    el.style.setProperty('--dash-shift', `${-shift}px`);
+    // 让 active dash 位于窗口中央；clamp 到轨道范围内（N<=K 时贴顶无滑动）
+    const target = (K * itemH) / 2 - (idx + 0.5) * itemH;
+    const minShift = K * itemH - N * itemH; // 轨道底部不能高于窗口底部
+    const maxShift = 0; // 轨道顶部不能低于窗口顶部
+    const shift = Math.max(minShift, Math.min(maxShift, target));
+    el.style.setProperty('--dash-shift', `${shift}px`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMsgId, userMsgs.length]);
 
