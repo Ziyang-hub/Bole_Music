@@ -652,12 +652,12 @@ textarea {
   pointer-events: none;
 }
 
-/* dash 轨道：垂直居中，随当前提问平移（标尺效果） */
+/* dash 轨道：底部锚定，当前提问贴面板底部，翻看旧提问时上移（标尺效果） */
 .nav-dash-track {
   position: absolute;
-  top: 50%;
+  bottom: 12px; /* 底部留一点边距 */
   left: 50%;
-  transform: translate(-50%, -50%) translateY(var(--dash-shift, 0px));
+  transform: translateX(-50%) translateY(var(--dash-shift, 0px));
   display: flex;
   flex-direction: column;
   gap: 6px;

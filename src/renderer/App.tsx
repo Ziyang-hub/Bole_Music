@@ -469,15 +469,21 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, activeConvId]);
 
-  // dash 列像标尺一样滑动：让当前粗体的"—"始终保持在面板中部
+  // dash 列底部锚定：当前粗体的"—"始终贴在面板底部（最新提问时就在底部，无空白）
   useEffect(() => {
     const el = dashesRef.current;
     if (!el) return;
     const panelH = el.clientHeight;
     const idx = userMsgs.findIndex((m) => m.id === activeMsgId);
     const itemH = 19; // 12px dash + 6px gap（active 14px，取均值）
-    const target = idx === -1 ? 0 : (idx + 0.5) * itemH - panelH / 2;
-    el.style.setProperty('--dash-shift', `${-target}px`);
+    const N = userMsgs.length;
+    if (idx === -1 || N === 0) {
+      el.style.setProperty('--dash-shift', '0px');
+      return;
+    }
+    // 让 active dash 底部 = 面板底部；clamp 保证 track 顶部不露出面板
+    const shift = Math.min((N - 1 - idx) * itemH, Math.max(0, N * itemH - panelH));
+    el.style.setProperty('--dash-shift', `${-shift}px`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMsgId, userMsgs.length]);
 
