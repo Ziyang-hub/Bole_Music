@@ -45,6 +45,7 @@ import {
   diagnose,
   registerAudioIpcHandlers,
   openScreenRecordingSettings,
+  waitNativeCaptureReady,
 } from './audio-capture';
 import { recognizeSong, isMaybeMusic } from './song-recognition';
 import {
@@ -542,7 +543,16 @@ ipcMain.handle('audio:startCapture', async () => {
 
   // 返回 native=true 表示 ScreenCaptureKit 原生采集已启动（渲染进程无需 getUserMedia）
   const native = startCapture(onChunk);
-  return { success: true, native };
+  if (native) {
+    // 等待 helper 真正 READY（最多 8 秒）——helper 崩溃/权限失败时返回 false，让渲染进程降级 getUserMedia
+    const ready = await waitNativeCaptureReady(8000);
+    if (!ready) {
+      console.warn('[audio] Native capture failed to start, stopping for fallback');
+      stopCapture();
+    }
+    return { success: true, native: ready };
+  }
+  return { success: true, native: false };
 });
 
 ipcMain.handle('audio:stopCapture', async () => {

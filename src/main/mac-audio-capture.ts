@@ -81,6 +81,14 @@ function ensureHelperBinary(): string | null {
       timeout: 120000,
       stdio: ['ignore', 'ignore', 'pipe'],
     });
+    // ad-hoc 签名：无签名二进制无法被 TCC 识别（屏幕录制权限），
+    // 签名后系统设置里会出现 bole-capture-arm64，可单独授权
+    try {
+      execFileSync('codesign', ['-s', '-', outPath], { stdio: ['ignore', 'ignore', 'pipe'] });
+      console.log('[mac-audio] ✅ Helper ad-hoc signed');
+    } catch (e: any) {
+      console.warn('[mac-audio] codesign failed (non-fatal):', e?.message || e);
+    }
     fs.chmodSync(outPath, 0o755);
     console.log('[mac-audio] ✅ Helper auto-compiled:', outPath);
     return outPath;
@@ -100,6 +108,7 @@ function ensureHelperBinary(): string | null {
  */
 export function startCapture(callback: AudioChunkCallback): boolean {
   if (isRunning) return !fallbackMode;
+  helperReady = false;
 
   const bin = ensureHelperBinary();
   if (!bin) {
@@ -136,6 +145,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
         }
       } else if (line === 'READY') {
         console.log('[mac-audio] Helper READY');
+        _notifyReady(true);
       } else {
         console.log('[mac-audio] Helper stdout:', line);
       }
@@ -157,6 +167,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
       console.log('[mac-audio] Helper exited:', code, signal);
       helperProc = null;
       isRunning = false;
+      _notifyReady(false);
     });
 
     return true;
@@ -177,6 +188,41 @@ export function stopCapture(): void {
     } catch {}
     helperProc = null;
   }
+}
+
+// ============================================================
+// 等待 helper 就绪（READY）——避免渲染进程误判原生启动成功
+// ============================================================
+
+let readyWaiters: ((ok: boolean) => void)[] = [];
+let helperReady = false;
+
+/**
+ * 等待 helper 发出 READY（或超时/退出）。
+ * @returns true = 原生采集真正启动；false = 需要降级
+ */
+export function waitHelperReady(timeoutMs = 8000): Promise<boolean> {
+  if (helperReady) return Promise.resolve(true);
+  if (!isRunning || !helperProc) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      readyWaiters = readyWaiters.filter((w) => w !== onReady);
+      resolve(false);
+    }, timeoutMs);
+    const onReady = (ok: boolean) => {
+      clearTimeout(timer);
+      resolve(ok);
+    };
+    readyWaiters.push(onReady);
+  });
+}
+
+// 在 stdout READY 处理和 exit 处理中通知 waiter
+function _notifyReady(ok: boolean): void {
+  helperReady = ok;
+  readyWaiters.forEach((w) => w(ok));
+  readyWaiters = [];
 }
 
 export function isCapturing(): boolean { return isRunning; }

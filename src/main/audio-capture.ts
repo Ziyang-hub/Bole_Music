@@ -19,6 +19,7 @@ import {
   diagnose as macDiagnose,
   registerIpcHandlers as macRegisterIpcHandlers,
   openScreenRecordingSettings as macOpenScreenSettings,
+  waitHelperReady as macWaitHelperReady,
 } from './mac-audio-capture';
 
 const execFileAsync = promisify(execFile);
@@ -28,6 +29,12 @@ let ffmpegPath = 'ffmpeg';
 try { ffmpegPath = require('ffmpeg-static'); } catch {}
 
 export type AudioChunkCallback = (audioPath: string, createdAt?: number) => void;
+
+/** 等待 macOS 原生采集真正就绪（READY） */
+export async function waitNativeCaptureReady(timeoutMs = 8000): Promise<boolean> {
+  if (process.platform !== 'darwin') return true;
+  return macWaitHelperReady(timeoutMs);
+}
 
 const AUDIO_DIR = path.join(os.tmpdir(), 'bole-simulator-audio');
 const CHUNK_SEC = 10;

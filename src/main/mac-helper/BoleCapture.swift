@@ -106,8 +106,8 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
         }
 
         let config = SCStreamConfiguration()
-        config.width = 1
-        config.height = 1
+        config.width = Int(display.width)
+        config.height = Int(display.height)
         config.showsCursor = false
         config.capturesAudio = true
         config.sampleRate = 48000
@@ -199,6 +199,10 @@ let sem = DispatchSemaphore(value: 0)
 Task {
     do {
         try await manager.start()
+    } catch let err as SCStreamError {
+        // 打印详细错误码：1000=权限被拒 等，便于定位
+        FileHandle.standardError.write("ERROR: Start stream failed code=\(err.code.rawValue) \(err.localizedDescription)\n".data(using: .utf8)!)
+        exit(1)
     } catch {
         FileHandle.standardError.write("ERROR: \(error.localizedDescription)\n".data(using: .utf8)!)
         exit(1)
