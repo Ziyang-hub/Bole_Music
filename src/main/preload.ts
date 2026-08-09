@@ -36,6 +36,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyzeSong: (songName: string, artist?: string, lyrics?: string) =>
     ipcRenderer.invoke('ai:analyzeSong', songName, artist, lyrics),
 
+  analyzePlaylist: (playlistName: string, songs: { name: string; artist: string }[]) =>
+    ipcRenderer.invoke('ai:analyzePlaylist', playlistName, songs),
+
   chat: async (history: { role: string; content: string }[], userMessage: string) => {
     try {
       console.log('[preload] chat called, history len:', history.length, 'msg:', userMessage?.slice(0, 30));

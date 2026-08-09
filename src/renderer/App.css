@@ -362,7 +362,7 @@ textarea {
 
 /* 自定义滚动条 */
 .messages-container::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .messages-container::-webkit-scrollbar-track {
@@ -370,18 +370,37 @@ textarea {
 }
 
 .messages-container::-webkit-scrollbar-thumb {
-  background-color: var(--color-border-light);
-  border-radius: 3px;
+  background-color: var(--color-text-muted);
+  border-radius: 4px;
+  min-height: 40px;
 }
 
 .messages-container::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-text-muted);
+  background-color: var(--color-accent);
+}
+
+/* ----- 聊天布局（消息区 + 右侧导航栏，导航栏参与布局不遮挡） ----- */
+.chat-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
 }
 
 /* ----- 一键滚动到底按钮 ----- */
 .scroll-to-bottom-btn {
-  position: fixed;
-  right: 32px;
+  position: absolute;
+  right: 24px;
   bottom: 140px;
   width: 38px;
   height: 38px;
@@ -406,25 +425,41 @@ textarea {
   transform: translateY(0) scale(0.92);
 }
 
-/* ----- 对话浏览栏（右侧导航） ----- */
+/* ----- 对话浏览栏（右侧导航，窄条悬停展开） ----- */
 .nav-sidebar {
-  position: fixed;
-  top: 60px;
-  right: 0;
-  bottom: 0;
-  width: 260px;
+  position: relative;
+  width: 16px;
   background-color: var(--color-bg-card);
   border-left: 1px solid var(--color-border);
-  box-shadow: -6px 0 20px rgba(0, 0, 0, 0.18);
-  z-index: 40;
   display: flex;
   flex-direction: column;
-  transform: translateX(calc(100% - 10px));
-  transition: transform 0.25s ease;
+  overflow: hidden;
+  transition: width 0.28s ease;
+  flex-shrink: 0;
 }
 
 .nav-sidebar:hover {
-  transform: translateX(0);
+  width: 260px;
+  box-shadow: -6px 0 20px rgba(0, 0, 0, 0.12);
+}
+
+/* 收起时显示的竖排标签 */
+.nav-sidebar-tab {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  letter-spacing: 2px;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.nav-sidebar:hover .nav-sidebar-tab {
+  opacity: 0;
 }
 
 .nav-sidebar-header {
@@ -434,6 +469,12 @@ textarea {
   font-weight: 600;
   color: var(--color-text-secondary);
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.nav-sidebar:hover .nav-sidebar-header {
+  opacity: 1;
 }
 
 .nav-sidebar-list {
@@ -443,6 +484,12 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.nav-sidebar:hover .nav-sidebar-list {
+  opacity: 1;
 }
 
 .nav-sidebar-list::-webkit-scrollbar {

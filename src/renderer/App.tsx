@@ -717,7 +717,7 @@ export default function App() {
         {showPlaylist && (
           <PlaylistImport
             onClose={() => setShowPlaylist(false)}
-            onSongAnalyzed={async (name, artist, content) => {
+            onAnalyzed={async (content) => {
               const boleMsg: ChatMessage = {
                 id: generateId(), role: 'bole', content, timestamp: nowISO(),
               };
@@ -741,7 +741,8 @@ export default function App() {
         {currentView === 'settings' && <SettingsPage />}
 
         {currentView === 'chat' && (
-          <>
+          <div className="chat-layout">
+            <div className="chat-main">
             <div className="messages-container" ref={messagesContainerRef} onScroll={handleScroll}>
               {messages.map((msg) => (
                 <div key={msg.id} data-message-id={msg.id} className={`message ${msg.role}`}>
@@ -811,32 +812,6 @@ export default function App() {
               </button>
             )}
 
-            {/* 对话浏览栏：右侧悬浮，列出用户的所有问题 */}
-            <div className="nav-sidebar">
-              <div className="nav-sidebar-header">
-                📜 对话记录（{messages.filter((m) => m.role === 'user').length}）
-              </div>
-              <div className="nav-sidebar-list">
-                {messages.filter((m) => m.role === 'user').length === 0 ? (
-                  <div className="nav-sidebar-empty">还没有对话记录</div>
-                ) : (
-                  messages
-                    .filter((m) => m.role === 'user')
-                    .map((m, i) => (
-                      <button
-                        key={m.id}
-                        className="nav-sidebar-item"
-                        onClick={() => jumpToMessage(m.id)}
-                        title={m.content}
-                      >
-                        <span className="nav-index">{i + 1}</span>
-                        <span>{m.content}</span>
-                      </button>
-                    ))
-                )}
-              </div>
-            </div>
-
             <div className="input-area">
               <div className="input-wrapper">
                 <button className="search-toggle-btn" onClick={() => setShowSearch(true)} title="搜索歌曲">🔍</button>
@@ -868,7 +843,35 @@ export default function App() {
                 💡 随便聊天 ｜ 说「搜索 + 歌名」查歌 ｜ 自动检测到的歌曲会主动分析
               </div>
             </div>
-          </>
+            </div>
+
+            {/* 对话浏览栏：右侧窄条，鼠标移到上面展开，列出用户的所有问题 */}
+            <div className="nav-sidebar">
+              <div className="nav-sidebar-tab">📜 对话</div>
+              <div className="nav-sidebar-header">
+                📜 对话记录（{messages.filter((m) => m.role === 'user').length}）
+              </div>
+              <div className="nav-sidebar-list">
+                {messages.filter((m) => m.role === 'user').length === 0 ? (
+                  <div className="nav-sidebar-empty">还没有对话记录</div>
+                ) : (
+                  messages
+                    .filter((m) => m.role === 'user')
+                    .map((m, i) => (
+                      <button
+                        key={m.id}
+                        className="nav-sidebar-item"
+                        onClick={() => jumpToMessage(m.id)}
+                        title={m.content}
+                      >
+                        <span className="nav-index">{i + 1}</span>
+                        <span>{m.content}</span>
+                      </button>
+                    ))
+                )}
+              </div>
+            </div>
+            </div>
         )}
       </main>
     </div>

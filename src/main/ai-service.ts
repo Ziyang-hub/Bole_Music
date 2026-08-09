@@ -444,7 +444,8 @@ async function _agentLoop(
 async function _callAI(
   messages: ChatMessage[],
   settings: ReturnType<typeof getSettings>,
-  withTools: boolean
+  withTools: boolean,
+  maxTokens = 2048
 ): Promise<any> {
   const apiKey = (settings.apiKeys?.[settings.apiProvider] || '').trim();
   console.log('[bole-agent] _callAI: provider=', settings.apiProvider, 'keyLen=', apiKey.length, 'keyStarts=', apiKey.slice(0, 5), 'withTools=', withTools);
@@ -474,7 +475,7 @@ async function _callAI(
     model,
     messages,
     temperature: 0.8,
-    max_tokens: 2048,
+    max_tokens: maxTokens,
   };
 
   if (withTools) {
@@ -578,4 +579,50 @@ export async function recommendSongs(
       comment: '根据你的口味，这些歌应该很对你的胃口！',
     };
   }
+}
+
+// ============================================================
+// 歌单整体分析
+// ============================================================
+
+/**
+ * 整体分析一个歌单（不是逐首分析，而是把整个歌单作为整体一次分析）
+ * 返回 AI 的整体分析文本
+ */
+export async function analyzePlaylistSongs(
+  playlistName: string,
+  songs: { name: string; artist: string }[]
+): Promise<string> {
+  const settings = getSettings();
+  const songList = songs.map((s, i) => `${i + 1}. ${s.name} — ${s.artist}`).join('\n');
+
+  const systemPrompt = `你是「伯乐」，一位资深音乐鉴赏家。用户给你一个歌单，请你对**整个歌单**做一次整体的深度分析，而不是逐首歌重复点评。
+
+请覆盖以下内容：
+1. **歌单主题与整体气质**：用一句话概括这个歌单给人的感觉（如「深夜emo合集」「夏日晚风」「热血运动BGM」）
+2. **风格构成**：总结主要曲风构成（如 60% 流行、30% 民谣、10% 说唱）
+3. **亮点歌曲**：挑选 2-3 首最有代表性的歌，说明它们为什么能代表这个歌单
+4. **整体评价**：这个歌单适合什么场景（通勤/加班/运动/睡前/聚会），适合什么人听
+5. **一点建议**：补充什么风格的歌会让歌单更完整
+
+要求：
+- 用中文，自然流畅，有你的性格，不要写空话套话
+- 篇幅充实（500-1200字），内容要具体，不要罗列所有歌名
+- 这是整体分析，绝对不要逐首点评每一首歌`;
+
+  const userMessage = `请整体分析这个歌单：\n\n歌单名：《${playlistName}》\n共 ${songs.length} 首歌：\n\n${songList}`;
+
+  // 歌单越长，需要的输出 token 越多：基础 2048 + 每首 150，上限 8192
+  const maxTokens = Math.min(8192, 2048 + songs.length * 150);
+
+  const response = await _callAI(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage },
+    ],
+    settings,
+    false,
+    maxTokens
+  );
+  return response.choices?.[0]?.message?.content || '';
 }

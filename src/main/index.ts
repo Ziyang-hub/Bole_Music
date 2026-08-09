@@ -25,7 +25,7 @@ import {
   getAllData,
   resetAllData,
 } from './store';
-import { runAgent, generateReport, recommendSongs } from './ai-service';
+import { runAgent, generateReport, recommendSongs, analyzePlaylistSongs } from './ai-service';
 import {
   startCapture,
   stopCapture,
@@ -367,6 +367,22 @@ ipcMain.handle(
 
       return { success: true, data: result };
     } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+);
+
+ipcMain.handle(
+  'ai:analyzePlaylist',
+  async (_e, playlistName: string, songs: { name: string; artist: string }[]) => {
+    try {
+      console.log('[ipc:analyzePlaylist] Called:', playlistName, songs?.length, 'songs');
+      const data = await analyzePlaylistSongs(playlistName, songs || []);
+      console.log('[ipc:analyzePlaylist] Reply length:', data?.length);
+      trackUsage('playlist_import');
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('[ipc:analyzePlaylist] ERROR:', error.message);
       return { success: false, error: error.message };
     }
   }

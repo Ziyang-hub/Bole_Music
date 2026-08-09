@@ -107,6 +107,8 @@ interface ElectronAPI {
   // AI
   analyzeSong: (songName: string, artist?: string, lyrics?: string) =>
     Promise<{ success: boolean; data?: SongAnalysis; cached?: boolean; error?: string }>;
+  analyzePlaylist: (playlistName: string, songs: { name: string; artist: string }[]) =>
+    Promise<{ success: boolean; data?: string; error?: string }>;
   chat: (history: { role: string; content: string }[], userMessage: string) =>
     Promise<{ success: boolean; data?: string; error?: string }>;
   generateReport: (type: string, songs: any[], stats: any) =>

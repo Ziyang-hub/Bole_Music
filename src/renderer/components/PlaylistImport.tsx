@@ -1,7 +1,7 @@
 /**
  * 伯乐模拟器 - 歌单导入组件
  *
- * 粘贴网易云歌单链接 → 获取歌曲列表 → 逐个AI分析
+ * 粘贴网易云歌单链接 → 获取歌曲列表 → 整体AI分析（一次分析整个歌单）
  */
 
 import React, { useState } from 'react';
@@ -9,16 +9,14 @@ import Modal from './Modal';
 
 interface Props {
   onClose: () => void;
-  onSongAnalyzed: (songName: string, artist: string, boleContent: string) => void;
+  onAnalyzed: (boleContent: string) => void;
 }
 
-export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
+export default function PlaylistImport({ onClose, onAnalyzed }: Props) {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [playlist, setPlaylist] = useState<{ name: string; songs: SongInfo[] } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [results, setResults] = useState<{ name: string; artist: string; done: boolean; error?: string }[]>([]);
 
   async function handleFetch() {
     if (!window.electronAPI) return;
@@ -38,32 +36,23 @@ export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
     setLoading(false);
   }
 
-  async function handleAnalyzeAll() {
+  async function handleAnalyzeWhole() {
     if (!window.electronAPI || !playlist) return;
-    console.log('[playlist] analyzing all songs:', playlist.songs.length);
+    console.log('[playlist] analyzing whole playlist:', playlist.name, playlist.songs.length, 'songs');
     setAnalyzing(true);
-    const songs = playlist.songs.map((s) => ({ name: s.name, artist: s.artists.join('、') }));
-    setResults(songs.map((s) => ({ ...s, done: false })));
-
-    for (let i = 0; i < songs.length; i++) {
-      const song = songs[i];
-      try {
-        const r = await window.electronAPI.analyzeSong(song.name, song.artist);
-        if (r.success && r.data) {
-          onSongAnalyzed(song.name, song.artist, formatAnalysisShort(r.data));
-        }
-        setResults((prev) => prev.map((s, j) => j === i ? { ...s, done: true } : s));
-      } catch {
-        setResults((prev) => prev.map((s, j) => j === i ? { ...s, done: true, error: '失败' } : s));
+    try {
+      const songs = playlist.songs.map((s) => ({ name: s.name, artist: s.artists.join('、') }));
+      const r = await window.electronAPI.analyzePlaylist(playlist.name, songs);
+      if (r.success && r.data) {
+        onAnalyzed(r.data);
+      } else {
+        alert('分析失败：' + (r.error || '未知错误'));
       }
-      setProgress({ current: i + 1, total: songs.length });
-      await new Promise((r) => setTimeout(r, 500));
+      window.electronAPI.trackUsage('playlist_import', { count: songs.length });
+    } catch (e: any) {
+      alert('分析失败：' + (e?.message || e));
     }
     setAnalyzing(false);
-
-    if (window.electronAPI) {
-      window.electronAPI.trackUsage('playlist_import', { count: songs.length });
-    }
   }
 
   return (
@@ -92,11 +81,7 @@ export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
 
           {analyzing && (
             <div className="playlist-progress-box">
-              ⏳ 分析中... {progress.current}/{progress.total}
-              <div className="playlist-progress-track">
-                <div className="playlist-progress-fill"
-                  style={{ width: `${(progress.current / progress.total) * 100}%` }} />
-              </div>
+              ⏳ 正在整体分析歌单...（约需 10-30 秒，请稍候）
             </div>
           )}
 
@@ -108,8 +93,6 @@ export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
                 <span className="playlist-song-artist">
                   {song.artists.join(' / ')}
                 </span>
-                {results[i]?.done && <span>✅</span>}
-                {results[i]?.error && <span>❌</span>}
               </div>
             ))}
             {playlist.songs.length > 50 && (
@@ -120,10 +103,10 @@ export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
           </div>
 
           <div className="playlist-actions">
-            <button className="search-btn" onClick={handleAnalyzeAll} disabled={analyzing}>
-              {analyzing ? '分析中...' : '🤖 批量分析全部'}
+            <button className="search-btn" onClick={handleAnalyzeWhole} disabled={analyzing}>
+              {analyzing ? '分析中...' : '🤖 整体分析歌单'}
             </button>
-            <button className="report-export-btn" onClick={() => { setPlaylist(null); setResults([]); }}>
+            <button className="report-export-btn" onClick={() => setPlaylist(null)}>
               返回
             </button>
           </div>
@@ -131,8 +114,4 @@ export default function PlaylistImport({ onClose, onSongAnalyzed }: Props) {
       )}
     </Modal>
   );
-}
-
-function formatAnalysisShort(a: SongAnalysis): string {
-  return `🎵 **${a.songName}** — ${a.artist}\n💗 ${a.emotion || ''}\n🎼 ${a.genre || ''}\n💭 ${a.personalThought?.slice(0, 200) || ''}`;
 }
