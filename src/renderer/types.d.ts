@@ -20,7 +20,8 @@ interface ChatMessage {
 interface UserSettings {
   persona: 'literary' | 'professional' | 'warm' | 'humorous';
   apiProvider: 'deepseek' | 'qwen' | 'openai' | 'custom';
-  apiKey: string;
+  apiKeys: Record<string, string>;
+  models: Record<string, string>;
   customEndpoint: string;
   autoListen: boolean;
   autoDiary: boolean;
@@ -28,6 +29,7 @@ interface UserSettings {
   dailyReport: boolean;
   weeklyReport: boolean;
   theme: 'dark' | 'light';
+  userAvatar: string;
   recognitionBackend: 'shazam';
 }
 

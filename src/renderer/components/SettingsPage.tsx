@@ -7,6 +7,43 @@
 
 import React, { useState, useEffect } from 'react';
 
+// AI 服务商名称映射
+const PROVIDER_LABELS: Record<string, string> = {
+  deepseek: 'DeepSeek',
+  qwen: '通义千问',
+  openai: 'OpenAI',
+  custom: '自定义接口',
+};
+
+// 各服务商可选模型（custom 用输入框自由填写）
+const PROVIDER_MODELS: Record<string, { id: string; name: string; desc: string }[]> = {
+  deepseek: [
+    { id: 'deepseek-chat', name: 'deepseek-chat', desc: 'V3 · 通用对话（默认）' },
+    { id: 'deepseek-reasoner', name: 'deepseek-reasoner', desc: 'R1 · 深度推理' },
+  ],
+  qwen: [
+    { id: 'qwen-max', name: 'qwen-max', desc: '旗舰版 · 质量最高' },
+    { id: 'qwen-plus', name: 'qwen-plus', desc: '均衡版 · 默认推荐' },
+    { id: 'qwen-turbo', name: 'qwen-turbo', desc: '快速版 · 速度优先' },
+    { id: 'qwen-flash', name: 'qwen-flash', desc: '极速版 · 最省成本' },
+    { id: 'qwen-long', name: 'qwen-long', desc: '长文本版 · 适合长歌词' },
+  ],
+  openai: [
+    { id: 'gpt-4o', name: 'gpt-4o', desc: '旗舰版 · 质量最高' },
+    { id: 'gpt-4o-mini', name: 'gpt-4o-mini', desc: '轻量版 · 性价比（默认）' },
+    { id: 'gpt-4.1', name: 'gpt-4.1', desc: '新版 · 更强编码与理解' },
+    { id: 'gpt-4.1-mini', name: 'gpt-4.1-mini', desc: '新版 · 轻量' },
+    { id: 'o3-mini', name: 'o3-mini', desc: '推理版 · 深度思考' },
+  ],
+};
+
+// 各服务商默认模型（与 ai-service.ts 的 DEFAULT_MODELS 保持一致）
+const DEFAULT_MODEL_LABELS: Record<string, string> = {
+  deepseek: 'deepseek-chat',
+  qwen: 'qwen-plus',
+  openai: 'gpt-4o-mini',
+};
+
 // AI 人格选项
 const PERSONAS = [
   { id: 'literary', name: '文艺青年', icon: '🎨', desc: '用诗意的语言分析音乐，充满文学气息', example: '「这首歌像一封写给时光的情书...」' },
@@ -70,7 +107,8 @@ export default function SettingsPage() {
     try {
       await window.electronAPI.updateSettings({
         apiProvider: settings.apiProvider,
-        apiKey: settings.apiKey,
+        apiKeys: settings.apiKeys || {},
+        models: settings.models || {},
         customEndpoint: settings.customEndpoint,
       });
       showSaved();
@@ -166,13 +204,47 @@ export default function SettingsPage() {
               type="password"
               className="setting-input"
               style={{ width: '100%' }}
-              placeholder="输入你的 API Key..."
-              value={settings.apiKey}
-              onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
+              placeholder={settings.apiKeys?.[settings.apiProvider] ? '已配置，如需更换请重新输入' : `输入 ${PROVIDER_LABELS[settings.apiProvider]} 的 API Key...`}
+              value={settings.apiKeys?.[settings.apiProvider] || ''}
+              onChange={(e) => setSettings({
+                ...settings,
+                apiKeys: { ...(settings.apiKeys || {}), [settings.apiProvider]: e.target.value },
+              })}
             />
-            <span className="setting-hint">密钥只保存在你的电脑上，不会上传到任何地方</span>
+            <span className="setting-hint">每个服务商独立保存密钥，切换服务商后各自显示自己的密钥</span>
           </div>
         </div>
+
+        {/* 模型选择：deepseek/qwen/openai 用下拉框，custom 用输入框 */}
+        {settings.apiProvider !== 'custom' && (
+          <div className="setting-row">
+            <label className="setting-label">模型</label>
+            <select
+              className="setting-select"
+              value={settings.models?.[settings.apiProvider] || ''}
+              onChange={(e) => updateField('models', { ...(settings.models || {}), [settings.apiProvider]: e.target.value })}
+            >
+              <option value="">默认（{DEFAULT_MODEL_LABELS[settings.apiProvider] || ''}）</option>
+              {(PROVIDER_MODELS[settings.apiProvider] || []).map((m) => (
+                <option key={m.id} value={m.id}>{m.name} — {m.desc}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {settings.apiProvider === 'custom' && (
+          <div className="setting-row">
+            <label className="setting-label">模型名</label>
+            <input
+              type="text"
+              className="setting-input"
+              style={{ flex: 1, maxWidth: 400 }}
+              placeholder="输入模型名，如 deepseek-chat"
+              value={settings.models?.custom || ''}
+              onChange={(e) => setSettings({ ...settings, models: { ...(settings.models || {}), custom: e.target.value } })}
+            />
+          </div>
+        )}
 
         {settings.apiProvider === 'custom' && (
           <div className="setting-row">

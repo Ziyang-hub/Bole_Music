@@ -294,13 +294,16 @@ ipcMain.handle('store:getSettings', async () => getSettings());
 ipcMain.handle('store:updateSettings', async (_e, partial) => {
   const updated = updateSettings(partial);
 
-  // 如果配置了新的 API Key，重置去重状态让下次检测立即生效
-  if (partial.apiKey && partial.apiKey.trim()) {
-    lastDetectedSong = '';
-    lastDetectedTime = 0;
-    // 同时清除歌曲分析缓存，让新 API Key 的分析结果生效
-    clearAnalysisCache();
-    console.log('[app] API key updated, reset dedup + cache');
+  // 如果配置了新的 API Key（任一服务商），重置去重状态让下次检测立即生效
+  if (partial.apiKeys) {
+    const key = (updated.apiKeys?.[updated.apiProvider] || '').trim();
+    if (key) {
+      lastDetectedSong = '';
+      lastDetectedTime = 0;
+      // 同时清除歌曲分析缓存，让新 API Key 的分析结果生效
+      clearAnalysisCache();
+      console.log('[app] API key updated, reset dedup + cache');
+    }
   }
 
   // 通知渲染进程设置已变更（主题等需要实时生效）
@@ -576,10 +579,11 @@ ipcMain.handle('audio:diagnose', async () => {
 
   // 4. 检查 AI 服务
   const settings = getSettings();
-  if (settings.apiKey) {
-    ok.push('AI 服务已配置');
+  const currentApiKey = (settings.apiKeys?.[settings.apiProvider] || '').trim();
+  if (currentApiKey) {
+    ok.push(`AI 服务已配置（${settings.apiProvider}）`);
   } else {
-    issues.push('未配置 AI 服务（去设置页填 DeepSeek API Key）');
+    issues.push(`未配置 ${settings.apiProvider} 的 API Key（去设置页填写）`);
   }
 
   return { ok, issues, ready: issues.length === 0 };

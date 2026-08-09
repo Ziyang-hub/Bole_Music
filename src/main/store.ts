@@ -42,8 +42,10 @@ export interface UserSettings {
   persona: 'literary' | 'professional' | 'warm' | 'humorous';
   /** AI 服务商 */
   apiProvider: 'deepseek' | 'qwen' | 'openai' | 'custom';
-  /** API 密钥 */
-  apiKey: string;
+  /** 各服务商的 API 密钥（一个服务商一个密钥） */
+  apiKeys: Record<string, string>;
+  /** 各服务商的自定义模型（未配置时使用默认模型） */
+  models: Record<string, string>;
   /** 自定义 API 地址 */
   customEndpoint: string;
   /** 自动音频采集 */
@@ -101,7 +103,8 @@ export interface ListeningStats {
 const defaultSettings: UserSettings = {
   persona: 'literary',
   apiProvider: 'deepseek',
-  apiKey: '',
+  apiKeys: {},
+  models: {},
   customEndpoint: '',
   autoListen: false,
   autoDiary: false,
@@ -169,7 +172,18 @@ export function deleteMessages(ids: string[]): void {
 // ============================================================
 
 export function getSettings(): UserSettings {
-  return store.get('settings', defaultSettings);
+  const settings = store.get('settings', defaultSettings);
+  // 旧版本兼容：apiKey 是单个字符串，迁移为 apiKeys[deepseek]
+  const legacy = (settings as any).apiKey;
+  if (typeof legacy === 'string' && legacy) {
+    settings.apiKeys = { ...(settings.apiKeys || {}), deepseek: legacy };
+    delete (settings as any).apiKey;
+    store.set('settings', settings);
+    console.log('[store] migrated legacy apiKey to apiKeys.deepseek');
+  }
+  if (!settings.apiKeys) settings.apiKeys = {};
+  if (!settings.models) settings.models = {};
+  return settings;
 }
 
 export function updateSettings(partial: Partial<UserSettings>): UserSettings {

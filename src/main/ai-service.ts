@@ -292,10 +292,11 @@ export async function runAgent(
   conversationHistory: { role: string; content: string }[]
 ): Promise<string> {
   const settings = getSettings();
+  const currentKey = (settings.apiKeys?.[settings.apiProvider] || '').trim();
   console.log('[bole-agent] runAgent called');
   console.log('[bole-agent] API provider:', settings.apiProvider);
-  console.log('[bole-agent] API key length:', settings.apiKey?.length || 0);
-  console.log('[bole-agent] API key empty?:', !settings.apiKey || settings.apiKey.trim() === '');
+  console.log('[bole-agent] API key length:', currentKey.length);
+  console.log('[bole-agent] API key empty?:', currentKey === '');
   console.log('[bole-agent] User message:', userMessage.slice(0, 100));
   const personaPrompt = PERSONA_PROMPTS[settings.persona] || PERSONA_PROMPTS.literary;
 
@@ -436,7 +437,7 @@ async function _callAI(
   settings: ReturnType<typeof getSettings>,
   withTools: boolean
 ): Promise<any> {
-  const apiKey = (settings.apiKey || '').trim();
+  const apiKey = (settings.apiKeys?.[settings.apiProvider] || '').trim();
   console.log('[bole-agent] _callAI: provider=', settings.apiProvider, 'keyLen=', apiKey.length, 'keyStarts=', apiKey.slice(0, 5), 'withTools=', withTools);
   if (!apiKey) {
     console.error('[bole-agent] _callAI: NO API KEY! Throwing error.');
@@ -454,7 +455,10 @@ async function _callAI(
       ? settings.customEndpoint
       : API_ENDPOINTS[settings.apiProvider] || API_ENDPOINTS.deepseek;
 
-  const model = DEFAULT_MODELS[settings.apiProvider] || 'deepseek-chat';
+  const model = (settings.models?.[settings.apiProvider] || '').trim()
+    || DEFAULT_MODELS[settings.apiProvider]
+    || 'deepseek-chat';
+  console.log('[bole-agent] _callAI: model=', model);
   console.log('[bole-agent] _callAI: endpoint=', endpoint, 'model=', model);
 
   const body: any = {
