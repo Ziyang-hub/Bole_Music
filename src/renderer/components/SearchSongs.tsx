@@ -4,9 +4,10 @@
  */
 
 import React, { useState } from 'react';
+import Modal from './Modal';
 
 interface Props {
-  onSelect: (songName: string, artist: string, lyrics?: string) => void;
+  onSelect: (songName: string, artist: string, lyrics?: string, songId?: string) => void;
   onClose: () => void;
 }
 
@@ -26,6 +27,7 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
     const kw = keyword.trim();
     if (!kw || !window.electronAPI) return;
 
+    console.log('[search] searching:', kw, 'offset:', resetOffset ? 0 : offset);
     setSearching(true);
     setSearched(true);
 
@@ -42,6 +44,7 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
           setOffset(prev => prev + PAGE_SIZE);
         }
         setHasMore(songs.length >= PAGE_SIZE);
+        console.log('[search] found:', songs.length, 'songs, hasMore:', songs.length >= PAGE_SIZE);
       }
     } catch {
       if (resetOffset) setResults([]);
@@ -73,92 +76,85 @@ export default function SearchSongs({ onSelect, onClose }: Props) {
       setLoadingLyrics(null);
     }
 
-    onSelect(song.name, song.artists.join('、'), lyrics);
+    console.log('[search] selected song:', song.name, song.id);
+    onSelect(song.name, song.artists.join('、'), lyrics, song.id);
   }
 
   return (
-    <div className="search-overlay" onClick={onClose}>
-      <div className="search-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="search-header">
-          <span>🔍 搜索歌曲</span>
-          <button className="search-close-btn" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="search-input-row">
-          <input
-            className="search-input"
-            placeholder="输入歌名或歌手..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={handleKeyDown}
-            autoFocus
-          />
-          <button
-            className="search-btn"
-            onClick={() => { setOffset(0); handleSearch(true); }}
-            disabled={searching || !keyword.trim()}
-          >
-            {searching ? '搜索中...' : '搜索'}
-          </button>
-        </div>
-
-        <div className="search-results">
-          {!searched && (
-            <div className="search-hint">
-              <p>💡 输入关键词搜索歌曲，比如「晴天」「周杰伦」</p>
-            </div>
-          )}
-
-          {searching && !loadingMore && (
-            <div className="search-loading">⏳ 搜索中...</div>
-          )}
-
-          {searched && !searching && results.length === 0 && (
-            <div className="search-empty">😕 没有找到相关歌曲，换个关键词试试</div>
-          )}
-
-          {results.map((song) => (
-            <div
-              key={song.id}
-              className="search-result-item"
-              onClick={() => handleSelect(song)}
-            >
-              {song.album?.picUrl ? (
-                <img className="search-album-cover"
-                  src={song.album.picUrl.startsWith('data:') ? song.album.picUrl : song.album.picUrl + '?param=80y80'}
-                  alt="" />
-              ) : (
-                <div className="search-album-placeholder">🎵</div>
-              )}
-              <div className="search-song-info">
-                <div className="search-song-name">
-                  {song.name}
-                  {loadingLyrics === song.id && (
-                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 8 }}>⏳</span>
-                  )}
-                </div>
-                <div className="search-song-artist">{song.artists.join(' / ')}</div>
-                {song.album && <div className="search-song-album">{song.album.name}</div>}
-              </div>
-              <div className="search-song-platform">
-                {song.platform === 'netease' ? '🔴 网易云' : song.platform === 'qq' ? '🟢 QQ' : ''}
-              </div>
-            </div>
-          ))}
-
-          {hasMore && results.length > 0 && (
-            <div style={{ textAlign: 'center', padding: '12px 0' }}>
-              <button className="search-btn"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}
-              >
-                {loadingMore ? '加载中...' : '📥 加载更多'}
-              </button>
-            </div>
-          )}
-        </div>
+    <Modal isOpen={true} onClose={onClose} title="🔍 搜索歌曲">
+      <div className="search-input-row">
+        <input
+          className="search-input"
+          placeholder="输入歌名或歌手..."
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          onKeyDown={handleKeyDown}
+          autoFocus
+        />
+        <button
+          className="search-btn"
+          onClick={() => { setOffset(0); handleSearch(true); }}
+          disabled={searching || !keyword.trim()}
+        >
+          {searching ? '搜索中...' : '搜索'}
+        </button>
       </div>
-    </div>
+
+      <div className="search-results">
+        {!searched && (
+          <div className="search-hint">
+            <p>💡 输入关键词搜索歌曲，比如「晴天」「周杰伦」</p>
+          </div>
+        )}
+
+        {searching && !loadingMore && (
+          <div className="search-loading">⏳ 搜索中...</div>
+        )}
+
+        {searched && !searching && results.length === 0 && (
+          <div className="search-empty">😕 没有找到相关歌曲，换个关键词试试</div>
+        )}
+
+        {results.map((song) => (
+          <div
+            key={song.id}
+            className="search-result-item"
+            onClick={() => handleSelect(song)}
+          >
+            {song.album?.picUrl ? (
+              <img className="search-album-cover"
+                src={song.album.picUrl.startsWith('data:') ? song.album.picUrl : song.album.picUrl + '?param=80y80'}
+                alt="" />
+            ) : (
+              <div className="search-album-placeholder">🎵</div>
+            )}
+            <div className="search-song-info">
+              <div className="search-song-name">
+                {song.name}
+                {loadingLyrics === song.id && (
+                  <span className="search-loading-indicator">⏳</span>
+                )}
+              </div>
+              <div className="search-song-artist">{song.artists.join(' / ')}</div>
+              {song.album && <div className="search-song-album">{song.album.name}</div>}
+            </div>
+            <div className="search-song-platform">
+              {song.platform === 'netease' ? '🔴 网易云' : song.platform === 'qq' ? '🟢 QQ' : ''}
+            </div>
+          </div>
+        ))}
+
+        {hasMore && results.length > 0 && (
+          <div className="search-load-more-wrap">
+            <button className="search-btn search-load-more-btn"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore ? '加载中...' : '📥 加载更多'}
+            </button>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

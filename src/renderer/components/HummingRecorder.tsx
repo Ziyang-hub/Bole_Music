@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useRef } from 'react';
+import Modal from './Modal';
 
 interface Props {
   onClose: () => void;
@@ -20,6 +21,7 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
 
   async function startRecording() {
     try {
+      console.log('[humming] starting recording');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorder.current = recorder;
@@ -39,12 +41,13 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
       setRecording(true);
     } catch (err) {
       alert('无法访问麦克风，请检查浏览器权限');
-      console.error(err);
+      console.error('[humming] mic error:', err);
     }
   }
 
   function stopRecording() {
     if (mediaRecorder.current && recording) {
+      console.log('[humming] stopping recording');
       mediaRecorder.current.stop();
       setRecording(false);
     }
@@ -52,15 +55,15 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
 
   async function recognizeAudio(blob: Blob) {
     setRecognizing(true);
+    console.log('[humming] recognizing audio, size:', blob.size);
     try {
-      // 将录制的音频发送到主进程，用 Shazam 识别
       const buf = await blob.arrayBuffer();
-      // 通过 IPC 发送音频数据到主进程识别
       if (window.electronAPI && (window.electronAPI as any).recognizeAudioBlob) {
         const res = await (window.electronAPI as any).recognizeAudioBlob(buf);
         if (res?.title) {
           setResult(`✅ 识别成功！\n\n🎵 ${res.title}\n👤 ${res.artist || '未知歌手'}`);
           onResult(res.title, res.artist || '');
+          console.log('[humming] recognized:', res.title, res.artist);
         } else {
           setResult('😕 未能识别出歌曲。\n\n建议：\n- 哼唱更长的片段（5-10秒）\n- 尽量接近原曲的旋律\n- 或者直接输入歌名搜索');
         }
@@ -74,54 +77,44 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
   }
 
   return (
-    <div className="search-overlay" onClick={onClose}>
-      <div className="search-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
-        <div className="search-header">
-          <span>🎤 哼歌识别</span>
-          <button className="search-close-btn" onClick={onClose}>✕</button>
+    <Modal isOpen={true} onClose={onClose} title="🎤 哼歌识别" maxWidth={400}>
+      <div className="humming-body">
+        <div className="humming-icon">
+          {recording ? '🔴' : recognizing ? '⏳' : '🎤'}
         </div>
 
-        <div style={{ padding: 20, textAlign: 'center' }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>
-            {recording ? '🔴' : recognizing ? '⏳' : '🎤'}
+        {!result && (
+          <>
+            <p className="humming-hint">
+              {recording
+                ? '正在录制... 哼一段你喜欢的旋律吧'
+                : recognizing
+                ? '正在识别...'
+                : '点击按钮开始录制，哼唱 5-10 秒'}
+            </p>
+            <button
+              className={`search-btn${recording ? ' humming-stop-btn' : ''}`}
+              onClick={recording ? stopRecording : startRecording}
+            >
+              {recording ? '⏹ 停止录制' : '🎤 开始录制'}
+            </button>
+          </>
+        )}
+
+        {result && (
+          <div className="humming-result-box">
+            {result}
           </div>
+        )}
 
-          {!result && (
-            <>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-                {recording
-                  ? '正在录制... 哼一段你喜欢的旋律吧'
-                  : recognizing
-                  ? '正在识别...'
-                  : '点击按钮开始录制，哼唱 5-10 秒'}
-              </p>
-              <button
-                className={`search-btn ${recording ? '' : ''}`}
-                onClick={recording ? stopRecording : startRecording}
-                style={recording ? { background: '#f44336' } : {}}
-              >
-                {recording ? '⏹ 停止录制' : '🎤 开始录制'}
-              </button>
-            </>
-          )}
-
-          {result && (
-            <div style={{
-              textAlign: 'left', padding: 12, background: 'var(--color-bg-tertiary)',
-              borderRadius: 8, fontSize: 13, lineHeight: 1.8,
-              whiteSpace: 'pre-wrap',
-            }}>
-              {result}
-            </div>
-          )}
-
-          {result && (
-            <button className="search-btn" onClick={onClose} style={{ marginTop: 12 }}>
+        {result && (
+          <div className="humming-done-btn">
+            <button className="search-btn" onClick={onClose}>
               知道了
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

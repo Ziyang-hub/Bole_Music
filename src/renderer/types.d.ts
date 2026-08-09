@@ -23,11 +23,18 @@ interface UserSettings {
   apiKey: string;
   customEndpoint: string;
   autoListen: boolean;
+  autoDiary: boolean;
   notifyOnAnalysis: boolean;
   dailyReport: boolean;
   weeklyReport: boolean;
   theme: 'dark' | 'light';
   recognitionBackend: 'shazam';
+}
+
+interface HotComment {
+  nickname: string;
+  content: string;
+  likedCount: number;
 }
 
 interface SongAnalysis {
@@ -122,6 +129,8 @@ interface ElectronAPI {
     Promise<{ success: boolean; data?: string | null; error?: string }>;
   getSongDetail: (songId: string) =>
     Promise<{ success: boolean; data?: SongInfo | null; error?: string }>;
+  getHotComments: (songId: string) =>
+    Promise<{ success: boolean; data?: HotComment[]; error?: string }>;
   parseSongUrl: (url: string) =>
     Promise<{ success: boolean; data?: { platform: string; songId: string; song: SongInfo | null; lyrics: string | null }; error?: string }>;
   isSongUrl: (text: string) => Promise<boolean>;

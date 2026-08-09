@@ -52,6 +52,25 @@
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* 间距 */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* 字体 */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial,
+    sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono',
+    'Courier New', monospace;
+
+  /* 在强调色上的文字色（用于按钮） */
+  --color-text-on-accent: #ffffff;
+}
 
 /* ============================================================
    浅色主题
@@ -81,22 +100,6 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
-  --radius-xl: 24px;
-
-  /* 间距 */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-
-  /* 字体 */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial,
-    sans-serif;
-  --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono',
-    'Courier New', monospace;
-}
 
 /* ----- 全局重置 ----- */
 *,
@@ -121,6 +124,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none; /* 桌面应用通常禁止选择 */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* 允许在输入框中选择文字 */
@@ -141,6 +145,7 @@ textarea {
   display: flex;
   height: 100vh;
   max-height: 100vh;
+  transition: background-color 0.3s ease;
 }
 
 /* ----- 加载画面 ----- */
@@ -190,11 +195,12 @@ textarea {
 .sidebar {
   width: 240px;
   min-width: 240px;
-  background-color: var(--color-bg-secondary);
+  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-card) 100%);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   padding: var(--space-lg) var(--space-md);
+  transition: background-color 0.3s ease;
 }
 
 .sidebar-header {
@@ -208,6 +214,7 @@ textarea {
 .logo {
   font-size: 32px;
   line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(240, 160, 80, 0.35));
 }
 
 .sidebar-header h1 {
@@ -249,6 +256,17 @@ textarea {
   background-color: var(--color-accent-bg);
   color: var(--color-accent);
   font-weight: 600;
+  position: relative;
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-accent);
 }
 
 .nav-item:disabled {
@@ -269,6 +287,10 @@ textarea {
   color: var(--color-text-muted);
   font-size: 12px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 /* ============================================================
@@ -406,20 +428,38 @@ textarea {
 }
 
 .message.user .message-bubble {
-  background-color: var(--color-user-bubble);
+  background: linear-gradient(135deg, var(--color-user-bubble) 0%, var(--color-bg-tertiary) 100%);
   border-bottom-right-radius: var(--radius-sm);
+  transition: box-shadow 0.2s ease;
 }
 
 .message.bole .message-bubble {
   background-color: var(--color-bole-bubble);
   border: 1px solid var(--color-border);
   border-bottom-left-radius: var(--radius-sm);
+  position: relative;
+}
+.message.bole .message-bubble::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 12px;
+  width: 12px;
+  height: 12px;
+  background: var(--color-bole-bubble);
+  border-left: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  transform: rotate(45deg);
 }
 
 .message-text {
   font-size: 14px;
-  line-height: 1.7;
+  line-height: 1.8;
   color: var(--color-text-primary);
+}
+
+.message-bubble:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .message-time {
@@ -520,7 +560,7 @@ textarea {
     var(--color-accent),
     var(--color-accent-dark)
   );
-  color: #fff;
+  color: var(--color-text-on-accent);
   font-size: 14px;
   font-weight: 600;
   font-family: var(--font-sans);
@@ -536,7 +576,16 @@ textarea {
 }
 
 .send-button:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.97);
+}
+.search-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.toggle:active {
+  transform: scale(0.97);
+}
+.nav-item:active {
+  transform: scale(0.97);
 }
 
 .send-button:disabled {
@@ -601,10 +650,11 @@ textarea {
 }
 
 .page-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--color-text-primary);
   margin-bottom: var(--space-xs);
+  letter-spacing: -0.3px;
 }
 
 .page-subtitle {
@@ -615,7 +665,7 @@ textarea {
 
 /* ----- 区块卡片（各页面通用）----- */
 .section-card {
-  background-color: var(--color-bg-secondary);
+  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-card) 100%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
@@ -623,7 +673,7 @@ textarea {
 }
 
 .section-header {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--color-text-primary);
   margin-bottom: var(--space-md);
@@ -648,16 +698,18 @@ textarea {
 }
 
 .stat-card {
-  background-color: var(--color-bg-secondary);
+  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-card) 100%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   text-align: center;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stat-card:hover {
   border-color: var(--color-accent);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 
 .stat-icon {
@@ -1158,15 +1210,24 @@ textarea {
    ============================================================ */
 .empty-state {
   text-align: center;
-  padding: 48px;
+  padding: 64px 32px;
 }
 .empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 56px;
+  margin-bottom: 20px;
+  opacity: 0.85;
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 .empty-state p {
   color: var(--color-text-muted);
   margin-top: 8px;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* ============================================================
@@ -1204,7 +1265,7 @@ textarea {
   border: 1px solid var(--color-accent);
   border-radius: 20px;
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
   font-size: 13px;
   font-family: var(--font-sans);
   cursor: pointer;
@@ -1348,7 +1409,7 @@ textarea {
 }
 .diary-save-btn {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
 }
 .diary-cancel-btn {
   background: var(--color-bg-tertiary);
@@ -1434,7 +1495,7 @@ textarea {
 .search-input:focus { border-color: var(--color-accent); }
 .search-btn {
   padding: 10px 20px; border: none; border-radius: var(--radius-sm);
-  background: var(--color-accent); color: #fff; font-weight: 600;
+  background: var(--color-accent); color: var(--color-text-on-accent); font-weight: 600;
   font-size: 13px; font-family: var(--font-sans); cursor: pointer;
 }
 .search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -1465,6 +1526,16 @@ textarea {
 .search-song-artist { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 .search-song-album { font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
 .search-song-platform { font-size: 11px; color: var(--color-text-muted); flex-shrink: 0; }
+.search-load-more-wrap { text-align: center; padding: 12px 0; }
+.search-load-more-btn {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text-secondary) !important;
+}
+.search-loading-indicator {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-left: 8px;
+}
 
 /* ============================================================
    歌曲确认卡片
@@ -1483,7 +1554,7 @@ textarea {
 }
 .song-confirm-btn.confirm {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
 }
 .song-confirm-btn.confirm:hover {
   background: var(--color-accent-dark);
@@ -1525,4 +1596,212 @@ textarea {
 }
 .msg-delete-btn:hover {
   color: var(--color-danger);
+}
+
+/* ============================================================
+   弹窗入场动画
+   ============================================================ */
+.search-panel {
+  animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ============================================================
+   哼歌识别组件样式
+   ============================================================ */
+.humming-body {
+  padding: 20px;
+  text-align: center;
+}
+
+.humming-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.humming-hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+}
+
+.humming-result-box {
+  text-align: left;
+  padding: 12px;
+  background: var(--color-bg-tertiary);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.humming-done-btn {
+  margin-top: 12px;
+}
+
+.humming-stop-btn {
+  background: var(--color-danger) !important;
+}
+
+.humming-stop-btn:hover {
+  background: #d32f2f !important;
+}
+
+/* ============================================================
+   侦听状态提示
+   ============================================================ */
+.listening-hint {
+  text-align: center;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--color-accent-light);
+}
+
+/* ============================================================
+   歌单导入样式
+   ============================================================ */
+.playlist-body { padding: 20px; }
+
+.playlist-hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 12px;
+  line-height: 1.7;
+}
+
+.playlist-hint code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--color-bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.playlist-input-row { padding: 0; border: none; }
+
+.playlist-title-row {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 8px;
+  color: var(--color-text-primary);
+}
+
+.playlist-song-count {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-left: 8px;
+  font-weight: 400;
+}
+
+.playlist-progress-box {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: var(--color-accent-bg);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--color-accent-light);
+}
+
+.playlist-progress-track {
+  height: 4px;
+  background: var(--color-bg-tertiary);
+  border-radius: 2px;
+  margin-top: 6px;
+}
+
+.playlist-progress-fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.playlist-song-list {
+  max-height: 400px;
+  overflow: auto;
+}
+
+.playlist-song-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.playlist-song-index {
+  color: var(--color-text-muted);
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.playlist-song-name {
+  flex: 1;
+  color: var(--color-text-primary);
+}
+
+.playlist-song-artist {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.playlist-overflow-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 12px;
+}
+
+.playlist-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+/* ============================================================
+   增强听歌报告 - 情绪时间线 / 时段分布 / 循环冠军
+   ============================================================ */
+.mood-timeline-report {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.mood-timeline-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 6px 12px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+.mood-timeline-date {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.mood-timeline-badge {
+  color: var(--color-accent-light);
+  font-weight: 600;
+}
+
+.repeat-leader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) 0;
+}
+.repeat-song {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-accent-light);
+}
+.repeat-count {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-accent);
 }

@@ -94,6 +94,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('music:getLyrics', songId),
   getSongDetail: (songId: string) =>
     ipcRenderer.invoke('music:getSongDetail', songId),
+  getHotComments: (songId: string) =>
+    ipcRenderer.invoke('music:getHotComments', songId),
   parseSongUrl: (url: string) =>
     ipcRenderer.invoke('music:parseUrl', url),
   isSongUrl: (text: string) =>

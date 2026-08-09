@@ -232,3 +232,40 @@ export async function getSongFullInfo(
   ]);
   return { song, lyrics };
 }
+
+// ----- 热评 -----
+
+export interface HotComment {
+  nickname: string;
+  content: string;
+  likedCount: number;
+}
+
+/**
+ * 获取网易云歌曲热评
+ * 用于 AI 分析时提供社交情感参考
+ */
+export async function getHotComments(songId: string): Promise<HotComment[]> {
+  try {
+    const { comment_music } = await import('NeteaseCloudMusicApi');
+    const result = await comment_music({ id: Number(songId), limit: 5, offset: 0 });
+    if (result.status === 200) {
+      const hotComments = (result.body as any)?.hotComments || [];
+      const mapped = hotComments
+        .sort((a: any, b: any) => (b.likedCount || 0) - (a.likedCount || 0))
+        .slice(0, 3)
+        .map((c: any) => ({
+          nickname: c.user?.nickname || '网易云网友',
+          content: c.content || '',
+          likedCount: c.likedCount || 0,
+        }));
+      console.log(`[music] getHotComments: ${mapped.length} comments for song ${songId}`);
+      return mapped;
+    }
+    console.log('[music] getHotComments: no hot comments, status:', result.status);
+    return [];
+  } catch (err) {
+    console.error('[music] getHotComments failed:', err);
+    return [];
+  }
+}

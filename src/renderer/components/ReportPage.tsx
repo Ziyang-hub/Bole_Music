@@ -193,6 +193,40 @@ export default function ReportPage() {
         </div>
       </div>
 
+      {/* 情绪时间线 */}
+      {getMoodTimeline(diary).length > 0 && (
+        <div className="section-card">
+          <div className="section-header">💭 情绪时间线</div>
+          <div className="mood-timeline-report">
+            {getMoodTimeline(diary).map((d, i) => (
+              <div key={i} className="mood-timeline-item">
+                <span className="mood-timeline-date">{d.date}</span>
+                <span className="mood-timeline-badge">{d.mood}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 听歌时段分布 */}
+      {stats.totalSongs > 0 && (
+        <div className="section-card">
+          <div className="section-header">⏰ 听歌时段分布</div>
+          <TimeOfDayChart data={getTimeOfDayDistribution(diary)} />
+        </div>
+      )}
+
+      {/* 单曲循环冠军 */}
+      {stats.topSongs.length > 0 && (
+        <div className="section-card ai-report-card">
+          <div className="section-header">🔁 单曲循环冠军</div>
+          <div className="repeat-leader">
+            <span className="repeat-song">{stats.topSongs[0].title} — {stats.topSongs[0].artist}</span>
+            <span className="repeat-count">{stats.topSongs[0].count} 次</span>
+          </div>
+        </div>
+      )}
+
       {/* 曲风分布 */}
       {genreList.length > 0 && (
         <div className="section-card">
@@ -263,6 +297,52 @@ function getTopKey(record: Record<string, number>): string | null {
     if (val > topVal) { topVal = val; topKey = key; }
   }
   return topKey;
+}
+
+/** 统计听歌时段分布 */
+function getTimeOfDayDistribution(diary: DiaryEntry[]): Record<string, number> {
+  const buckets: Record<string, number> = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+  diary.forEach((day) => {
+    day.songs.forEach((song) => {
+      if (!song.time) return;
+      const hour = parseInt(song.time.split(':')[0], 10);
+      if (hour >= 5 && hour < 12) buckets.morning++;
+      else if (hour >= 12 && hour < 18) buckets.afternoon++;
+      else if (hour >= 18 && hour < 22) buckets.evening++;
+      else buckets.night++;
+    });
+  });
+  return buckets;
+}
+
+/** 获取最近的情绪时间线 */
+function getMoodTimeline(diary: DiaryEntry[]): { date: string; mood: string }[] {
+  return diary
+    .filter((d) => d.mood)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 14)
+    .reverse()
+    .map((d) => ({ date: d.date.slice(5), mood: d.mood }));
+}
+
+function TimeOfDayChart({ data }: { data: Record<string, number> }) {
+  const labels: Record<string, string> = { morning: '🌅 早晨', afternoon: '☀️ 下午', evening: '🌆 傍晚', night: '🌙 深夜' };
+  const total = Object.values(data).reduce((a, b) => a + b, 0) || 1;
+  return (
+    <div className="genre-list">
+      {Object.entries(data).map(([key, count]) => (
+        <div key={key} className="genre-item">
+          <div className="genre-label">
+            <span>{labels[key] || key}</span>
+            <span>{count}首</span>
+          </div>
+          <div className="genre-bar-bg">
+            <div className="genre-bar-fill" style={{ width: `${(count / total) * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /** 导出听歌报告为文本 */

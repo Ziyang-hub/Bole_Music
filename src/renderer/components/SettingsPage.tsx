@@ -283,6 +283,20 @@ export default function SettingsPage() {
           </button>
         </div>
 
+        {/* 自动写入日记 */}
+        <div className="setting-row">
+          <div className="setting-info">
+            <label className="setting-label">自动写入日记</label>
+            <span className="setting-desc">自动识别的歌曲直接分析并写入听歌日记，无需手动确认</span>
+          </div>
+          <button
+            className={`toggle ${settings.autoDiary ? 'on' : 'off'}`}
+            onClick={() => updateField('autoDiary', !settings.autoDiary)}
+          >
+            {settings.autoDiary ? '已开启' : '已关闭'}
+          </button>
+        </div>
+
         {/* 歌曲识别 — 已简化为 Shazam 单一后端 */}
         <div className="setting-row">
           <div className="setting-info">

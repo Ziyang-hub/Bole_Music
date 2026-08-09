@@ -48,6 +48,8 @@ export interface UserSettings {
   customEndpoint: string;
   /** 自动音频采集 */
   autoListen: boolean;
+  /** 自动写入日记 */
+  autoDiary: boolean;
   /** 分析完成通知 */
   notifyOnAnalysis: boolean;
   /** 每日小结 */
@@ -102,6 +104,7 @@ const defaultSettings: UserSettings = {
   apiKey: '',
   customEndpoint: '',
   autoListen: false,
+  autoDiary: false,
   notifyOnAnalysis: true,
   dailyReport: true,
   weeklyReport: true,

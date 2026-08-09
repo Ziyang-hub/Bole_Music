@@ -32,7 +32,7 @@ export function installMockAPI() {
     // 设置
     getSettings: async () => lsGet<UserSettings>('settings', {
       persona: 'literary', apiProvider: 'deepseek', apiKey: '', customEndpoint: '',
-      autoListen: false, notifyOnAnalysis: true, dailyReport: true, weeklyReport: true,
+      autoListen: false, autoDiary: false, notifyOnAnalysis: true, dailyReport: true, weeklyReport: true,
       theme: 'dark', recognitionBackend: 'shazam',
     }),
     updateSettings: async (p: any) => {

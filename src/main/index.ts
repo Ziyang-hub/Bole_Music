@@ -53,6 +53,7 @@ import {
   isPlaylistUrl,
   parsePlaylistUrl,
   getPlaylistSongs,
+  getHotComments,
 } from './music-platforms';
 import { getCachedAnalysis, cacheAnalysis, clearAnalysisCache, trackUsage, getUsageStats } from './store';
 
@@ -643,6 +644,15 @@ ipcMain.handle('music:getPlaylist', async (_e, url: string) => {
     if (!playlistId) return { success: false, error: '无法识别歌单链接' };
     const data = await getPlaylistSongs(playlistId);
     return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('music:getHotComments', async (_e, songId: string) => {
+  try {
+    const comments = await getHotComments(songId);
+    return { success: true, data: comments };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

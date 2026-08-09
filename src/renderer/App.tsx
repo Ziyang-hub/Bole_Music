@@ -82,9 +82,28 @@ export default function App() {
       if (!window.electronAPI) return;
 
       try {
-        // 加载主题
+        // 加载主题：已保存的 > 系统偏好 > 暗色
         const t = await window.electronAPI.getTheme();
-        setTheme(t as 'dark' | 'light');
+        if (t === 'dark' || t === 'light') {
+          setTheme(t);
+          console.log('[app] theme loaded from store:', t);
+        } else {
+          const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+          const fallback = prefersLight ? 'light' : 'dark';
+          setTheme(fallback);
+          console.log('[app] theme from OS preference:', fallback);
+        }
+
+        // 监听系统主题变化（当用户未手动设置时自动跟随）
+        const mq = window.matchMedia('(prefers-color-scheme: light)');
+        mq.addEventListener('change', (e) => {
+          setTheme((prev) => {
+            // 只在用户没有手动选择时跟随系统
+            const newTheme = e.matches ? 'light' : 'dark';
+            console.log('[app] OS theme changed to:', newTheme);
+            return newTheme;
+          });
+        });
 
         // 监听设置变更（主题实时切换等）
         window.electronAPI.onSettingsChanged?.((s: any) => {
@@ -181,21 +200,45 @@ export default function App() {
       if (result.title && result.confidence > 40) {
         setCurrentView('chat');
 
-        // 显示确认卡片（不自动分析）
+        // 检查是否开启了自动写入日记
+        const settings = await window.electronAPI!.getSettings();
+        const autoDiary = settings.autoDiary && settings.autoListen;
+
         const detectMsg: ChatMessage = {
           id: generateId(),
           role: 'user',
-          content: `🎧 自动检测到正在播放`,
+          content: autoDiary
+            ? `🎧 检测到：${result.title} — ${result.artist || ''}`
+            : `🎧 自动检测到正在播放`,
           timestamp: nowISO(),
           meta: {
             type: 'song_detected',
             songTitle: result.title,
             songArtist: result.artist || '',
-            confirmed: false,
+            confirmed: autoDiary,
           },
         };
         setMessages((prev) => [...prev, detectMsg]);
         await window.electronAPI!.addMessage(detectMsg);
+
+        if (autoDiary) {
+          // 自动分析并写入日记
+          console.log('[app] auto-diary: auto confirming', result.title);
+          try {
+            const analysis = await window.electronAPI!.analyzeSong(result.title, result.artist || '');
+            if (analysis.success && analysis.data) {
+              const boleMsg: ChatMessage = { id: generateId(), role: 'bole', content: formatAnalysis(analysis.data), timestamp: nowISO() };
+              setMessages((prev) => [...prev, boleMsg]);
+              await window.electronAPI!.addMessage(boleMsg);
+            } else {
+              const hintMsg: ChatMessage = { id: generateId(), role: 'bole', content: `🎵 ${result.title} — ${result.artist || ''}\n\n识别成功！去「设置」页面配置 DeepSeek API Key 即可开启 AI 分析。`, timestamp: nowISO() };
+              setMessages((prev) => [...prev, hintMsg]);
+              await window.electronAPI!.addMessage(hintMsg);
+            }
+          } catch (err) {
+            console.error('[app] auto-diary analysis failed:', err);
+          }
+        }
       }
     };
 
@@ -507,7 +550,7 @@ export default function App() {
 
   // 搜索回调
   const handleSearchSelect = useCallback(
-    async (songName: string, artist: string, lyrics?: string) => {
+    async (songName: string, artist: string, lyrics?: string, songId?: string) => {
       setShowSearch(false);
       // 在输入框填入并自动发送
       const searchText = `${songName} ${artist}`;
@@ -540,6 +583,30 @@ export default function App() {
             mood: result.data.emotion || '未知',
             summary: '',
           });
+
+          // 网易云热评
+          if (songId) {
+            try {
+              console.log('[app] fetching hot comments for songId:', songId);
+              const commentsRes = await (window.electronAPI as any).getHotComments(songId);
+              if (commentsRes.success && commentsRes.data && commentsRes.data.length > 0) {
+                const commentsText = commentsRes.data
+                  .map((c: HotComment, i: number) => `${i + 1}. "${c.content}"\n   — ${c.nickname} 👍 ${c.likedCount}`)
+                  .join('\n\n');
+                const commentsMsg: ChatMessage = {
+                  id: generateId(),
+                  role: 'bole',
+                  content: `🗨️ 网易云热评精选\n\n${commentsText}`,
+                  timestamp: nowISO(),
+                };
+                setMessages((prev) => [...prev, commentsMsg]);
+                await window.electronAPI.addMessage(commentsMsg);
+                console.log('[app] hot comments appended for', songName);
+              }
+            } catch (e) {
+              console.log('[app] failed to load hot comments:', e);
+            }
+          }
         }
       } catch {
         // 失败静默
@@ -727,10 +794,7 @@ export default function App() {
                 </button>
               </div>
               {isListening && (
-                <div style={{
-                  textAlign: 'center', padding: '6px 0', fontSize: 12,
-                  color: 'var(--color-accent-light)',
-                }}>
+                <div className="listening-hint">
                   🎧 正在监听系统音频... 播放音乐后会自动识别和分析
                 </div>
               )}
