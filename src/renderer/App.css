@@ -1885,13 +1885,16 @@ textarea {
 }
 .diary-edit-input {
   width: 100%;
-  padding: 8px;
+  min-height: 90px;
+  padding: 10px 12px;
   border: 1px solid var(--color-accent);
   border-radius: var(--radius-sm);
   background: var(--color-bg-tertiary);
   color: var(--color-text-primary);
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.7;
   font-family: var(--font-sans);
+  resize: vertical;
   resize: vertical;
   outline: none;
 }
@@ -2319,4 +2322,9 @@ textarea {
   font-size: 24px;
   font-weight: 700;
   color: var(--color-accent);
+}
+
+/* 日记输入 Modal */
+.diary-modal-body {
+  padding: var(--space-md);
 }

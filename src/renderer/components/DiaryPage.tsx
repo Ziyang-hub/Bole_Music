@@ -13,6 +13,14 @@ export default function DiaryPage() {
   const [editNote, setEditNote] = useState('');
   const [editSongIndex, setEditSongIndex] = useState<number | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  // 输入 Modal 状态（Electron 中 window.prompt 不可用，用应用内表单替代）
+  const [inputModal, setInputModal] = useState<{
+    mode: 'addSong' | 'addNote' | null;
+    date: string;
+  }>({ mode: null, date: '' });
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalArtist, setModalArtist] = useState('');
+  const [modalNote, setModalNote] = useState('');
 
   const loadDiary = useCallback(async () => {
     if (!window.electronAPI) { setLoaded(true); return; }
@@ -60,15 +68,12 @@ export default function DiaryPage() {
     }
   }
 
-  // 手动添加歌曲到某一天
-  async function addSong(date: string) {
-    if (!window.electronAPI) return;
-    const title = prompt('歌曲名：');
-    if (!title) return;
-    const artist = prompt('歌手（可选）：') || '';
+  // 手动添加歌曲到某一天（应用内输入框，替代不可用的 window.prompt）
+  async function addSong(date: string, title: string, artist: string) {
+    if (!window.electronAPI || !title.trim()) return;
     const day = diary.find(d => d.date === date);
     const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    const newSong = { title, artist, time, note: '' };
+    const newSong = { title: title.trim(), artist: artist.trim(), time, note: '' };
     if (day) {
       await window.electronAPI.updateDiaryEntry(date, { songs: [...day.songs, newSong] });
     } else {
@@ -99,18 +104,34 @@ export default function DiaryPage() {
     setGeneratingFor(null);
   }
 
-  // 添加用户自己的感想
-  async function addUserNote(date: string) {
-    if (!window.electronAPI) return;
-    const note = prompt('输入你的感想：');
-    if (!note) return;
-
+  // 添加用户自己的感想（应用内输入框）
+  async function addUserNote(date: string, note: string) {
+    if (!window.electronAPI || !note.trim()) return;
     const day = diary.find((d) => d.date === date);
     if (!day) return;
 
-    const updatedSongs = [...day.songs, { title: '💭 我的感想', artist: '', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note }];
+    const updatedSongs = [...day.songs, { title: '💭 我的感想', artist: '', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: note.trim() }];
     await window.electronAPI.updateDiaryEntry(date, { songs: updatedSongs });
     loadDiary();
+  }
+
+  // 打开输入 Modal
+  function openInputModal(mode: 'addSong' | 'addNote', date: string) {
+    setModalTitle('');
+    setModalArtist('');
+    setModalNote('');
+    setInputModal({ mode, date });
+  }
+
+  // 确认输入 Modal
+  async function confirmInputModal() {
+    const { mode, date } = inputModal;
+    if (mode === 'addSong') {
+      await addSong(date, modalTitle, modalArtist);
+    } else if (mode === 'addNote') {
+      await addUserNote(date, modalNote);
+    }
+    setInputModal({ mode: null, date: '' });
   }
 
   if (!loaded) {
@@ -149,10 +170,10 @@ export default function DiaryPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <span className="diary-mood-badge">{day.mood || '未知'}</span>
-                    <button className="diary-action-btn" onClick={() => addSong(day.date)} title="添加歌曲">
+                    <button className="diary-action-btn" onClick={() => openInputModal('addSong', day.date)} title="添加歌曲">
                       ➕
                     </button>
-                    <button className="diary-action-btn" onClick={() => addUserNote(day.date)} title="添加感想">
+                    <button className="diary-action-btn" onClick={() => openInputModal('addNote', day.date)} title="添加感想">
                       ✏️
                     </button>
                     <button className="diary-action-btn" onClick={() => deleteDay(day.date)} title="删除">
@@ -185,7 +206,8 @@ export default function DiaryPage() {
                             className="diary-edit-input"
                             value={editNote}
                             onChange={(e) => setEditNote(e.target.value)}
-                            rows={2}
+                            rows={5}
+                            placeholder="写下你听这首歌时的感受..."
                           />
                           <div className="diary-edit-actions">
                             <button className="diary-save-btn" onClick={() => saveNote(day.date, i)}>
@@ -232,6 +254,52 @@ export default function DiaryPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 输入 Modal：添加歌曲 / 添加感想 */}
+      {inputModal.mode && (
+        <div className="search-overlay" onClick={() => setInputModal({ mode: null, date: '' })}>
+          <div className="search-panel" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="search-header">
+              <span>{inputModal.mode === 'addSong' ? '➕ 添加歌曲' : '✏️ 添加感想'}</span>
+              <button className="search-close-btn" onClick={() => setInputModal({ mode: null, date: '' })}>✕</button>
+            </div>
+            <div className="diary-modal-body">
+              {inputModal.mode === 'addSong' ? (
+                <>
+                  <input
+                    className="search-input"
+                    placeholder="歌曲名"
+                    value={modalTitle}
+                    onChange={(e) => setModalTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && confirmInputModal()}
+                    autoFocus
+                  />
+                  <input
+                    className="search-input"
+                    placeholder="歌手（可选）"
+                    value={modalArtist}
+                    onChange={(e) => setModalArtist(e.target.value)}
+                    style={{ marginTop: 8 }}
+                  />
+                </>
+              ) : (
+                <textarea
+                  className="diary-edit-input"
+                  placeholder="写下今天的感受..."
+                  value={modalNote}
+                  onChange={(e) => setModalNote(e.target.value)}
+                  rows={5}
+                  autoFocus
+                />
+              )}
+              <div className="diary-edit-actions" style={{ marginTop: 12 }}>
+                <button className="diary-save-btn" onClick={confirmInputModal}>确定</button>
+                <button className="diary-cancel-btn" onClick={() => setInputModal({ mode: null, date: '' })}>取消</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
