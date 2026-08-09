@@ -498,6 +498,14 @@ export default function App() {
     }
   }, [messages, isNearBottom]);
 
+  // 打开聊天窗口时直接定位到最新消息（不经过平滑动画，避免加载瞬间无效）
+  useEffect(() => {
+    if (currentView === 'chat' && messagesLoaded) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      setIsNearBottom(true);
+    }
+  }, [currentView, messagesLoaded]);
+
   // 计算当前视口位置对应的用户消息（"—"粗体跟随）
   const calcActiveMsg = () => {
     const el = messagesContainerRef.current;

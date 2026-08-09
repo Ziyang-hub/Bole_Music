@@ -28,6 +28,7 @@ const AUDIO_DIR = path.join(os.tmpdir(), 'bole-simulator-audio');
 let isRunning = false;
 let onChunk: AudioChunkCallback | null = null;
 let helperProc: ChildProcess | null = null;
+let fallbackMode = false; // true = helper 缺失，走 getUserMedia 降级路径
 
 // ============================================================
 // helper 二进制定位
@@ -63,11 +64,16 @@ function helperBinaryPath(): string | null {
  * @returns true = helper 启动成功（原生模式）；false = 需要降级到 getUserMedia
  */
 export function startCapture(callback: AudioChunkCallback): boolean {
-  if (isRunning) return true;
+  if (isRunning) return !fallbackMode;
 
   const bin = helperBinaryPath();
   if (!bin) {
+    // 降级模式：注册 chunk 管道（getUserMedia 路径会通过 audio:chunk 发数据），
+    // 但返回 false，让渲染进程继续启动 getUserMedia
     console.warn('[mac-audio] Helper binary not found, falling back to getUserMedia');
+    fallbackMode = true;
+    onChunk = callback;
+    isRunning = true;
     return false;
   }
 
@@ -78,6 +84,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
+    fallbackMode = false;
     onChunk = callback;
     isRunning = true;
 
@@ -128,6 +135,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
 
 export function stopCapture(): void {
   isRunning = false;
+  fallbackMode = false;
   if (helperProc) {
     try {
       helperProc.kill('SIGTERM');

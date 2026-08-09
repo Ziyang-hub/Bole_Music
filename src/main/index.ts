@@ -375,7 +375,7 @@ ipcMain.handle(
 
       // 用 Agent 分析（自然语言，不再强制 JSON）
       const artistHint = artist ? ` — ${artist}` : '';
-      const message = `🎧 请帮我分析一下这首歌：《${songName}》${artistHint}\n\n请在回复中自然提及这首歌的音乐风格/流派（如：流行摇滚、民谣、电子、爵士等），并在回复最后一行单独写【曲风：XXX】来标注。`;
+      const message = `🎧 请帮我分析一下这首歌：《${songName}》${artistHint}\n\n要求：\n1. 先用 get_lyrics 工具获取歌词，认真阅读歌词内容\n2. 结合歌词分析这首歌想表达的主题、情感和核心意象（歌词写了什么、为什么这么写）\n3. 介绍歌手背景与创作背景\n4. 自然提及这首歌的音乐风格/流派（如：流行摇滚、民谣、电子、爵士等）\n5. 在回复最后一行单独写【曲风：XXX】来标注`;
       const reply = await runAgent(message, [], persona as any);
 
       // 从回复中提取曲风，并清理显示文本
