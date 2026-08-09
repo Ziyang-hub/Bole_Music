@@ -64,18 +64,26 @@ function NewConversationModal({
   isOpen,
   onClose,
   onCreate,
+  defaultPersona,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onCreate: (name: string, persona: string) => void;
+  defaultPersona: string;
 }) {
   const [name, setName] = useState('');
-  const [persona, setPersona] = useState('literary');
+  const [persona, setPersona] = useState(defaultPersona || 'literary');
+
+  // 每次打开时重置：默认选中设置页配置的全局人格
+  useEffect(() => {
+    if (isOpen) {
+      setPersona(defaultPersona || 'literary');
+      setName('');
+    }
+  }, [isOpen, defaultPersona]);
 
   const handleCreate = () => {
     onCreate(name.trim() || '新对话', persona);
-    setName('');
-    setPersona('literary');
   };
 
   return (
@@ -139,6 +147,8 @@ export default function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState('');
   const [showNewConvModal, setShowNewConvModal] = useState(false);
+  // 全局默认人格（设置页配置，用于新对话预选）
+  const [defaultPersona, setDefaultPersona] = useState('literary');
 
   // 搜索面板
   const [showSearch, setShowSearch] = useState(false);
@@ -187,9 +197,11 @@ export default function App() {
         window.electronAPI.onSettingsChanged?.((s: any) => {
           if (s.theme) setTheme(s.theme);
           if (s.userAvatar) setUserAvatar(s.userAvatar);
+          if (s.persona) setDefaultPersona(s.persona);
         });
         const s = await window.electronAPI.getSettings();
         if (s.userAvatar) setUserAvatar(s.userAvatar);
+        if (s.persona) setDefaultPersona(s.persona);
 
         // 监听托盘导航
         window.electronAPI.onNavigate((view: string) => {
@@ -911,6 +923,7 @@ export default function App() {
           isOpen={showNewConvModal}
           onClose={() => setShowNewConvModal(false)}
           onCreate={handleCreateConversation}
+          defaultPersona={defaultPersona}
         />
 
         {currentView === 'report' && <ReportPage />}

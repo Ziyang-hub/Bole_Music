@@ -160,7 +160,7 @@ export default function SettingsPage() {
       {/* AI 人格 */}
       <div className="section-card">
         <div className="section-header">🤖 AI 伯乐人格</div>
-        <p className="section-desc">选择一个你喜欢的对话风格，随时可以切换</p>
+        <p className="section-desc">新对话的默认人格：新建对话时会预选这个风格，每个对话也可以单独选择自己的风格</p>
         <div className="persona-grid">
           {PERSONAS.map((p) => (
             <div
