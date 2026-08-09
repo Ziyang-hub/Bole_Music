@@ -389,7 +389,13 @@ export default function App() {
     const cid = convId || activeConvId;
     setMessages((prev) => [...prev, msg]);
     if (window.electronAPI && cid) {
-      await window.electronAPI.addMessageToConversation(cid, msg).catch(() => {});
+      try {
+        await window.electronAPI.addMessageToConversation(cid, msg);
+      } catch (err) {
+        console.error('[app] persistMessage failed for conv', cid, err);
+      }
+    } else {
+      console.warn('[app] persistMessage skipped: no electronAPI or no convId, cid=', cid);
     }
   }
 
@@ -904,6 +910,7 @@ export default function App() {
               const boleMsg: ChatMessage = {
                 id: generateId(), role: 'bole', content, timestamp: nowISO(),
               };
+              setIsNearBottom(true);
               await persistMessage(boleMsg);
             }}
           />
@@ -1035,29 +1042,27 @@ export default function App() {
             </div>
             </div>
 
-            {/* 对话浏览栏：右侧窄条，鼠标移到上面展开，列出用户的所有问题 */}
+            {/* 对话浏览栏：右侧窄条，鼠标移到上面展开，列出对话中的全部消息 */}
             <div className="nav-sidebar">
               <div className="nav-sidebar-tab">对话记录</div>
               <div className="nav-sidebar-header">
-                📜 对话记录（{messages.filter((m) => m.role === 'user').length}）
+                📜 对话记录（{messages.length}）
               </div>
               <div className="nav-sidebar-list">
-                {messages.filter((m) => m.role === 'user').length === 0 ? (
+                {messages.length === 0 ? (
                   <div className="nav-sidebar-empty">还没有对话记录</div>
                 ) : (
-                  messages
-                    .filter((m) => m.role === 'user')
-                    .map((m, i) => (
-                      <button
-                        key={m.id}
-                        className="nav-sidebar-item"
-                        onClick={() => jumpToMessage(m.id)}
-                        title={m.content}
-                      >
-                        <span className="nav-index">{i + 1}</span>
-                        <span>{m.content}</span>
-                      </button>
-                    ))
+                  messages.map((m, i) => (
+                    <button
+                      key={m.id}
+                      className="nav-sidebar-item"
+                      onClick={() => jumpToMessage(m.id)}
+                      title={m.content}
+                    >
+                      <span className="nav-index">{m.role === 'user' ? '👤' : '🐴'}</span>
+                      <span>{m.content}</span>
+                    </button>
+                  ))
                 )}
               </div>
             </div>

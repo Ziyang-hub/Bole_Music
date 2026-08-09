@@ -47,6 +47,8 @@ export default function PlaylistImport({ onClose, onAnalyzed, history }: Props) 
       const r = await window.electronAPI.analyzePlaylist(playlist.name, songs, history);
       if (r.success && r.data) {
         onAnalyzed(r.data);
+        // 分析完成后自动关闭面板，结果直接展示在聊天区
+        onClose();
       } else {
         alert('分析失败：' + (r.error || '未知错误'));
       }

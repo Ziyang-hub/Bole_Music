@@ -608,18 +608,25 @@ textarea {
 .nav-sidebar {
   position: relative;
   width: 16px;
+  height: 55%;
+  min-height: 220px;
+  align-self: flex-end; /* 底部对齐，不与滚动条全高相邻，减少误触 */
   background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-card) 100%);
   border-left: 1px solid var(--color-border);
+  border-radius: 8px 0 0 8px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.28s ease;
   flex-shrink: 0;
+  /* 收起延迟 0.3s：鼠标移开时不会立刻缩回 */
+  transition: width 0.28s ease 0.3s, height 0.28s ease 0.3s;
 }
 
 .nav-sidebar:hover {
   width: 260px;
   box-shadow: -6px 0 20px rgba(0, 0, 0, 0.12);
+  /* 展开延迟 0.12s：路过细条时不误展开 */
+  transition: width 0.28s ease 0.12s, height 0.28s ease 0.12s;
 }
 
 /* 收起时显示的竖排标签 */
