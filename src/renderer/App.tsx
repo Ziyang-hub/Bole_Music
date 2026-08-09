@@ -145,6 +145,7 @@ export default function App() {
   // 当前查看位置对应的用户消息ID（右侧"—"粗体跟随）
   const [activeMsgId, setActiveMsgId] = useState('');
   const lastScrollCalcRef = useRef(0);
+  const dashesRef = useRef<HTMLDivElement>(null);
 
   // 多对话
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -467,6 +468,18 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, activeConvId]);
+
+  // dash 列像标尺一样滑动：让当前粗体的"—"始终保持在面板中部
+  useEffect(() => {
+    const el = dashesRef.current;
+    if (!el) return;
+    const panelH = el.clientHeight;
+    const idx = userMsgs.findIndex((m) => m.id === activeMsgId);
+    const itemH = 19; // 12px dash + 6px gap（active 14px，取均值）
+    const target = idx === -1 ? 0 : (idx + 0.5) * itemH - panelH / 2;
+    el.style.setProperty('--dash-shift', `${-target}px`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMsgId, userMsgs.length]);
 
   // 自动滚动：仅在用户靠近底部时跟随新消息
   useEffect(() => {
@@ -1079,16 +1092,18 @@ export default function App() {
 
             {/* 对话导航栏：右侧透明细条"—"= 当前对话的每条用户提问，悬停展开提问列表（DeepSeek风格） */}
             <div className="nav-sidebar">
-              {/* 收起态：一列"—"，每条对应当前对话的一个用户提问，当前查看的提问粗体高亮（最多显示20条） */}
-              <div className="nav-sidebar-dashes">
-                {userMsgs.slice(-20).map((m) => (
-                  <div
-                    key={m.id}
-                    className={`nav-dash ${m.id === activeMsgId ? 'active' : ''}`}
-                    title={m.content}
-                    onClick={() => jumpToMessage(m.id)}
-                  >—</div>
-                ))}
+              {/* 收起态：一列"—"，每条对应当前对话的一个用户提问，当前查看的提问粗体高亮；像标尺一样滑动跟随 */}
+              <div className="nav-sidebar-dashes" ref={dashesRef}>
+                <div className="nav-dash-track">
+                  {userMsgs.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`nav-dash ${m.id === activeMsgId ? 'active' : ''}`}
+                      title={m.content}
+                      onClick={() => jumpToMessage(m.id)}
+                    >—</div>
+                  ))}
+                </div>
               </div>
               {/* 展开态：当前对话的用户提问列表 */}
               <div className="nav-sidebar-header">

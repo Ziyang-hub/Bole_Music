@@ -637,13 +637,11 @@ textarea {
 /* 收起态：一列"—"对话标记 */
 .nav-sidebar-dashes {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  overflow: hidden;
   opacity: 1;
   transition: opacity 0.2s ease;
   pointer-events: auto;
@@ -652,6 +650,19 @@ textarea {
 .nav-sidebar:hover .nav-sidebar-dashes {
   opacity: 0;
   pointer-events: none;
+}
+
+/* dash 轨道：垂直居中，随当前提问平移（标尺效果） */
+.nav-dash-track {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateY(var(--dash-shift, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  transition: transform 0.25s ease;
 }
 
 .nav-dash {
