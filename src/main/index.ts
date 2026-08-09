@@ -103,7 +103,16 @@ function createWindow(): void {
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault();
-      mainWindow?.hide();
+      // 全屏模式下直接 hide() 会导致 macOS 全屏 Space 残留黑屏：
+      // 先退出全屏，等离开全屏动画完成后再隐藏
+      if (mainWindow?.isFullScreen()) {
+        mainWindow.once('leave-full-screen', () => {
+          mainWindow?.hide();
+        });
+        mainWindow.setFullScreen(false);
+      } else {
+        mainWindow?.hide();
+      }
     }
   });
 

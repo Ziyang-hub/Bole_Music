@@ -1042,27 +1042,48 @@ export default function App() {
             </div>
             </div>
 
-            {/* 对话浏览栏：右侧窄条，鼠标移到上面展开，列出对话中的全部消息 */}
+            {/* 对话列表栏：右侧透明细条显示对话标记"—"，悬停展开对话列表（DeepSeek风格） */}
             <div className="nav-sidebar">
-              <div className="nav-sidebar-tab">对话记录</div>
+              {/* 收起态：一列"—"，当前对话粗体高亮 */}
+              <div className="nav-sidebar-dashes">
+                {conversations.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`nav-dash ${c.id === activeConvId ? 'active' : ''}`}
+                    title={c.name}
+                    onClick={() => {
+                      setCurrentView('chat');
+                      handleSwitchConversation(c.id);
+                    }}
+                  >—</div>
+                ))}
+              </div>
+              {/* 展开态：对话列表 */}
               <div className="nav-sidebar-header">
-                📜 对话记录（{messages.length}）
+                📜 对话列表（{conversations.length}）
               </div>
               <div className="nav-sidebar-list">
-                {messages.length === 0 ? (
-                  <div className="nav-sidebar-empty">还没有对话记录</div>
+                {conversations.length === 0 ? (
+                  <div className="nav-sidebar-empty">还没有对话</div>
                 ) : (
-                  messages.map((m, i) => (
-                    <button
-                      key={m.id}
-                      className="nav-sidebar-item"
-                      onClick={() => jumpToMessage(m.id)}
-                      title={m.content}
-                    >
-                      <span className="nav-index">{m.role === 'user' ? '👤' : '🐴'}</span>
-                      <span>{m.content}</span>
-                    </button>
-                  ))
+                  conversations.map((c) => {
+                    const pInfo = PERSONA_INFO[c.persona] || PERSONA_INFO.literary;
+                    return (
+                      <button
+                        key={c.id}
+                        className={`nav-sidebar-item ${c.id === activeConvId ? 'active' : ''}`}
+                        onClick={() => {
+                          setCurrentView('chat');
+                          handleSwitchConversation(c.id);
+                        }}
+                        title={`${c.name} · ${pInfo.label}`}
+                      >
+                        <span className="nav-index">{pInfo.icon}</span>
+                        <span>{c.name}</span>
+                        <span className="nav-msg-count">{c.messages.length}</span>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </div>
