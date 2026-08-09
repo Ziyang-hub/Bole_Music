@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { marked } from 'marked';
 import ReportPage from './components/ReportPage';
 import DiaryPage from './components/DiaryPage';
 import SettingsPage from './components/SettingsPage';
@@ -497,20 +498,12 @@ export default function App() {
     }
   }, [messages, isNearBottom]);
 
-  // 监听滚动位置：判断是否靠近底部 + 更新当前查看的用户消息（"—"粗体跟随）
-  const handleScroll = () => {
+  // 计算当前视口位置对应的用户消息（"—"粗体跟随）
+  const calcActiveMsg = () => {
     const el = messagesContainerRef.current;
     if (!el) return;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setIsNearBottom(distance < 80);
-
-    // 节流：100ms 内只计算一次当前可见的用户消息
-    const now = Date.now();
-    if (now - lastScrollCalcRef.current < 100) return;
-    lastScrollCalcRef.current = now;
-
-    // 找视口上部区域（35%处）覆盖到的最后一条用户消息
-    const threshold = el.scrollTop + el.clientHeight * 0.35;
+    // 找视口上部区域（15%处）覆盖到的最后一条用户消息
+    const threshold = el.scrollTop + el.clientHeight * 0.15;
     const msgEls = el.querySelectorAll<HTMLElement>('[data-message-id]');
     let lastUserMsgId: string | null = null;
     for (const msgEl of msgEls) {
@@ -520,6 +513,28 @@ export default function App() {
       }
     }
     if (lastUserMsgId) setActiveMsgId(lastUserMsgId);
+  };
+
+  // 滚动停止后的确认回调（快速滚动结束时必捕获最终位置）
+  const scrollConfirmRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 监听滚动位置：判断是否靠近底部 + 更新当前查看的用户消息
+  const handleScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setIsNearBottom(distance < 80);
+
+    // 节流：80ms 内只计算一次当前可见的用户消息
+    const now = Date.now();
+    if (now - lastScrollCalcRef.current < 80) {
+      // 滚动停止后 200ms 再确认一次，保证最终位置被捕获
+      if (scrollConfirmRef.current) clearTimeout(scrollConfirmRef.current);
+      scrollConfirmRef.current = setTimeout(calcActiveMsg, 200);
+      return;
+    }
+    lastScrollCalcRef.current = now;
+    calcActiveMsg();
   };
 
   // 一键滚动到底部
@@ -1021,14 +1036,11 @@ export default function App() {
                       />
                     ) : (
                       <>
-                        <div className="message-text">
-                          {msg.content.split('\n').map((line, i) => (
-                            <React.Fragment key={i}>
-                              {line}
-                              {i < msg.content.split('\n').length - 1 && <br />}
-                            </React.Fragment>
-                          ))}
-                        </div>
+                        <div
+                          className="message-text"
+                          // 用 Markdown 渲染消息内容（agent 输出的 ###/*** 等符号变成好看的排版）
+                          dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }}
+                        />
                         <div className="message-time">
                           {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
                             hour: '2-digit',
@@ -1108,7 +1120,7 @@ export default function App() {
                     <div
                       key={m.id}
                       className={`nav-dash ${m.id === activeMsgId ? 'active' : ''}`}
-                      title={m.content}
+                      title={stripMarkdown(m.content)}
                       onClick={() => jumpToMessage(m.id)}
                     >—</div>
                   ))}
@@ -1127,10 +1139,10 @@ export default function App() {
                       key={m.id}
                       className={`nav-sidebar-item ${m.id === activeMsgId ? 'active' : ''}`}
                       onClick={() => jumpToMessage(m.id)}
-                      title={m.content}
+                      title={stripMarkdown(m.content)}
                     >
                       <span className="nav-index">{i + 1}</span>
-                      <span>{m.content}</span>
+                      <span>{stripMarkdown(m.content)}</span>
                     </button>
                   ))
                 )}
@@ -1312,6 +1324,20 @@ async function handleIgnoreSong(
   if (window.electronAPI) {
     await window.electronAPI.deleteMessageFromConversation(convId, msg.id).catch(() => {});
   }
+}
+
+/** 去除 Markdown 符号，用于导航栏等纯文本展示 */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/^[-*_]\s+/gm, '')
+    .replace(/^---+$/gm, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .trim();
 }
 
 function getMockReply(input: string): string {

@@ -21,6 +21,7 @@
     "electron-store": "^8.2.0",
     "electron-updater": "^6.3.0",
     "ffmpeg-static": "^5.2.0",
+    "marked": "^18.0.9",
     "NeteaseCloudMusicApi": "^4.32.0",
     "node-shazam": "^1.2.7",
     "potrace": "^2.1.8",
