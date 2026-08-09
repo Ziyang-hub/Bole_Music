@@ -31,10 +31,10 @@ let helperProc: ChildProcess | null = null;
 let fallbackMode = false; // true = helper 缺失，走 getUserMedia 降级路径
 
 // ============================================================
-// helper 二进制定位
+// helper 二进制定位（缺失时自动编译，用户无感）
 // ============================================================
 
-function helperBinaryPath(): string | null {
+function findHelperBinary(): string | null {
   const archName = process.arch === 'arm64' ? 'arm64' : 'x64';
   const binName = `bole-capture-${archName}`;
 
@@ -55,6 +55,41 @@ function helperBinaryPath(): string | null {
   return null;
 }
 
+/**
+ * 确保 helper 存在：已有二进制直接用；缺失时用 swiftc 自动编译（开发模式）。
+ * 打包后的安装包自带二进制（extraResources），不会走到编译。
+ */
+function ensureHelperBinary(): string | null {
+  const existing = findHelperBinary();
+  if (existing) return existing;
+
+  // 自动编译（仅开发模式有源码；打包后 src 不在 asar 中）
+  const srcPath = path.join(__dirname, '../../src/main/mac-helper/BoleCapture.swift');
+  if (!fs.existsSync(srcPath)) {
+    console.warn('[mac-audio] Helper source not found, cannot auto-compile');
+    return null;
+  }
+
+  const archName = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const outDir = path.join(__dirname, '../../resources/mac-helper');
+  const outPath = path.join(outDir, `bole-capture-${archName}`);
+  try {
+    fs.mkdirSync(outDir, { recursive: true });
+    console.log('[mac-audio] Helper missing, compiling with swiftc...');
+    const { execFileSync } = require('child_process');
+    execFileSync('swiftc', ['-O', srcPath, '-o', outPath], {
+      timeout: 120000,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    fs.chmodSync(outPath, 0o755);
+    console.log('[mac-audio] ✅ Helper auto-compiled:', outPath);
+    return outPath;
+  } catch (err: any) {
+    console.warn('[mac-audio] Auto-compile failed:', err?.message || err);
+    return null;
+  }
+}
+
 // ============================================================
 // 公开 API
 // ============================================================
@@ -66,11 +101,11 @@ function helperBinaryPath(): string | null {
 export function startCapture(callback: AudioChunkCallback): boolean {
   if (isRunning) return !fallbackMode;
 
-  const bin = helperBinaryPath();
+  const bin = ensureHelperBinary();
   if (!bin) {
     // 降级模式：注册 chunk 管道（getUserMedia 路径会通过 audio:chunk 发数据），
     // 但返回 false，让渲染进程继续启动 getUserMedia
-    console.warn('[mac-audio] Helper binary not found, falling back to getUserMedia');
+    console.warn('[mac-audio] Helper unavailable, falling back to getUserMedia');
     fallbackMode = true;
     onChunk = callback;
     isRunning = true;
@@ -159,8 +194,8 @@ export async function checkCaptureCapability(): Promise<{
   }
 
   const needs: string[] = [];
-  if (!helperBinaryPath()) {
-    needs.push('缺少音频捕获组件（bole-capture）');
+  if (!findHelperBinary()) {
+    needs.push('音频捕获组件将首次开启时自动编译');
   }
 
   return { available: true, platform: 'darwin', needs };
@@ -183,10 +218,10 @@ export async function diagnose(): Promise<{
     issues.push('macOS ' + majorVer + '（需要 BlackHole 虚拟音频设备）');
   }
 
-  if (helperBinaryPath()) {
+  if (findHelperBinary()) {
     ok.push('音频捕获组件已就绪');
   } else {
-    issues.push('音频捕获组件缺失（请运行 scripts/build-mac-helper.sh 编译）');
+    issues.push('音频捕获组件缺失（首次开启采集时会自动编译）');
   }
 
   const perm = systemPreferences.getMediaAccessStatus('screen');
@@ -201,7 +236,7 @@ export async function diagnose(): Promise<{
   return {
     ok,
     issues,
-    ready: majorVer >= 13 && !!helperBinaryPath(),
+    ready: majorVer >= 13,
   };
 }
 

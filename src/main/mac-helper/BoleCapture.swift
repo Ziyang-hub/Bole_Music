@@ -127,7 +127,7 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
         if monoBuffer.count >= 16000 * 2 {
             flushChunk()
         }
-        Task { await stream?.stopCapture() }
+        Task { try? await stream?.stopCapture() }
         exit(0)
     }
 

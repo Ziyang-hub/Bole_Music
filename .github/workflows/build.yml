@@ -40,6 +40,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: npm }
       - run: npm ci
+      # 编译 ScreenCaptureKit 音频捕获组件（arm64 + x64），自动随包分发
+      - name: 编译 macOS 音频捕获组件
+        run: |
+          bash scripts/build-mac-helper.sh
+          bash scripts/build-mac-helper.sh --arch x86_64
       - run: npx vite build
       - run: npx tsc -p tsconfig.main.json
       - run: npx electron-builder --mac --publish never
