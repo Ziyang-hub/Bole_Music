@@ -144,6 +144,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
     helperProc = spawn(bin, ['--out', AUDIO_DIR, '--sec', '15'], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    const helperStartTime = Date.now();
 
     fallbackMode = false;
     onChunk = callback;
@@ -181,7 +182,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
     });
 
     helperProc.on('exit', (code, signal) => {
-      console.log('[mac-audio] Helper exited:', code, signal);
+      console.log(`[mac-audio] Helper exited code=${code} signal=${signal} after ${Date.now() - helperStartTime}ms`);
       helperProc = null;
       isRunning = false;
       _notifyReady(false);
@@ -197,9 +198,12 @@ export function startCapture(callback: AudioChunkCallback): boolean {
 }
 
 export function stopCapture(): void {
+  console.log('[mac-audio] stopCapture called');
+  console.trace('[mac-audio] stopCapture trace');
   isRunning = false;
   fallbackMode = false;
   if (helperProc) {
+    console.log('[mac-audio] stopCapture: killing helper');
     try {
       helperProc.kill('SIGTERM');
     } catch {}

@@ -123,6 +123,7 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
     }
 
     func stop() {
+        FileHandle.standardError.write("STOP requested (buffered \(monoBuffer.count) samples)\n".data(using: .utf8)!)
         // 最后不足一 chunk 的音频也写出（大于 2 秒才有识别价值）
         if monoBuffer.count >= 16000 * 2 {
             flushChunk()
@@ -140,9 +141,15 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
         FileHandle.standardOutput.write("CHUNK:\(path)\n".data(using: .utf8)!)
     }
 
+    private var frameLogCount = 0
+
     // SCStreamOutput: 音频采样回调（48kHz stereo s16le）
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .audio else { return }
+        if frameLogCount < 3 {
+            FileHandle.standardError.write("AUDIO callback #\(frameLogCount)\n".data(using: .utf8)!)
+            frameLogCount += 1
+        }
 
         var blockBuffer: CMBlockBuffer?
         var audioBufferList = AudioBufferList()
@@ -192,8 +199,14 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
 let manager = CaptureManager()
 
 // SIGINT / SIGTERM → 优雅停止（写出残余音频）
-signal(SIGINT) { _ in manager.stop() }
-signal(SIGTERM) { _ in manager.stop() }
+signal(SIGINT) { _ in
+    FileHandle.standardError.write("SIGINT received\n".data(using: .utf8)!)
+    manager.stop()
+}
+signal(SIGTERM) { _ in
+    FileHandle.standardError.write("SIGTERM received\n".data(using: .utf8)!)
+    manager.stop()
+}
 
 let sem = DispatchSemaphore(value: 0)
 Task {

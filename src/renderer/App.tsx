@@ -211,7 +211,7 @@ export default function App() {
 
         // 监听托盘导航
         window.electronAPI.onNavigate((view: string) => {
-          setCurrentView(view as View);
+          navigateTo(view as View);
         });
 
         // 加载应用信息
@@ -271,7 +271,7 @@ export default function App() {
 
     const handler = async (result: any) => {
       if (result.title && result.confidence > 40) {
-        setCurrentView('chat');
+        navigateTo('chat');
 
         // 检查是否开启了自动写入日记
         const settings = await window.electronAPI!.getSettings();
@@ -373,7 +373,7 @@ export default function App() {
         '请先在 设置 → 功能设置 中开启「允许音频采集」。\n\n' +
         '点击「确定」前往设置页'
       );
-      if (go) setCurrentView('settings');
+      if (go) navigateTo('settings');
       return;
     }
 
@@ -488,6 +488,24 @@ export default function App() {
   /** 当前对话的人格 */
   const activePersona = conversations.find((c) => c.id === activeConvId)?.persona || 'literary';
 
+  /**
+   * 统一视图切换：离开 chat 前同步保存滚动位置。
+   * 注意：必须在 display:none 生效前读取（hidden 元素 scrollTop 恒为 0）
+   * currentViewRef 避免 init 等早期注册的闭包捕获过期值
+   */
+  const currentViewRef = useRef<View>(currentView);
+  currentViewRef.current = currentView;
+
+  const navigateTo = (view: View) => {
+    const cur = currentViewRef.current;
+    if (cur === 'chat' && view !== 'chat') {
+      const el = messagesContainerRef.current;
+      if (el) chatScrollTopRef.current = el.scrollTop;
+    }
+    currentViewRef.current = view;
+    setCurrentView(view);
+  };
+
   /** 当前对话的用户提问列表（用于右侧导航栏） */
   const userMsgs = messages.filter((m) => m.role === 'user');
 
@@ -551,13 +569,6 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, messagesLoaded]);
-
-  // 离开聊天视图时保存滚动位置
-  useEffect(() => {
-    if (currentView === 'chat') return;
-    const el = messagesContainerRef.current;
-    if (el) chatScrollTopRef.current = el.scrollTop;
-  }, [currentView]);
 
   // 计算当前视口位置对应的用户消息（"—"粗体跟随）
   const calcActiveMsg = () => {
@@ -961,7 +972,7 @@ export default function App() {
                 key={conv.id}
                 className={`conv-item ${isActive ? 'active' : ''}`}
                 onClick={() => {
-                  setCurrentView('chat');
+                  navigateTo('chat');
                   handleSwitchConversation(conv.id);
                 }}
                 title={`${conv.name} · ${pInfo.label}`}
@@ -993,7 +1004,7 @@ export default function App() {
             <button
               key={item.view}
               className={`nav-item ${currentView === item.view ? 'active' : ''}`}
-              onClick={() => setCurrentView(item.view)}
+              onClick={() => navigateTo(item.view)}
             >
               <span className="nav-icon">{item.icon}</span>
               <span>{item.label}</span>
