@@ -61,6 +61,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [messagesLoaded, setMessagesLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
 
   // 搜索面板
   const [showSearch, setShowSearch] = useState(false);
@@ -290,10 +292,35 @@ export default function App() {
     }
   }
 
-  // 自动滚动
+  // 自动滚动：仅在用户靠近底部时跟随新消息
   useEffect(() => {
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isNearBottom]);
+
+  // 监听滚动位置，判断是否靠近底部
+  const handleScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setIsNearBottom(distance < 80);
+  };
+
+  // 一键滚动到底部
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    setIsNearBottom(true);
+  };
+
+  // 对话浏览栏：跳转到指定消息
+  const jumpToMessage = (msgId: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setIsNearBottom(false);
+    }
+  };
 
   // ----- 发送消息 -----
 
@@ -311,6 +338,8 @@ export default function App() {
       timestamp: nowISO(),
     };
     setMessages((prev) => [...prev, userMsg]);
+    // 用户自己发消息 → 强制回到底部
+    setIsNearBottom(true);
 
     // 保存到存储
     if (window.electronAPI) {
@@ -713,9 +742,9 @@ export default function App() {
 
         {currentView === 'chat' && (
           <>
-            <div className="messages-container">
+            <div className="messages-container" ref={messagesContainerRef} onScroll={handleScroll}>
               {messages.map((msg) => (
-                <div key={msg.id} className={`message ${msg.role}`}>
+                <div key={msg.id} data-message-id={msg.id} className={`message ${msg.role}`}>
                   <div className="message-avatar">
                     {msg.role === 'bole' ? '🐴' : (userAvatar || '👤')}
                   </div>
@@ -769,6 +798,43 @@ export default function App() {
               )}
 
               <div ref={messagesEndRef} />
+            </div>
+
+            {/* 一键滚动到底按钮 */}
+            {!isNearBottom && (
+              <button
+                className="scroll-to-bottom-btn"
+                onClick={scrollToBottom}
+                title="回到底部"
+              >
+                ↓
+              </button>
+            )}
+
+            {/* 对话浏览栏：右侧悬浮，列出用户的所有问题 */}
+            <div className="nav-sidebar">
+              <div className="nav-sidebar-header">
+                📜 对话记录（{messages.filter((m) => m.role === 'user').length}）
+              </div>
+              <div className="nav-sidebar-list">
+                {messages.filter((m) => m.role === 'user').length === 0 ? (
+                  <div className="nav-sidebar-empty">还没有对话记录</div>
+                ) : (
+                  messages
+                    .filter((m) => m.role === 'user')
+                    .map((m, i) => (
+                      <button
+                        key={m.id}
+                        className="nav-sidebar-item"
+                        onClick={() => jumpToMessage(m.id)}
+                        title={m.content}
+                      >
+                        <span className="nav-index">{i + 1}</span>
+                        <span>{m.content}</span>
+                      </button>
+                    ))
+                )}
+              </div>
             </div>
 
             <div className="input-area">
@@ -850,11 +916,14 @@ function looksLikeSongQuery(text: string): boolean {
   if (text.length > 30) return false;
   // 纯标点、纯数字、单字 → 聊天
   if (/^[\s\d\p{P}]+$/u.test(text) || text.length <= 1) return false;
-  // 包含问号 → 聊天
-  if (/[?？]/.test(text)) return false;
-  // 短文本（2-30字）且不含问号 → 检查是否像聊天寒暄
+  // 包含问号或疑问语气词（吗/么/呢）→ 聊天
+  if (/[?？]|吗$|么$|呢$/.test(text)) return false;
   // 常见聊天寒暄词 → 不走歌曲查询
-  if (/^(你好|嗨|哈|嘿嘿|哈哈|嗯|哦|好|谢谢|再见|在吗|早|晚安|早安|午安)/.test(text)) return false;
+  if (/^(你好|嗨|哈|嘿嘿|哈哈|嗯|哦|好|谢谢|再见|在吗|早|晚安|早安|午安|hello|hi|hey)/i.test(text)) return false;
+  // 象声词/语气词重复（喵喵喵、呜呜呜、哒哒哒、哇哇哇、呃呃呃...）→ 聊天
+  if (/^([哈嘿嗯哦啊哇呀哎哼噗嘻呵呜喵咩哒噜嘤咯呃噫哟嘛]+)\1+$/u.test(text)) return false;
+  // 常见随意词/网络梗 → 聊天（哈吉米、哇塞、天哪、666...）
+  if (/^(哈吉米|哇塞|天哪|666|啊这|乌鸡鲅鱼|栓q|芭比q|笑死|绝了|emm+|呃+)$/i.test(text)) return false;
   // 其余短文本 → 可能是歌曲查询
   return !looksLikeRecommend(text);
 }
