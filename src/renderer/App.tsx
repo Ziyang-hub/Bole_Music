@@ -419,6 +419,8 @@ export default function App() {
     await loadConversationMessages(convId);
     setIsNearBottom(true);
     setIsLoading(false);
+    // 切换对话 → 重置滚动记忆（新对话直接定位到最新消息）
+    chatScrollTopRef.current = null;
   }
 
   /** 新建对话（带人格选择） */
@@ -428,6 +430,7 @@ export default function App() {
     setConversations(await window.electronAPI.getConversations());
     setActiveConvId(conv.id);
     setMessages([]);
+    chatScrollTopRef.current = null;
     const info = PERSONA_INFO[persona] || PERSONA_INFO.literary;
     const welcome: ChatMessage = {
       id: 'welcome-' + conv.id,
@@ -498,13 +501,35 @@ export default function App() {
     }
   }, [messages, isNearBottom]);
 
-  // 打开聊天窗口时直接定位到最新消息（不经过平滑动画，避免加载瞬间无效）
+  // 聊天窗口滚动位置记忆：
+  // 首次进入/加载完成 → 滚到最新消息；离开时保存位置，切回时恢复原位置
+  const chatScrollTopRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (currentView === 'chat' && messagesLoaded) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-      setIsNearBottom(true);
+      const el = messagesContainerRef.current;
+      if (!el) return;
+      const saved = chatScrollTopRef.current;
+      if (saved != null) {
+        // 切回：恢复之前停留的位置
+        el.scrollTop = saved;
+        chatScrollTopRef.current = null;
+        calcActiveMsg();
+      } else {
+        // 首次进入：直接定位到最新消息
+        el.scrollTop = el.scrollHeight;
+        setIsNearBottom(true);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, messagesLoaded]);
+
+  // 离开聊天视图时保存滚动位置
+  useEffect(() => {
+    if (currentView === 'chat') return;
+    const el = messagesContainerRef.current;
+    if (el) chatScrollTopRef.current = el.scrollTop;
+  }, [currentView]);
 
   // 计算当前视口位置对应的用户消息（"—"粗体跟随）
   const calcActiveMsg = () => {
@@ -1013,9 +1038,16 @@ export default function App() {
           defaultPersona={defaultPersona}
         />
 
-        {currentView === 'report' && <ReportPage />}
-        {currentView === 'diary' && <DiaryPage />}
-        {currentView === 'settings' && <SettingsPage />}
+        {/* 三个页面常驻挂载（display:none 切换），滚动位置天然保留 */}
+        <div className="page-holder" style={{ display: currentView === 'report' ? undefined : 'none' }}>
+          <ReportPage />
+        </div>
+        <div className="page-holder" style={{ display: currentView === 'diary' ? undefined : 'none' }}>
+          <DiaryPage />
+        </div>
+        <div className="page-holder" style={{ display: currentView === 'settings' ? undefined : 'none' }}>
+          <SettingsPage />
+        </div>
 
         {currentView === 'chat' && (
           <div className="chat-layout">

@@ -190,6 +190,21 @@ export function stopCapture(): void {
   }
 }
 
+/**
+ * helper 启动失败时切换到降级模式：
+ * 保持 isRunning/onChunk（getUserMedia 路径的 chunk 管道继续可用），
+ * 但返回的 native 语义为 false（渲染进程启动 getUserMedia）。
+ */
+export function switchToFallback(): void {
+  if (helperProc) {
+    try { helperProc.kill('SIGTERM'); } catch {}
+    helperProc = null;
+  }
+  fallbackMode = true;
+  isRunning = true;
+  console.log('[mac-audio] Switched to getUserMedia fallback mode');
+}
+
 // ============================================================
 // 等待 helper 就绪（READY）——避免渲染进程误判原生启动成功
 // ============================================================

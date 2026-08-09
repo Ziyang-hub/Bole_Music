@@ -20,6 +20,7 @@ import {
   registerIpcHandlers as macRegisterIpcHandlers,
   openScreenRecordingSettings as macOpenScreenSettings,
   waitHelperReady as macWaitHelperReady,
+  switchToFallback as macSwitchToFallback,
 } from './mac-audio-capture';
 
 const execFileAsync = promisify(execFile);
@@ -34,6 +35,11 @@ export type AudioChunkCallback = (audioPath: string, createdAt?: number) => void
 export async function waitNativeCaptureReady(timeoutMs = 8000): Promise<boolean> {
   if (process.platform !== 'darwin') return true;
   return macWaitHelperReady(timeoutMs);
+}
+
+/** macOS：原生采集失败时切换到 getUserMedia 降级模式（保持 chunk 管道可用） */
+export function switchNativeToFallback(): void {
+  if (process.platform === 'darwin') macSwitchToFallback();
 }
 
 const AUDIO_DIR = path.join(os.tmpdir(), 'bole-simulator-audio');

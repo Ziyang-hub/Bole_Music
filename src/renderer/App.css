@@ -1126,6 +1126,14 @@ textarea {
    通用页面样式（听歌报告 / 听歌日记 / 设置共用）
    ============================================================ */
 
+/* 页面常驻容器：display:none 切换时保持 DOM（滚动位置不丢） */
+.page-holder {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .page {
   flex: 1;
   overflow-y: auto;

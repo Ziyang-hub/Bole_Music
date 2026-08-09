@@ -46,6 +46,7 @@ import {
   registerAudioIpcHandlers,
   openScreenRecordingSettings,
   waitNativeCaptureReady,
+  switchNativeToFallback,
 } from './audio-capture';
 import { recognizeSong, isMaybeMusic } from './song-recognition';
 import {
@@ -547,8 +548,9 @@ ipcMain.handle('audio:startCapture', async () => {
     // 等待 helper 真正 READY（最多 8 秒）——helper 崩溃/权限失败时返回 false，让渲染进程降级 getUserMedia
     const ready = await waitNativeCaptureReady(8000);
     if (!ready) {
-      console.warn('[audio] Native capture failed to start, stopping for fallback');
-      stopCapture();
+      console.warn('[audio] Native capture failed to start, switching to fallback');
+      // 切换到降级模式（保持 chunk 管道可用），不是停止采集
+      switchNativeToFallback();
     }
     return { success: true, native: ready };
   }
