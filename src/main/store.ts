@@ -98,6 +98,7 @@ export interface DiaryEntry {
     artist: string;
     time: string;
     note: string;
+    genre?: string;  // 曲风（用于时间段曲风分布统计）
   }[];
   mood: string;
   summary: string;

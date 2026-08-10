@@ -117,11 +117,8 @@ export default function ReportPage() {
     <div className="page report-page">
       <h2 className="page-title">📊 听歌报告</h2>
       <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-        <button className="report-export-btn" onClick={() => exportReport(stats, diary, reportType, report)}>
-          📥 导出文本
-        </button>
-        <button className="report-export-btn" onClick={() => shareReport(stats, diary, reportType, report)}>
-          📤 复制分享
+        <button className="report-export-btn" onClick={() => copyReport(stats, diary, reportType, report)}>
+          📤 复制报告
         </button>
       </div>
 
@@ -349,118 +346,81 @@ function TimeOfDayChart({ data }: { data: Record<string, number> }) {
 }
 
 /** 导出听歌报告为文本 */
-function exportReport(stats: ListeningStats, diary: DiaryEntry[], type: string, report?: ReportData | null) {
+/** 复制报告：合并导出+分享，输出对应时间段的完整报告文本 */
+async function copyReport(stats: ListeningStats, diary: DiaryEntry[], type: string, report?: ReportData | null) {
   const topGenre = getTopKey(stats.genreDistribution) || '暂无';
   const topArtist = getTopKey(stats.artistCounts) || '暂无';
   const typeLabel = type === 'daily' ? '日报' : type === 'weekly' ? '周报' : '月报';
 
-  // 时间段听歌数（日报=今天，周报=近7天，月报=近30天）
+  // 时间段：日报=今天，周报=近7天，月报=近30天
   const days = type === 'daily' ? 1 : type === 'weekly' ? 7 : 30;
-  const cutoff = new Date();
+  const today = new Date();
+  const cutoff = new Date(today);
   cutoff.setDate(cutoff.getDate() - (days - 1));
+  const fmt = (d: Date) => `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
   const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
-  const periodSongs = diary
-    .filter((d) => d.date >= cutoffStr)
-    .reduce((sum, d) => sum + d.songs.length, 0);
 
-  let text = `🐴 伯乐模拟器 - 听歌${typeLabel}\n`;
+  // 时间段内的日记条目和歌曲
+  const periodDays = diary.filter((d) => d.date >= cutoffStr);
+  const periodAllSongs = periodDays.flatMap((d) => d.songs);
+  const periodSongs = periodAllSongs.slice(0, 50);
+
+  // 时间段曲风分布（从日记歌曲的 genre 统计；旧数据无 genre 归"未知"）
+  const genreCounts: Record<string, number> = {};
+  periodAllSongs.forEach((s) => {
+    const g = (s as any).genre || '未知';
+    genreCounts[g] = (genreCounts[g] || 0) + 1;
+  });
+
+  // 标题带具体时间范围
+  let text = `🐴 伯乐模拟器 - 听歌${typeLabel}`;
+  text += type === 'daily'
+    ? `（${fmt(today)}）\n`
+    : `（${fmt(cutoff)} - ${fmt(today)}）\n`;
   text += `${'='.repeat(40)}\n\n`;
 
   // AI 风格刻画（若已生成）
-  if (report) {
-    text += `🎨 音乐风格刻画\n`;
-    text += `${report.summary}\n`;
+  if (report && report.summary) {
+    text += `🎨 音乐风格刻画\n${report.summary}\n`;
     if (report.mood) text += `情绪：${report.mood}\n`;
     if (report.keywords?.length) text += `关键词：${report.keywords.join('、')}\n`;
-    if (report.highlights?.length) {
-      report.highlights.forEach((h) => text += `• ${h}\n`);
-    }
-    text += '\n';
+    text += `\n`;
   }
 
+  // 数据概览
   text += `📊 数据概览\n`;
-  text += `  ${typeLabel}期间听歌：${periodSongs} 首\n`;
+  text += `  ${typeLabel}期间听歌：${periodAllSongs.length} 首\n`;
   text += `  累计听歌：${stats.totalSongs} 首\n`;
   text += `  最爱曲风：${topGenre}\n`;
   text += `  最爱歌手：${topArtist}\n\n`;
 
-  if (stats.topSongs.length > 0) {
-    text += `🏆 热门歌曲 Top 5\n`;
-    stats.topSongs.slice(0, 5).forEach((s, i) => {
-      text += `  ${i + 1}. ${s.title} - ${s.artist} (${s.count}次)\n`;
+  // 对应时间段听的歌曲（前50首）
+  if (periodSongs.length > 0) {
+    text += `🎵 ${typeLabel}期间听的歌${periodAllSongs.length > 50 ? `（前50/共${periodAllSongs.length}）` : ''}\n`;
+    periodSongs.forEach((s, i) => {
+      text += `  ${i + 1}. ${s.title}${s.artist ? ` — ${s.artist}` : ''}${s.time ? `  ${s.time}` : ''}\n`;
     });
-    text += '\n';
+    text += `\n`;
   }
 
-  if (Object.keys(stats.genreDistribution).length > 0) {
-    text += `🎼 曲风分布\n`;
-    Object.entries(stats.genreDistribution)
-      .filter(([g]) => (g || '').trim())  // 过滤空曲风
-      .sort(([, a], [, b]) => b - a)
-      .forEach(([genre, count]) => {
-        text += `  ${genre}: ${count}首\n`;
-      });
-    text += '\n';
+  // 对应时间段曲风分布
+  const genreList = Object.entries(genreCounts)
+    .sort(([, a], [, b]) => b - a);
+  if (genreList.length > 0) {
+    text += `🎼 ${typeLabel}曲风分布\n`;
+    genreList.forEach(([g, c]) => {
+      text += `  ${g}: ${c}首\n`;
+    });
+    text += `\n`;
   }
 
   text += `---\n由伯乐模拟器生成 | https://github.com/scorching12/Bole_Music\n`;
 
-  // 创建 Blob 下载
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  const d = new Date();
-  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  a.download = `伯乐听歌${typeLabel}_${dateStr}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-/** 复制分享文本（带时间段风格刻画） */
-async function shareReport(stats: ListeningStats, diary: DiaryEntry[], type: string, report?: ReportData | null) {
-  const topGenre = getTopKey(stats.genreDistribution) || '暂无';
-  const topArtist = getTopKey(stats.artistCounts) || '暂无';
-  const typeLabel = type === 'daily' ? '日报' : type === 'weekly' ? '周报' : '月报';
-
-  // 时间段过滤（日报=今天，周报=近7天，月报=近30天）
-  const days = type === 'daily' ? 1 : type === 'weekly' ? 7 : 30;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - (days - 1));
-  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
-  const periodSongs = diary
-    .filter((d) => d.date >= cutoffStr)
-    .reduce((sum, d) => sum + d.songs.length, 0);
-
-  let text = `🐴 伯乐模拟器 听歌${typeLabel}\n`;
-
-  // AI 风格刻画（核心：别人看到就知道你这段时间的音乐品味）
-  if (report && report.summary) {
-    text += `\n🎨 这段时间的音乐风格：\n${report.summary}\n`;
-    if (report.mood) text += `\n情绪：${report.mood}`;
-    if (report.keywords?.length) text += `\n关键词：${report.keywords.join('、')}`;
-    if (report.highlights?.length) {
-      text += `\n\n亮点：\n${report.highlights.map((h) => `• ${h}`).join('\n')}`;
-    }
-  }
-
-  text += `\n\n📊 ${typeLabel}期间听歌 ${periodSongs} 首\n🎸 最爱曲风：${topGenre}\n👨‍🎤 最爱歌手：${topArtist}`;
-
-  // 曲风分布（过滤空曲风）
-  const genres = Object.entries(stats.genreDistribution)
-    .filter(([g]) => (g || '').trim())
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
-    .map(([g, c]) => `${g}×${c}`)
-    .join(' ');
-  if (genres) text += `\n🎼 曲风：${genres}`;
-
-  text += `\n\n—— 来自「伯乐模拟器」你的AI音乐知音`;
-
   try {
     await navigator.clipboard.writeText(text);
-    alert('已复制到剪贴板！可以粘贴分享给朋友 🎉');
+    alert('报告已复制到剪贴板！可以粘贴分享给朋友 🎉');
   } catch {
     alert('复制失败，请手动复制');
   }
 }
+

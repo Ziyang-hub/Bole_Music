@@ -744,7 +744,7 @@ export default function App() {
                 const today = todayLocal();
                 await window.electronAPI.addDiaryEntry({
                   date: today,
-                  songs: [{ title: song.name, artist: song.artists.join('、'), time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: '' }],
+                  songs: [{ title: song.name, artist: song.artists.join('、'), time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: '', genre: result.data.genre || '未知' }],
                   mood: result.data.emotion || '未知',
                   summary: '',
                 });
@@ -830,6 +830,7 @@ export default function App() {
                     minute: '2-digit',
                   }),
                   note: '',
+                  genre: analysis.genre || '未知',
                 },
               ],
               mood: analysis.emotion || '未知',
@@ -950,7 +951,7 @@ export default function App() {
           const today = todayLocal();
           await window.electronAPI.addDiaryEntry({
             date: today,
-            songs: [{ title: songName, artist, time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: '' }],
+            songs: [{ title: songName, artist, time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: '', genre: result.data.genre || '未知' }],
             mood: result.data.emotion || '未知',
             summary: '',
           });
