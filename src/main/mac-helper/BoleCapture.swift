@@ -144,6 +144,28 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
     private var frameLogCount = 0
     private var lastErrorLog = 0
 
+    // 读取一个 AudioBuffer 的采样（支持 Float32 / Int16），统一转为 Int16
+    private func readFrames(buf: AudioBuffer, isFloat32: Bool) -> [Int16] {
+        guard let data = buf.mData else { return [] }
+        let byteCount = Int(buf.mDataByteSize)
+        if isFloat32 {
+            let p = data.assumingMemoryBound(to: Float32.self)
+            let n = byteCount / 4
+            var out: [Int16] = []
+            out.reserveCapacity(n)
+            for i in 0..<n {
+                let v = Double(p[i])
+                let clamped = max(-1.0, min(1.0, v))
+                out.append(Int16(clamped * 32767.0))
+            }
+            return out
+        } else {
+            let p = data.assumingMemoryBound(to: Int16.self)
+            let n = byteCount / 2
+            return Array(UnsafeBufferPointer(start: p, count: n))
+        }
+    }
+
     // SCStreamOutput: 音频采样回调（48kHz stereo s16le）
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .audio else { return }
@@ -154,37 +176,47 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
             FileHandle.standardError.write("AUDIO cb #\(frameLogCount) buffered=\(monoBuffer.count)\n".data(using: .utf8)!)
         }
 
-        // 分配足够大的 AudioBufferList（SCK 可能输出多 buffer 非交错格式）
-        let maxBuffers = 8
-        let bufferListSize = MemoryLayout<AudioBufferList>.size + MemoryLayout<AudioBuffer>.size * (maxBuffers - 1)
-        let memory = UnsafeMutableRawPointer.allocate(
-            byteCount: bufferListSize,
-            alignment: MemoryLayout<AudioBufferList>.alignment
+        guard let asbd = sampleBuffer.formatDescription?.audioStreamBasicDescription else { return }
+        // 诊断：首次打印实际音频格式
+        if frameLogCount == 1 {
+            FileHandle.standardError.write(
+                "AUDIO format: rate=\(asbd.mSampleRate) ch=\(asbd.mChannelsPerFrame) nonInterleaved=\((asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0) bits=\(asbd.mBitsPerChannel)\n"
+                .data(using: .utf8)!)
+        }
+        let nonInterleaved = (asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0
+        let isFloat32 = (asbd.mFormatFlags & kAudioFormatFlagIsFloat) != 0
+
+        // 标准两段式调用：第一段让系统返回所需大小（bufferListOut=nil，不涉及 mNumberBuffers），
+        // 第二段按 sizeNeeded 分配。这是苹果文档的官方用法，绕开手动预置的所有语义差异。
+        var sizeNeeded: Int = 0
+        let s1 = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+            sampleBuffer,
+            bufferListSizeNeededOut: &sizeNeeded,
+            bufferListOut: nil,
+            bufferListSize: 0,
+            blockBufferAllocator: kCFAllocatorDefault,
+            blockBufferMemoryAllocator: kCFAllocatorDefault,
+            flags: 0,
+            blockBufferOut: nil
         )
+        guard s1 == noErr, sizeNeeded > 0 else {
+            if frameLogCount - lastErrorLog > 200 {
+                FileHandle.standardError.write("AUDIO query size error: \(s1) sizeNeeded=\(sizeNeeded)\n".data(using: .utf8)!)
+                lastErrorLog = frameLogCount
+            }
+            return
+        }
+
+        let memory = UnsafeMutableRawPointer.allocate(byteCount: sizeNeeded, alignment: 16)
         defer { memory.deallocate() }
         let audioBufferList = memory.bindMemory(to: AudioBufferList.self, capacity: 1)
-        // 按 sampleBuffer 的真实格式设置 mNumberBuffers（非交错=通道数，交错=1），
-        // 否则 API 返回 -12737 InvalidEntryCount
-        if let asbd = sampleBuffer.formatDescription?.audioStreamBasicDescription {
-            let nonInterleaved = (asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0
-            audioBufferList.pointee.mNumberBuffers = nonInterleaved
-                ? UInt32(asbd.mChannelsPerFrame) : 1
-            // 诊断：首次打印实际音频格式
-            if frameLogCount == 1 {
-                FileHandle.standardError.write(
-                    "AUDIO format: rate=\(asbd.mSampleRate) ch=\(asbd.mChannelsPerFrame) nonInterleaved=\(nonInterleaved) bits=\(asbd.mBitsPerChannel)\n"
-                    .data(using: .utf8)!)
-            }
-        } else {
-            audioBufferList.pointee.mNumberBuffers = 2
-        }
 
         var blockBuffer: CMBlockBuffer?
         let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
             sampleBuffer,
             bufferListSizeNeededOut: nil,
             bufferListOut: audioBufferList,
-            bufferListSize: bufferListSize,
+            bufferListSize: sizeNeeded,
             blockBufferAllocator: kCFAllocatorDefault,
             blockBufferMemoryAllocator: kCFAllocatorDefault,
             flags: 0,
@@ -193,7 +225,7 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
         guard status == noErr else {
             // 打印失败错误码（限频）
             if frameLogCount - lastErrorLog > 200 {
-                FileHandle.standardError.write("AUDIO bufferlist error: \(status)\n".data(using: .utf8)!)
+                FileHandle.standardError.write("AUDIO bufferlist error: \(status) sizeNeeded=\(sizeNeeded)\n".data(using: .utf8)!)
                 lastErrorLog = frameLogCount
             }
             return
@@ -201,25 +233,28 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
 
         // 遍历所有 buffer（UnsafeMutableAudioBufferListPointer 支持下标访问）
         let ablPtr = UnsafeMutableAudioBufferListPointer(audioBufferList)
-        var frames: [Int16] = []
-        for buf in ablPtr {
-            guard let p = buf.mData?.assumingMemoryBound(to: Int16.self) else { continue }
-            let n = Int(buf.mDataByteSize) / 2
-            if n > 0 {
-                frames.append(contentsOf: UnsafeBufferPointer(start: p, count: n))
-            }
-        }
-        let frameCount = frames.count
-        guard frameCount >= 2 else { return }
+        let buffers = Array(ablPtr)
+        guard !buffers.isEmpty else { return }
 
-        // 48k → 16k 整数下采样（每 3 帧取 LR 均值），单声道
-        for f in 0..<(frameCount / 2) {
-            let i = f * 2
-            let l = Int(frames[i])
-            let r = Int(frames[i + 1])
-            if f % 3 == 0 {
-                let m = (l + r) / 2
+        if nonInterleaved && buffers.count >= 2 {
+            // 非交错：buffer[0]=左声道, buffer[1]=右声道，每 3 帧取 1 帧，LR 平均 → 16k mono
+            let left = readFrames(buf: buffers[0], isFloat32: isFloat32)
+            let right = readFrames(buf: buffers[1], isFloat32: isFloat32)
+            let n = min(left.count, right.count) / 3
+            for i in 0..<n {
+                let m = (Int(left[i * 3]) + Int(right[i * 3])) / 2
                 monoBuffer.append(Int16(m))
+            }
+        } else {
+            // 交错：L,R 交错排列，每 3 帧取 LR 平均 → 16k mono
+            let frames = readFrames(buf: buffers[0], isFloat32: isFloat32)
+            let fc = frames.count
+            for f in 0..<(fc / 2) {
+                let l = Int(frames[f * 2])
+                let r = Int(frames[f * 2 + 1])
+                if f % 3 == 0 {
+                    monoBuffer.append(Int16((l + r) / 2))
+                }
             }
         }
 
