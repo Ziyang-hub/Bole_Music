@@ -2480,18 +2480,35 @@ textarea {
   display: none;
 }
 
-/* 收起/展开：标题与导航文字用 max-width 过渡——宽度平滑收缩/展开，图标随布局连续居中 */
+/* 收起/展开：文字从左到右揭幕——grid track 0fr↔1fr 过渡，内层单行裁剪，永不竖排/从下到上 */
+.sidebar .sidebar-header h1,
+.sidebar .nav-label,
+.sidebar .conv-name {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
 
+.sidebar-title-text,
+.nav-label-text,
+.conv-name-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
 
+.sidebar.collapsed .sidebar-header h1,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .conv-name {
+  grid-template-columns: minmax(0, 0fr);
+}
 
-
-/* h1 与导航文字：max-width 由内联精确控制（收起=0），opacity 归零 */
-.sidebar.collapsed h1,
-.sidebar.collapsed .nav-item span:last-child,
-.sidebar.collapsed .conv-name,
+/* 收起时消息数/删除按钮仍立即隐藏（不占位） */
 .sidebar.collapsed .conv-msg-count,
 .sidebar.collapsed .conv-delete-btn {
-  display: none; /* 立即移除占位：图标位置稳定，无向左拉/无收缩过程 */
+  display: none;
 }
 
 /* 收起时 logo 直线微调居中（布局8px→居中6px，仅-2px） */

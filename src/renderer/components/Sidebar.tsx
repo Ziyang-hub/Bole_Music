@@ -48,7 +48,7 @@ export default function Sidebar({
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         <div className="logo">🐴</div>
-        <h1>伯乐模拟器</h1>
+        <h1><span className="sidebar-title-text">伯乐模拟器</span></h1>
       </div>
 
       {/* 对话列表 */}
@@ -68,7 +68,7 @@ export default function Sidebar({
               title={`${conv.name} · ${pInfo.label}`}
             >
               <span className="conv-icon">{pInfo.icon}</span>
-              <span className="conv-name">{conv.name}</span>
+              <span className="conv-name"><span className="conv-name-text">{conv.name}</span></span>
               <span className="conv-msg-count">{conv.messages.length}</span>
               <button
                 className="conv-delete-btn"
@@ -97,7 +97,7 @@ export default function Sidebar({
             onClick={() => onNavigate(item.view)}
           >
             <span className="nav-icon">{item.icon}</span>
-            <span>{item.label}</span>
+            <span className="nav-label"><span className="nav-label-text">{item.label}</span></span>
           </button>
         ))}
       </nav>
