@@ -2,9 +2,10 @@
  * 伯乐模拟器 - 哼歌识别组件
  *
  * 使用麦克风录制哼歌 → 发送到主进程识别
+ * 录制时显示实时波形（AudioContext + AnalyserNode，rAF 直操作 DOM）
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Modal from './Modal';
 
 interface Props {
@@ -18,6 +19,11 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
   const [result, setResult] = useState<string | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
+  // 实时波形
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef<number>(0);
+  const barsRef = useRef<(HTMLSpanElement | null)[]>([]);
 
   async function startRecording() {
     try {
@@ -27,12 +33,49 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
       mediaRecorder.current = recorder;
       chunks.current = [];
 
+      // 实时波形：AudioContext + AnalyserNode（麦克风流分析）
+      try {
+        const ctx = new AudioContext();
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        audioCtxRef.current = ctx;
+        analyserRef.current = analyser;
+
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const tick = () => {
+          const an = analyserRef.current;
+          if (an) {
+            an.getByteFrequencyData(data);
+            const len = barsRef.current.length;
+            for (let i = 0; i < len; i++) {
+              const bar = barsRef.current[i];
+              if (!bar) continue;
+              // 频段采样：低频到高频映射到 12 根柱
+              const idx = Math.floor((i + 1) * (data.length / 2) / len);
+              const v = data[idx] / 255;
+              bar.style.height = `${Math.max(8, Math.min(100, v * 100))}%`;
+            }
+          }
+          rafRef.current = requestAnimationFrame(tick);
+        };
+        rafRef.current = requestAnimationFrame(tick);
+      } catch (e) {
+        console.log('[humming] analyser setup failed (waveform disabled):', e);
+      }
+
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.current.push(e.data);
       };
 
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
+        // 清理波形
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        audioCtxRef.current?.close().catch(() => {});
+        audioCtxRef.current = null;
+        analyserRef.current = null;
         const blob = new Blob(chunks.current, { type: 'audio/webm' });
         await recognizeAudio(blob);
       };
@@ -52,6 +95,14 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
       setRecording(false);
     }
   }
+
+  // 组件卸载时清理波形
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      audioCtxRef.current?.close().catch(() => {});
+    };
+  }, []);
 
   async function recognizeAudio(blob: Blob) {
     setRecognizing(true);
@@ -85,6 +136,20 @@ export default function HummingRecorder({ onClose, onResult }: Props) {
 
         {!result && (
           <>
+            {recording && (
+              <div className="humming-wave">
+                <span className="wave-bars">
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <span
+                      key={i}
+                      ref={(el) => { barsRef.current[i] = el; }}
+                      className="wave-bar"
+                      style={{ height: '8%' }}
+                    />
+                  ))}
+                </span>
+              </div>
+            )}
             <p className="humming-hint">
               {recording
                 ? '正在录制... 哼一段你喜欢的旋律吧'

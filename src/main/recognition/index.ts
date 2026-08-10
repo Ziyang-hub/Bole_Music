@@ -88,9 +88,10 @@ export function isMusicFile(audioPath: string): boolean {
 
     const header = buffer.toString('hex');
     return (
-      header.startsWith('52494646') ||
-      header.startsWith('fff3') ||
-      header.startsWith('4f676753')
+      header.startsWith('52494646') ||  // RIFF/WAV
+      header.startsWith('fff3') ||      // MP3
+      header.startsWith('4f676753') ||  // Ogg
+      header.startsWith('1a45dfa3')     // EBML/WebM（哼歌识曲的麦克风录制格式）
     );
   } catch {
     return false;

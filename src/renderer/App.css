@@ -2352,3 +2352,14 @@ textarea {
 .diary-modal-body {
   padding: var(--space-md);
 }
+
+/* 哼歌识曲波形 */
+.humming-wave {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.humming-wave .wave-bars {
+  height: 20px;
+}
