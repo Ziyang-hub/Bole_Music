@@ -2420,38 +2420,58 @@ textarea {
 
 /* 收起时文字先淡出（0.12s），宽度动画期间文字已不可见——避免被压缩成竖条 */
 .sidebar h1,
-.sidebar .sidebar-section-label,
 .sidebar .conv-name,
 .sidebar .conv-msg-count,
-.sidebar .new-conv-btn,
-.sidebar .nav-item span:last-child,
-.sidebar .sidebar-footer {
+.sidebar .nav-item span:last-child {
   transition: opacity 0.18s ease, visibility 0s linear 0.18s;
 }
 
 .sidebar.collapsed h1,
-.sidebar.collapsed .sidebar-section-label,
-.sidebar.collapsed .conversation-list,
-.sidebar.collapsed .new-conv-btn,
-.sidebar.collapsed .nav-item span:last-child,
-.sidebar.collapsed .sidebar-footer {
+.sidebar.collapsed .conv-name,
+.sidebar.collapsed .conv-msg-count,
+.sidebar.collapsed .nav-item span:last-child {
   opacity: 0;
   visibility: hidden;
-  /* 收起：文字立即淡出（先于宽度动画），visibility 延迟到淡出后 */
   transition: opacity 0.12s ease, visibility 0s linear 0.12s;
 }
 
 /* 展开：宽度动画（0.25s）完成后文字再淡入，丝滑无挤压 */
 .sidebar:not(.collapsed) h1,
-.sidebar:not(.collapsed) .sidebar-section-label,
 .sidebar:not(.collapsed) .conv-name,
 .sidebar:not(.collapsed) .conv-msg-count,
-.sidebar:not(.collapsed) .new-conv-btn,
-.sidebar:not(.collapsed) .nav-item span:last-child,
-.sidebar:not(.collapsed) .sidebar-footer {
+.sidebar:not(.collapsed) .nav-item span:last-child {
   opacity: 1;
   visibility: visible;
   transition: opacity 0.2s ease 0.25s, visibility 0s linear 0.25s;
+}
+
+/* 收起时容器收起高度（不占位，图标布局整齐） */
+.sidebar .conversation-list,
+.sidebar .new-conv-btn {
+  transition: max-height 0.25s ease, height 0.25s ease, opacity 0.2s ease,
+    padding 0.25s ease, margin 0.25s ease, border-width 0.25s ease;
+  overflow: hidden;
+}
+
+.sidebar.collapsed .conversation-list {
+  max-height: 0;
+  min-height: 0;
+  opacity: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar.collapsed .new-conv-btn {
+  height: 0;
+  opacity: 0;
+  padding: 0;
+  margin: 0;
+  border-width: 0;
+}
+
+.sidebar.collapsed .sidebar-section-label,
+.sidebar.collapsed .sidebar-footer {
+  display: none;
 }
 
 .sidebar.collapsed .nav-item {
