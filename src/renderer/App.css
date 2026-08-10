@@ -2481,14 +2481,20 @@ textarea {
 
 /* 收起/展开：标题与导航文字用 max-width 过渡——宽度平滑收缩/展开，图标随布局连续居中 */
 .sidebar h1,
+.sidebar .nav-item span:last-child {
+  max-width: 100px; /* 贴近实际文字宽度，生长/收缩与图标移动同步自然 */
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+}
+
+/* 对话条目文字：弹性宽度（展开不受限），收起收缩为0 */
 .sidebar .conv-name,
 .sidebar .conv-msg-count,
-.sidebar .conv-delete-btn,
-.sidebar .nav-item span:last-child {
-  max-width: 200px;
+.sidebar .conv-delete-btn {
+  max-width: 999px;
   overflow: hidden;
-  white-space: nowrap; /* 收起时文字横向裁剪，绝不换行竖排 */
-  /* max-width 与 opacity 同步过渡：图标从展开位置连续移动到居中（无停顿/无靠左） */
+  white-space: nowrap;
   transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
 }
 
