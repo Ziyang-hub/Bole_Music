@@ -13,17 +13,12 @@ import SettingsPage from './components/SettingsPage';
 import SearchSongs from './components/SearchSongs';
 import PlaylistImport from './components/PlaylistImport';
 import HummingRecorder from './components/HummingRecorder';
+import Sidebar from './components/Sidebar';
 import Modal from './components/Modal';
 
 // ----- 类型 -----
 
 type View = 'chat' | 'report' | 'diary' | 'settings';
-
-const NAV_ITEMS: { view: View; icon: string; label: string }[] = [
-  { view: 'report', icon: '📊', label: '听歌报告' },
-  { view: 'diary', icon: '📝', label: '听歌日记' },
-  { view: 'settings', icon: '⚙️', label: '设置' },
-];
 
 /** 人格信息（用于对话列表和新对话选择器） */
 const PERSONA_INFO: Record<string, { icon: string; label: string; desc: string }> = {
@@ -132,8 +127,6 @@ function NewConversationModal({
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('chat');
-  // 侧边栏收起/展开
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // 对话
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -1017,78 +1010,16 @@ export default function App() {
   return (
     <div className="app" data-theme={theme}>
       {/* 侧边栏 */}
-      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-header">
-          <div className="logo">🐴</div>
-          <h1>伯乐模拟器</h1>
-        </div>
-
-        {/* 对话列表 */}
-        <div className="sidebar-section-label">💬 知音对话</div>
-        <nav className="conversation-list">
-          {conversations.map((conv) => {
-            const pInfo = PERSONA_INFO[conv.persona] || PERSONA_INFO.literary;
-            const isActive = currentView === 'chat' && conv.id === activeConvId;
-            return (
-              <div
-                key={conv.id}
-                className={`conv-item ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  navigateTo('chat');
-                  handleSwitchConversation(conv.id);
-                }}
-                title={`${conv.name} · ${pInfo.label}`}
-              >
-                <span className="conv-icon">{pInfo.icon}</span>
-                <span className="conv-name">{conv.name}</span>
-                <span className="conv-msg-count">{conv.messages.length}</span>
-                <button
-                  className="conv-delete-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteConversation(conv.id);
-                  }}
-                  title="删除对话"
-                >×</button>
-              </div>
-            );
-          })}
-        </nav>
-        <button
-          className="new-conv-btn"
-          onClick={() => setShowNewConvModal(true)}
-        >
-          ＋ 新建对话
-        </button>
-
-        <nav className="sidebar-nav">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.view}
-              className={`nav-item ${currentView === item.view ? 'active' : ''}`}
-              onClick={() => navigateTo(item.view)}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {appInfo && (
-          <div className="sidebar-footer">
-            <span>v{appInfo.version}</span>
-          </div>
-        )}
-
-        {/* 收起/展开按钮（置于侧边栏底部） */}
-        <button
-          className="sidebar-toggle-btn"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
-        >
-          {sidebarCollapsed ? '» 展开' : '« 收起'}
-        </button>
-      </aside>
+      <Sidebar
+        conversations={conversations}
+        currentView={currentView}
+        activeConvId={activeConvId}
+        appInfo={appInfo}
+        onNavigate={(v) => navigateTo(v as View)}
+        onSwitchConversation={handleSwitchConversation}
+        onDeleteConversation={handleDeleteConversation}
+        onOpenNewConversation={() => setShowNewConvModal(true)}
+      />
 
       {/* 主内容区 */}
       <main className="main">
