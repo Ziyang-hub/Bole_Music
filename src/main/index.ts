@@ -5,6 +5,7 @@
  */
 
 import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage, desktopCapturer } from 'electron';
+import { MUSIC_HEADERS } from './http-common';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -586,12 +587,6 @@ function isAllowlistedImageHost(hostname: string): boolean {
   return hostname === 'music.126.net' || hostname.endsWith('.music.126.net');
 }
 
-// 图片请求头（统一）
-const IMAGE_FETCH_HEADERS = {
-  'Referer': 'https://music.163.com/',
-  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-};
-
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024; // 5MB 上限
 
 ipcMain.handle('image:fetch', async (_e, url: string) => {
@@ -606,7 +601,7 @@ ipcMain.handle('image:fetch', async (_e, url: string) => {
       const resp = await fetch(target, {
         redirect: 'manual', // 不自动跟随：每次跳转都重新校验白名单
         signal: AbortSignal.timeout(8000), // 8 秒超时，避免挂起主进程
-        headers: IMAGE_FETCH_HEADERS,
+        headers: MUSIC_HEADERS,
       });
 
       // 重定向：仅允许跳转到白名单内的同源图床（CDN p1↔p2 互跳是正常行为）

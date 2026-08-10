@@ -5,6 +5,8 @@
  * 一个挂了自动切下一个，国内均可访问
  */
 
+import { BROWSER_HEADERS } from './http-common';
+
 export interface SearchResult {
   title: string;
   snippet: string;
@@ -52,7 +54,7 @@ async function searchBing(query: string): Promise<SearchResult[]> {
   const resp = await fetch(url, {
     signal: AbortSignal.timeout(6000),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      ...BROWSER_HEADERS,
       'Accept-Language': 'zh-CN,zh;q=0.9',
     },
   });
@@ -117,7 +119,7 @@ async function searchBaidu(query: string): Promise<SearchResult[]> {
   const resp = await fetch(url, {
     signal: AbortSignal.timeout(6000),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      ...BROWSER_HEADERS,
       'Accept-Language': 'zh-CN,zh;q=0.9',
     },
   });
@@ -157,7 +159,7 @@ async function searchSogou(query: string): Promise<SearchResult[]> {
   const resp = await fetch(url, {
     signal: AbortSignal.timeout(6000),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      ...BROWSER_HEADERS,
       'Accept-Language': 'zh-CN,zh;q=0.9',
     },
   });

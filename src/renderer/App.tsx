@@ -132,6 +132,8 @@ function NewConversationModal({
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('chat');
+  // 侧边栏收起/展开
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // 对话
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -1011,10 +1013,17 @@ export default function App() {
   return (
     <div className="app" data-theme={theme}>
       {/* 侧边栏 */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="logo">🐴</div>
           <h1>伯乐模拟器</h1>
+          <button
+            className="sidebar-toggle-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+          >
+            {sidebarCollapsed ? '»' : '«'}
+          </button>
         </div>
 
         {/* 对话列表 */}

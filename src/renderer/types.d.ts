@@ -180,6 +180,7 @@ interface ElectronAPI {
   openScreenRecordingSettings: () => Promise<void>;
   onSongDetected: (callback: (result: RecognitionResult) => void) => void;
   onAudioLevel: (callback: (rms: number) => void) => void;
+  fetchImage: (url: string) => Promise<string | null>;
   removeSongDetectedListener?: () => void;
 
   // macOS 系统音频采集

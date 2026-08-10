@@ -152,6 +152,7 @@ export function installMockAPI() {
     // 系统
     showNotification: async () => {},
     getTheme: async () => lsGet<string>('theme', 'dark'),
+    fetchImage: async () => null,
     onNavigate: () => {},
     onSettingsChanged: () => {},
 
