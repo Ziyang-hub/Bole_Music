@@ -2426,6 +2426,7 @@ textarea {
 
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
+  gap: 0;
   padding: var(--space-sm) 0 0;
   margin-bottom: 32px;
 }
@@ -2454,17 +2455,30 @@ textarea {
   border-width: 0;
 }
 
-.sidebar.collapsed h1,
 .sidebar.collapsed .sidebar-section-label,
-.sidebar.collapsed .conv-name,
-.sidebar.collapsed .conv-msg-count,
-.sidebar.collapsed .nav-item span:last-child,
 .sidebar.collapsed .sidebar-footer {
-  display: none; /* 不占位：visibility:hidden 会占位导致图标偏左 */
+  display: none;
+}
+
+/* 收起/展开：标题与导航文字用 max-width 过渡——宽度平滑收缩/展开，图标随布局连续居中 */
+.sidebar h1,
+.sidebar .nav-item span:last-child {
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 0.25s ease, opacity 0.2s ease;
+}
+
+.sidebar.collapsed h1,
+.sidebar.collapsed .nav-item span:last-child {
+  max-width: 0;
+  opacity: 0;
+  padding: 0;
 }
 
 .sidebar.collapsed .nav-item {
   justify-content: center;
+  gap: 0; /* 文字宽度为0时消除空隙，图标精确居中 */
   padding: 6px 0;
 }
 
