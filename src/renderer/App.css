@@ -2415,34 +2415,7 @@ textarea {
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
   padding: var(--space-sm) 0 0;
-  margin-bottom: 56px; /* 马头与图标组距离拉大 */
-}
-
-/* 收起时文字先淡出（0.12s），宽度动画期间文字已不可见——避免被压缩成竖条 */
-.sidebar h1,
-.sidebar .conv-name,
-.sidebar .conv-msg-count,
-.sidebar .nav-item span:last-child {
-  transition: opacity 0.18s ease, visibility 0s linear 0.18s;
-}
-
-.sidebar.collapsed h1,
-.sidebar.collapsed .conv-name,
-.sidebar.collapsed .conv-msg-count,
-.sidebar.collapsed .nav-item span:last-child {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.12s ease, visibility 0s linear 0.12s;
-}
-
-/* 展开：宽度动画（0.25s）完成后文字再淡入，丝滑无挤压 */
-.sidebar:not(.collapsed) h1,
-.sidebar:not(.collapsed) .conv-name,
-.sidebar:not(.collapsed) .conv-msg-count,
-.sidebar:not(.collapsed) .nav-item span:last-child {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.2s ease 0.25s, visibility 0s linear 0.25s;
+  margin-bottom: 32px;
 }
 
 /* 收起时容器收起高度（不占位，图标布局整齐） */
@@ -2469,9 +2442,13 @@ textarea {
   border-width: 0;
 }
 
+.sidebar.collapsed h1,
 .sidebar.collapsed .sidebar-section-label,
+.sidebar.collapsed .conv-name,
+.sidebar.collapsed .conv-msg-count,
+.sidebar.collapsed .nav-item span:last-child,
 .sidebar.collapsed .sidebar-footer {
-  display: none;
+  display: none; /* 不占位：visibility:hidden 会占位导致图标偏左 */
 }
 
 .sidebar.collapsed .nav-item {
@@ -2482,7 +2459,7 @@ textarea {
 /* 收起时图标组垂直居中、间距一致 */
 .sidebar.collapsed .sidebar-nav {
   justify-content: center;
-  gap: 14px;
+  gap: 8px;
 }
 
 .sidebar-toggle-btn {
