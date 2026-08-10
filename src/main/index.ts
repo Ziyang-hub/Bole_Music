@@ -299,7 +299,10 @@ ipcMain.handle('conversation:create', async (_e, name: string, persona: string) 
   createConversation(name, persona as 'literary' | 'professional' | 'warm' | 'humorous'));
 ipcMain.handle('conversation:delete', async (_e, id: string) => {
   try {
-    deleteConversation(id);
+    const ok = deleteConversation(id);
+    if (!ok) {
+      return { success: false, error: '至少需要保留一个对话' };
+    }
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };

@@ -243,8 +243,9 @@ export default function App() {
             seen.add(m.id);
             return true;
           }));
-        } else {
-          // 首次使用，显示欢迎消息
+        } else if (activeId === 'default') {
+          // 仅首次启动的默认对话显示欢迎消息——
+          // 用户自己创建的新对话不会被污染（它们有自己的人格欢迎语）
           const welcome: ChatMessage = {
             id: 'welcome-1',
             role: 'bole',
@@ -517,7 +518,11 @@ export default function App() {
     const conv = conversations.find((c) => c.id === convId);
     const ok = window.confirm(`确定删除对话「${conv?.name || ''}」？该对话的所有消息将无法恢复。`);
     if (!ok) return;
-    await window.electronAPI.deleteConversation(convId).catch(() => {});
+    const delRes = await window.electronAPI.deleteConversation(convId);
+    if (!delRes.success) {
+      alert('⚠️ ' + (delRes.error || '删除失败'));
+      return;
+    }
     const convs = await window.electronAPI.getConversations();
     setConversations(convs);
     const nextId = await window.electronAPI.getActiveConversationId();

@@ -215,11 +215,11 @@ export function createConversation(
   return conv;
 }
 
-export function deleteConversation(id: string): void {
+export function deleteConversation(id: string): boolean {
   let conversations = getConversations();
   if (conversations.length <= 1) {
     console.warn('[store] cannot delete the last conversation');
-    return;
+    return false;
   }
   conversations = conversations.filter((c) => c.id !== id);
   store.set('conversations', conversations);
@@ -228,6 +228,7 @@ export function deleteConversation(id: string): void {
     setActiveConversation(conversations[0].id);
   }
   console.log('[store] deleted conversation:', id);
+  return true;
 }
 
 export function updateConversation(id: string, partial: Partial<Conversation>): void {
