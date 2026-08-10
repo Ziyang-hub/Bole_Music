@@ -2414,8 +2414,8 @@ textarea {
 
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
-  padding: var(--space-sm) 0;
-  margin-bottom: var(--space-lg);
+  padding: var(--space-sm) 0 0;
+  margin-bottom: 56px; /* 马头与图标组距离拉大 */
 }
 
 /* 收起时文字先淡出（0.12s），宽度动画期间文字已不可见——避免被压缩成竖条 */
@@ -2476,7 +2476,13 @@ textarea {
 
 .sidebar.collapsed .nav-item {
   justify-content: center;
-  padding: var(--space-sm) 0;
+  padding: 6px 0;
+}
+
+/* 收起时图标组垂直居中、间距一致 */
+.sidebar.collapsed .sidebar-nav {
+  justify-content: center;
+  gap: 14px;
 }
 
 .sidebar-toggle-btn {
