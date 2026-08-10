@@ -2415,7 +2415,7 @@ textarea {
 
 /* ----- 侧边栏收起/展开 ----- */
 .sidebar {
-  transition: width 0.25s ease, min-width 0.25s ease;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar.collapsed {
@@ -2434,8 +2434,8 @@ textarea {
 /* 收起时容器收起高度（不占位，图标布局整齐） */
 .sidebar .conversation-list,
 .sidebar .new-conv-btn {
-  transition: max-height 0.25s ease, height 0.25s ease, opacity 0.2s ease,
-    padding 0.25s ease, margin 0.25s ease, border-width 0.25s ease;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease,
+    padding 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
@@ -2466,7 +2466,8 @@ textarea {
   max-width: 200px;
   overflow: hidden;
   white-space: nowrap;
-  transition: max-width 0.25s ease, opacity 0.2s ease;
+  /* 展开：宽度先展开（0.3s），文字延迟到宽度展开后淡入 */
+  transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease 0.3s;
 }
 
 .sidebar.collapsed h1,
@@ -2474,6 +2475,8 @@ textarea {
   max-width: 0;
   opacity: 0;
   padding: 0;
+  /* 收起：文字立即淡出，宽度稍后收缩（图标连续居中） */
+  transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.1s, opacity 0.12s ease;
 }
 
 .sidebar.collapsed .nav-item {
