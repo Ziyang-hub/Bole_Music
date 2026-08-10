@@ -18,6 +18,8 @@
     "package:mac": "npm run build && electron-builder --mac"
   },
   "dependencies": {
+    "@types/dompurify": "^3.0.5",
+    "dompurify": "^3.4.13",
     "electron-store": "^8.2.0",
     "electron-updater": "^6.3.0",
     "ffmpeg-static": "^5.2.0",

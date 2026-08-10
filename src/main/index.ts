@@ -7,6 +7,7 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage, desktopCapturer } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 
 // 导入服务模块
 import {
@@ -585,13 +586,26 @@ ipcMain.handle('audio:checkCapability', async () => {
 });
 
 ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
-  const result = await recognizeSong(audioPath);
+  // 安全：只允许识别应用自身临时音频目录内的文件（防止任意文件被读取/上传第三方）
+  const audioDir = path.join(os.tmpdir(), 'bole-simulator-audio');
+  const resolved = path.resolve(audioPath || '');
+  if (!resolved.startsWith(audioDir + path.sep)) {
+    console.warn('[ipc:recognizeFile] Rejected path outside audio dir:', resolved);
+    return null;
+  }
+  const result = await recognizeSong(resolved);
   return result;
 });
 
 // 图片代理：绕过网易云防盗链（主进程带 Referer 下载 → data URI）
+// 安全：仅允许网易云图床域名（防止 SSRF 访问内网/云元数据服务）
 ipcMain.handle('image:fetch', async (_e, url: string) => {
   try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' || !u.hostname.endsWith('music.126.net')) {
+      console.warn('[ipc:imageFetch] Rejected non-allowlisted URL:', url.slice(0, 120));
+      return null;
+    }
     const resp = await fetch(url, {
       headers: {
         'Referer': 'https://music.163.com/',

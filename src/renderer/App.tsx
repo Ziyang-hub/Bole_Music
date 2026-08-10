@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import ReportPage from './components/ReportPage';
 import DiaryPage from './components/DiaryPage';
 import SettingsPage from './components/SettingsPage';
@@ -1135,7 +1136,7 @@ export default function App() {
                         <div
                           className="message-text"
                           // 用 Markdown 渲染消息内容（agent 输出的 ###/*** 等符号变成好看的排版）
-                          dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(msg.content), { USE_PROFILES: { html: true } }) }}
                         />
                         <div className="message-time">
                           {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
