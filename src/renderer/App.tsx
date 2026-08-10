@@ -1239,14 +1239,14 @@ export default function App() {
 
             <div className="input-area">
               <div className="input-wrapper">
-                <button className="search-toggle-btn" onClick={() => setShowSearch(true)} title="搜索歌曲" data-tip="🔍 搜索歌曲：查找并分析任意歌曲">🔍</button>
-                <button className="search-toggle-btn" onClick={() => setShowPlaylist(true)} title="导入歌单" data-tip="📋 导入歌单：粘贴网易云歌单链接整体分析">📋</button>
-                <button className="search-toggle-btn" onClick={() => setShowHumming(true)} title="哼歌识别" data-tip="🎤 哼歌识别：哼唱旋律识别歌曲">🎤</button>
+                <button className="search-toggle-btn" onClick={() => setShowSearch(true)} title="搜索歌曲" data-tip="🔍 搜索歌曲">🔍</button>
+                <button className="search-toggle-btn" onClick={() => setShowPlaylist(true)} title="导入歌单" data-tip="📋 导入歌单">📋</button>
+                <button className="search-toggle-btn" onClick={() => setShowHumming(true)} title="哼歌识别" data-tip="🎤 哼歌识别">🎤</button>
                 <button
                   className={`search-toggle-btn ${isListening ? 'listening-active' : ''}`}
                   onClick={handleToggleCapture}
                   title={isListening ? '停止音频采集' : '音频采集（需先在设置中允许）'}
-                  data-tip={isListening ? '🎧 停止音频采集' : '🎧 音频采集：监听电脑播放的音乐（需先在设置中允许）'}
+                  data-tip={isListening ? '🎧 停止采集' : '🎧 音频采集'}
                 >🎧</button>
                 <textarea
                   className="input-field"

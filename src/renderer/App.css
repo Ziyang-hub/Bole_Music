@@ -2380,18 +2380,15 @@ textarea {
   content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 8px);
-  left: 0; /* 左对齐按钮，避免长文本向左延伸被侧边栏遮挡 */
-  transform: translateY(4px);
+  left: 50%; /* 居中于功能按钮正中间 */
+  transform: translateX(-50%) translateY(4px);
   background: var(--color-bg-tertiary);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 5px 12px;
   font-size: 12px;
-  white-space: normal;
-  width: max-content; /* 忽略包含块宽度（按钮40px），按内容横排，避免竖条 */
-  max-width: 240px;
-  line-height: 1.5;
+  white-space: nowrap; /* 简短说明，单行显示 */
   box-shadow: var(--shadow-md);
   opacity: 0;
   pointer-events: none;
@@ -2401,7 +2398,7 @@ textarea {
 
 .search-toggle-btn:hover::after {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 
 /* ----- 侧边栏收起/展开 ----- */
@@ -2421,13 +2418,40 @@ textarea {
   margin-bottom: var(--space-lg);
 }
 
-.sidebar.collapsed .sidebar-header h1,
+/* 收起时文字先淡出（0.12s），宽度动画期间文字已不可见——避免被压缩成竖条 */
+.sidebar h1,
+.sidebar .sidebar-section-label,
+.sidebar .conv-name,
+.sidebar .conv-msg-count,
+.sidebar .new-conv-btn,
+.sidebar .nav-item span:last-child,
+.sidebar .sidebar-footer {
+  transition: opacity 0.18s ease, visibility 0s linear 0.18s;
+}
+
+.sidebar.collapsed h1,
 .sidebar.collapsed .sidebar-section-label,
 .sidebar.collapsed .conversation-list,
 .sidebar.collapsed .new-conv-btn,
 .sidebar.collapsed .nav-item span:last-child,
 .sidebar.collapsed .sidebar-footer {
-  display: none;
+  opacity: 0;
+  visibility: hidden;
+  /* 收起：文字立即淡出（先于宽度动画），visibility 延迟到淡出后 */
+  transition: opacity 0.12s ease, visibility 0s linear 0.12s;
+}
+
+/* 展开：宽度动画（0.25s）完成后文字再淡入，丝滑无挤压 */
+.sidebar:not(.collapsed) h1,
+.sidebar:not(.collapsed) .sidebar-section-label,
+.sidebar:not(.collapsed) .conv-name,
+.sidebar:not(.collapsed) .conv-msg-count,
+.sidebar:not(.collapsed) .new-conv-btn,
+.sidebar:not(.collapsed) .nav-item span:last-child,
+.sidebar:not(.collapsed) .sidebar-footer {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease 0.25s, visibility 0s linear 0.25s;
 }
 
 .sidebar.collapsed .nav-item {
