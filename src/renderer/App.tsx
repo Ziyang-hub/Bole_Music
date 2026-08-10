@@ -163,8 +163,9 @@ export default function App() {
   const [allowCapture, setAllowCapture] = useState(false);
   // 实时音量（0~1 RMS，用于采集可视化）
   const [audioLevel, setAudioLevel] = useState(0);
-  // 波形动画相位（rAF 驱动，形成流动波浪效果）
-  const [wavePhase, setWavePhase] = useState(0);
+  const audioLevelRef = useRef(0); // rAF 闭包读取最新值（不触发 React 渲染）
+  // 波形条 DOM 引用（rAF 直接操作，避免 60fps React 重渲染卡顿）
+  const waveBarsRef = useRef<(HTMLSpanElement | null)[]>([]);
 
   // 主题 + 头像
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -275,16 +276,28 @@ export default function App() {
   useEffect(() => {
     if (!window.electronAPI?.onAudioLevel) return;
     window.electronAPI.onAudioLevel((rms: number) => {
+      audioLevelRef.current = rms;
       setAudioLevel(rms);
     });
   }, []);
 
-  // 波形动画：rAF 驱动相位，形成流动的波浪效果
+  // 波形动画：rAF 直接操作 DOM（不触发 React 渲染，避免卡顿）
   useEffect(() => {
     if (!isListening) return;
     let raf: number;
     const tick = () => {
-      setWavePhase((p) => (p + 0.08) % (Math.PI * 2));
+      // 时间驱动相位（平滑流动）
+      const phase = performance.now() / 170;
+      const amp = Math.min(1, audioLevelRef.current * 5);
+      // 低于阈值 = 静音 → 所有柱固定静止基线（不跳动）
+      const hasAudio = amp > 0.02;
+      waveBarsRef.current.forEach((bar, i) => {
+        if (!bar) return;
+        const h = hasAudio
+          ? amp * (0.3 + 0.7 * Math.abs(Math.sin(phase + i * 0.55)))
+          : 0.08;
+        bar.style.height = `${Math.max(8, Math.min(100, h * 100))}%`;
+      });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -1227,22 +1240,18 @@ export default function App() {
                 </button>
               </div>
               {isListening && (
-                <div className={`listening-hint ${audioLevel > 0.003 ? 'has-sound' : 'no-sound'}`}>
-                  {audioLevel > 0.003 ? (
+                <div className={`listening-hint ${audioLevel > 0.02 ? 'has-sound' : 'no-sound'}`}>
+                  {audioLevel > 0.02 ? (
                     <>
                       <span className="wave-bars">
-                        {Array.from({ length: 12 }, (_, i) => {
-                          // 波形：RMS 作为振幅，相位差形成流动波浪
-                          const amp = Math.min(1, audioLevel * 5);
-                          const h = amp * (0.3 + 0.7 * Math.abs(Math.sin(wavePhase + i * 0.55)));
-                          return (
-                            <span
-                              key={i}
-                              className="wave-bar"
-                              style={{ height: `${Math.max(8, Math.min(100, h * 100))}%` }}
-                            />
-                          );
-                        })}
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <span
+                            key={i}
+                            ref={(el) => { waveBarsRef.current[i] = el; }}
+                            className="wave-bar"
+                            style={{ height: '8%' }}
+                          />
+                        ))}
                       </span>
                       🎧 正在监听系统音频
                     </>
