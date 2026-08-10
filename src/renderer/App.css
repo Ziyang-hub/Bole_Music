@@ -2425,9 +2425,9 @@ textarea {
 }
 
 .sidebar.collapsed .sidebar-header {
-  justify-content: center;
-  gap: 0;
-  padding: var(--space-sm) 0 0;
+  justify-content: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
   margin-bottom: 32px;
 }
 
@@ -2456,7 +2456,7 @@ textarea {
   justify-content: center;
   gap: 0;
   padding: 6px 0;
-  overflow: hidden; /* 防止占位元素溢出影响居中 */
+  overflow: hidden;
 }
 
 
@@ -2481,40 +2481,26 @@ textarea {
 }
 
 /* 收起/展开：标题与导航文字用 max-width 过渡——宽度平滑收缩/展开，图标随布局连续居中 */
-.sidebar h1,
-.sidebar .nav-item span:last-child {
-  /* max-width 由内联 style 精确控制（=文字实际宽度），动画范围精确、与图标移动严格同步 */
-  overflow: hidden;
-  white-space: nowrap;
-  transition: max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
-}
 
-/* 对话条目文字：弹性宽度（展开不受限），收起收缩为0 */
-.sidebar .conv-name,
-.sidebar .conv-msg-count,
-.sidebar .conv-delete-btn {
-  max-width: 999px;
-  overflow: hidden;
-  white-space: nowrap;
-  transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
-}
 
-.sidebar.collapsed .conv-name,
-.sidebar.collapsed .conv-delete-btn {
-  max-width: 0;
-  opacity: 0;
-}
 
-.sidebar.collapsed .conv-msg-count {
-  max-width: 0;
-  opacity: 0;
-  padding: 0; /* 消除padding残留占位（表情后空格+图标偏移） */
-}
 
 /* h1 与导航文字：max-width 由内联精确控制（收起=0），opacity 归零 */
 .sidebar.collapsed h1,
-.sidebar.collapsed .nav-item span:last-child {
-  opacity: 0;
+.sidebar.collapsed .nav-item span:last-child,
+.sidebar.collapsed .conv-name,
+.sidebar.collapsed .conv-msg-count,
+.sidebar.collapsed .conv-delete-btn {
+  display: none; /* 立即移除占位：图标位置稳定，无向左拉/无收缩过程 */
+}
+
+/* 收起时 logo 直线微调居中（布局8px→居中6px，仅-2px） */
+.sidebar .sidebar-header .logo {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sidebar.collapsed .sidebar-header .logo {
+  transform: translateX(-2px);
 }
 
 .sidebar .nav-item,
@@ -2523,9 +2509,17 @@ textarea {
 }
 
 .sidebar.collapsed .nav-item {
-  justify-content: center;
-  gap: 0; /* gap 同步过渡到0，图标连续精确居中 */
-  padding: 6px 0;
+  /* 布局保持 flex-start（图标位置稳定，无向左拉动作）*/
+  padding: 8px 16px;
+}
+
+.sidebar .nav-icon {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sidebar.collapsed .nav-icon {
+  /* 图标从展开位置(16px)直线平移到居中位(10px)，仅6px微调 */
+  transform: translateX(-6px);
 }
 
 /* 收起时图标组垂直居中、间距一致 */

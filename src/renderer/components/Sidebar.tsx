@@ -44,26 +44,11 @@ export default function Sidebar({
   // 收起/展开状态：组件内部管理（App 不重渲染，过渡流畅）
   const [collapsed, setCollapsed] = useState(false);
 
-  // 精确文字宽度（展开态测量）——max-width 动画范围=文字实际宽度，与图标移动严格同步
-  const h1Ref = useRef<HTMLHeadingElement>(null);
-  const navTextRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const [h1Width, setH1Width] = useState(0);
-  const [navWidths, setNavWidths] = useState<number[]>([]);
-
-  useEffect(() => {
-    // 初始展开态测量一次（无 max-width 限制时文字完整，offsetWidth 精确）
-    setH1Width(h1Ref.current?.offsetWidth || 0);
-    setNavWidths(navTextRefs.current.map((el) => el?.offsetWidth || 0));
-  }, []);
-
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         <div className="logo">🐴</div>
-        <h1
-          ref={h1Ref}
-          style={h1Width ? { maxWidth: collapsed ? 0 : h1Width } : undefined}
-        >伯乐模拟器</h1>
+        <h1>伯乐模拟器</h1>
       </div>
 
       {/* 对话列表 */}
@@ -105,17 +90,14 @@ export default function Sidebar({
       </button>
 
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map((item, i) => (
+        {NAV_ITEMS.map((item) => (
           <button
             key={item.view}
             className={`nav-item ${currentView === item.view ? 'active' : ''}`}
             onClick={() => onNavigate(item.view)}
           >
             <span className="nav-icon">{item.icon}</span>
-            <span
-              ref={(el) => { navTextRefs.current[i] = el; }}
-              style={navWidths[i] ? { maxWidth: collapsed ? 0 : navWidths[i] } : undefined}
-            >{item.label}</span>
+            <span>{item.label}</span>
           </button>
         ))}
       </nav>
