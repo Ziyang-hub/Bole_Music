@@ -410,6 +410,8 @@ ipcMain.handle(
       if (genreMatch) {
         genre = genreMatch[1].trim();
       }
+      // AI 未标注曲风时兜底为"未知"（避免空字符串进统计）
+      if (!genre) genre = '未知';
 
       // 将 Agent 的自然语言回复包装为 AnalysisResult
       const result = {

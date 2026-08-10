@@ -21,6 +21,14 @@ export default function DiaryPage() {
   const [modalTitle, setModalTitle] = useState('');
   const [modalArtist, setModalArtist] = useState('');
   const [modalNote, setModalNote] = useState('');
+  // 小结编辑状态
+  const [editingSummaryDate, setEditingSummaryDate] = useState<string | null>(null);
+  const [editSummaryText, setEditSummaryText] = useState('');
+  // 导出状态
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportMode, setExportMode] = useState<'all' | 'range'>('all');
+  const [exportStart, setExportStart] = useState('');
+  const [exportEnd, setExportEnd] = useState('');
 
   const loadDiary = useCallback(async () => {
     if (!window.electronAPI) { setLoaded(true); return; }
@@ -91,7 +99,7 @@ export default function DiaryPage() {
     setGeneratingFor(date);
 
     try {
-      const userMsg = `今天听了以下几首歌：\n${day.songs.map((s) => `- ${s.title} (${s.artist})`).join('\n')}\n\n请为今天的听歌日记写一段温馨的小结（100-200字）。直接回复文字，不要JSON。`;
+      const userMsg = `今天听了以下几首歌：\n${day.songs.map((s) => `- ${s.title} (${s.artist})`).join('\n')}\n\n请以用户「我」的第一人称视角，为今天的听歌日记写一段温馨的小结（100-200字），像用户自己在日记里写下今天听歌的感受（例如「今天我听了几首歌，最打动我的是...」）。直接回复文字，不要JSON。`;
       const result = await window.electronAPI.chat([], userMsg);
 
       if (result.success && result.data) {
@@ -113,6 +121,68 @@ export default function DiaryPage() {
     const updatedSongs = [...day.songs, { title: '💭 我的感想', artist: '', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), note: note.trim() }];
     await window.electronAPI.updateDiaryEntry(date, { songs: updatedSongs });
     loadDiary();
+  }
+
+  // 复制小结
+  async function copySummary(date: string) {
+    const day = diary.find((d) => d.date === date);
+    if (!day?.summary) return;
+    try {
+      await navigator.clipboard.writeText(day.summary);
+      alert('小结已复制到剪贴板 📋');
+    } catch {
+      alert('复制失败，请手动复制');
+    }
+  }
+
+  // 保存修改的小结
+  async function saveSummary(date: string) {
+    if (!window.electronAPI) return;
+    await window.electronAPI.updateDiaryEntry(date, { summary: editSummaryText.trim() });
+    setEditingSummaryDate(null);
+    loadDiary();
+  }
+
+  // 导出听歌日记（全部 / 日期范围）
+  function exportDiary() {
+    let entries = diary;
+    if (exportMode === 'range' && exportStart && exportEnd) {
+      entries = diary.filter((d) => d.date >= exportStart && d.date <= exportEnd);
+    }
+
+    let text = '🐴 伯乐模拟器 - 听歌日记\n';
+    text += `${'='.repeat(40)}\n\n`;
+
+    if (entries.length === 0) {
+      text += '该时间段内没有听歌记录。\n';
+    }
+
+    entries.forEach((day, idx) => {
+      text += `📅 ${day.date}`;
+      if (day.mood && day.mood !== '未知') text += `  (${day.mood})`;
+      text += `\n${'-'.repeat(30)}\n`;
+      day.songs.forEach((s) => {
+        text += `  🎵 ${s.title}${s.artist ? ` — ${s.artist}` : ''}${s.time ? `  ${s.time}` : ''}\n`;
+        if (s.note) text += `     💭 ${s.note}\n`;
+      });
+      if (day.summary) {
+        text += `  ✍️ 小结：${day.summary}\n`;
+      }
+      text += '\n';
+    });
+
+    text += `---\n共 ${entries.length} 天 | 由伯乐模拟器生成\n`;
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    a.download = `听歌日记_${exportMode === 'all' ? '全部' : `${exportStart}_至_${exportEnd}`}_${dateStr}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowExportModal(false);
   }
 
   // 打开输入 Modal
@@ -145,6 +215,17 @@ export default function DiaryPage() {
           <h2 className="page-title">📝 听歌日记</h2>
           <p className="page-subtitle">记录每一首歌带来的感受，回顾你的音乐记忆</p>
         </div>
+        <button
+          className="report-export-btn"
+          onClick={() => {
+            setExportMode('all');
+            setExportStart('');
+            setExportEnd('');
+            setShowExportModal(true);
+          }}
+        >
+          📥 导出日记
+        </button>
       </div>
 
       {diary.length === 0 ? (
@@ -237,10 +318,37 @@ export default function DiaryPage() {
                 {/* 小结区域 */}
                 <div className="diary-summary-area">
                   {day.summary ? (
-                    <div className="diary-summary">
-                      <span className="diary-summary-icon">🐴</span>
-                      <p>{day.summary}</p>
-                    </div>
+                    editingSummaryDate === day.date ? (
+                      <div className="diary-edit-area">
+                        <textarea
+                          className="diary-edit-input"
+                          value={editSummaryText}
+                          onChange={(e) => setEditSummaryText(e.target.value)}
+                          rows={5}
+                          placeholder="修改你的小结..."
+                        />
+                        <div className="diary-edit-actions">
+                          <button className="diary-save-btn" onClick={() => saveSummary(day.date)}>保存</button>
+                          <button className="diary-cancel-btn" onClick={() => setEditingSummaryDate(null)}>取消</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="diary-summary">
+                        <span className="diary-summary-icon">🐴</span>
+                        <p>{day.summary}</p>
+                        <div className="diary-summary-actions">
+                          <button className="diary-action-btn" onClick={() => copySummary(day.date)} title="复制小结">📋</button>
+                          <button
+                            className="diary-action-btn"
+                            onClick={() => {
+                              setEditingSummaryDate(day.date);
+                              setEditSummaryText(day.summary || '');
+                            }}
+                            title="修改小结"
+                          >✏️</button>
+                        </div>
+                      </div>
+                    )
                   ) : (
                     <button
                       className="diary-generate-summary-btn"
@@ -254,6 +362,59 @@ export default function DiaryPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 导出日记 Modal */}
+      {showExportModal && (
+        <div className="search-overlay" onClick={() => setShowExportModal(false)}>
+          <div className="search-panel" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="search-header">
+              <span>📥 导出听歌日记</span>
+              <button className="search-close-btn" onClick={() => setShowExportModal(false)}>✕</button>
+            </div>
+            <div className="diary-modal-body">
+              <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                  <input type="radio" checked={exportMode === 'all'} onChange={() => setExportMode('all')} />
+                  全部日记
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                  <input type="radio" checked={exportMode === 'range'} onChange={() => setExportMode('range')} />
+                  指定时间段
+                </label>
+              </div>
+              {exportMode === 'range' && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                  <input
+                    type="date"
+                    className="search-input"
+                    style={{ flex: 1 }}
+                    value={exportStart}
+                    onChange={(e) => setExportStart(e.target.value)}
+                  />
+                  <span style={{ color: 'var(--color-text-muted)' }}>至</span>
+                  <input
+                    type="date"
+                    className="search-input"
+                    style={{ flex: 1 }}
+                    value={exportEnd}
+                    onChange={(e) => setExportEnd(e.target.value)}
+                  />
+                </div>
+              )}
+              <div className="diary-edit-actions" style={{ marginTop: 4 }}>
+                <button
+                  className="diary-save-btn"
+                  onClick={exportDiary}
+                  disabled={exportMode === 'range' && (!exportStart || !exportEnd)}
+                >
+                  导出
+                </button>
+                <button className="diary-cancel-btn" onClick={() => setShowExportModal(false)}>取消</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

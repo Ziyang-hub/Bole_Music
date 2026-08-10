@@ -533,6 +533,7 @@ export async function generateReport(
   const songList = songs.slice(0, 20).map(s =>
     `- ${s.title} (${s.artist})${s.genre ? ` [${s.genre}]` : ''}`).join('\n');
   const genreInfo = Object.entries(stats.genreDistribution)
+    .filter(([g]) => (g || '').trim())  // 过滤空曲风（兼容历史数据）
     .sort(([, a], [, b]) => b - a).map(([g, c]) => `${g}: ${c}首`).join(', ');
   const topSongsInfo = stats.topSongs.slice(0, 5).map((s, i) =>
     `${i + 1}. ${s.title} - ${s.artist} (${s.count}次)`).join('\n');

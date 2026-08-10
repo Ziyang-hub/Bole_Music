@@ -1118,8 +1118,21 @@ export default function App() {
           <HummingRecorder
             onClose={() => setShowHumming(false)}
             onResult={(title, artist) => {
-              setInputValue(`${title} ${artist}`);
+              // 识别成功 → 创建确认卡片消息（用户确认后才分析），不再填输入框
               setShowHumming(false);
+              const detectMsg: ChatMessage = {
+                id: generateId(),
+                role: 'user',
+                content: `🎤 哼歌识别到：${title} — ${artist || ''}`,
+                timestamp: nowISO(),
+                meta: {
+                  type: 'song_detected',
+                  songTitle: title,
+                  songArtist: artist || '',
+                  confirmed: false,
+                },
+              };
+              persistMessage(detectMsg);
             }}
           />
         )}

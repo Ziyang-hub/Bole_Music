@@ -44,17 +44,17 @@ export default function ReportPage() {
         }))
       );
 
-      // 筛选对应时间范围
+      // 筛选对应时间范围（日报=今天，周报=近7天，月报=近30天）
       const now = new Date();
-      let filteredSongs = songs;
-      if (reportType === 'daily') {
-        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        filteredSongs = diary
-          .filter((d) => d.date === today)
-          .flatMap((d) =>
-            d.songs.map((s) => ({ title: s.title, artist: s.artist, emotion: d.mood }))
-          );
-      }
+      const days = reportType === 'daily' ? 1 : reportType === 'weekly' ? 7 : 30;
+      const cutoff = new Date(now);
+      cutoff.setDate(cutoff.getDate() - (days - 1));
+      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+      const filteredSongs = diary
+        .filter((d) => d.date >= cutoffStr)
+        .flatMap((d) =>
+          d.songs.map((s) => ({ title: s.title, artist: s.artist, emotion: d.mood }))
+        );
 
       const result = await window.electronAPI.generateReport(
         reportType,
@@ -108,6 +108,7 @@ export default function ReportPage() {
   const totalGenres = Object.values(stats.genreDistribution).reduce((a, b) => a + b, 0) || 1;
 
   const genreList = Object.entries(stats.genreDistribution)
+    .filter(([g]) => (g || '').trim())  // 过滤空曲风（兼容历史数据）
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
     .map(([genre, count]) => ({ genre, percent: Math.round((count / totalGenres) * 100) }));
@@ -116,10 +117,10 @@ export default function ReportPage() {
     <div className="page report-page">
       <h2 className="page-title">📊 听歌报告</h2>
       <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-        <button className="report-export-btn" onClick={() => exportReport(stats, diary, reportType)}>
+        <button className="report-export-btn" onClick={() => exportReport(stats, diary, reportType, report)}>
           📥 导出文本
         </button>
-        <button className="report-export-btn" onClick={() => shareReport(stats)}>
+        <button className="report-export-btn" onClick={() => shareReport(stats, diary, reportType, report)}>
           📤 复制分享
         </button>
       </div>
@@ -294,6 +295,8 @@ function getTopKey(record: Record<string, number>): string | null {
   let topKey: string | null = null;
   let topVal = 0;
   for (const [key, val] of Object.entries(record)) {
+    // 跳过空 key（兼容历史空曲风数据）
+    if (!(key || '').trim()) continue;
     if (val > topVal) { topVal = val; topKey = key; }
   }
   return topKey;
@@ -346,14 +349,37 @@ function TimeOfDayChart({ data }: { data: Record<string, number> }) {
 }
 
 /** 导出听歌报告为文本 */
-function exportReport(stats: ListeningStats, diary: DiaryEntry[], type: string) {
+function exportReport(stats: ListeningStats, diary: DiaryEntry[], type: string, report?: ReportData | null) {
   const topGenre = getTopKey(stats.genreDistribution) || '暂无';
   const topArtist = getTopKey(stats.artistCounts) || '暂无';
   const typeLabel = type === 'daily' ? '日报' : type === 'weekly' ? '周报' : '月报';
 
+  // 时间段听歌数（日报=今天，周报=近7天，月报=近30天）
+  const days = type === 'daily' ? 1 : type === 'weekly' ? 7 : 30;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - (days - 1));
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+  const periodSongs = diary
+    .filter((d) => d.date >= cutoffStr)
+    .reduce((sum, d) => sum + d.songs.length, 0);
+
   let text = `🐴 伯乐模拟器 - 听歌${typeLabel}\n`;
   text += `${'='.repeat(40)}\n\n`;
+
+  // AI 风格刻画（若已生成）
+  if (report) {
+    text += `🎨 音乐风格刻画\n`;
+    text += `${report.summary}\n`;
+    if (report.mood) text += `情绪：${report.mood}\n`;
+    if (report.keywords?.length) text += `关键词：${report.keywords.join('、')}\n`;
+    if (report.highlights?.length) {
+      report.highlights.forEach((h) => text += `• ${h}\n`);
+    }
+    text += '\n';
+  }
+
   text += `📊 数据概览\n`;
+  text += `  ${typeLabel}期间听歌：${periodSongs} 首\n`;
   text += `  累计听歌：${stats.totalSongs} 首\n`;
   text += `  最爱曲风：${topGenre}\n`;
   text += `  最爱歌手：${topArtist}\n\n`;
@@ -369,6 +395,7 @@ function exportReport(stats: ListeningStats, diary: DiaryEntry[], type: string) 
   if (Object.keys(stats.genreDistribution).length > 0) {
     text += `🎼 曲风分布\n`;
     Object.entries(stats.genreDistribution)
+      .filter(([g]) => (g || '').trim())  // 过滤空曲风
       .sort(([, a], [, b]) => b - a)
       .forEach(([genre, count]) => {
         text += `  ${genre}: ${count}首\n`;
@@ -390,12 +417,45 @@ function exportReport(stats: ListeningStats, diary: DiaryEntry[], type: string) 
   URL.revokeObjectURL(url);
 }
 
-/** 复制分享文本 */
-async function shareReport(stats: ListeningStats) {
+/** 复制分享文本（带时间段风格刻画） */
+async function shareReport(stats: ListeningStats, diary: DiaryEntry[], type: string, report?: ReportData | null) {
   const topGenre = getTopKey(stats.genreDistribution) || '暂无';
   const topArtist = getTopKey(stats.artistCounts) || '暂无';
+  const typeLabel = type === 'daily' ? '日报' : type === 'weekly' ? '周报' : '月报';
 
-  const text = `🐴 伯乐模拟器 听歌报告\n\n📊 累计听歌 ${stats.totalSongs} 首\n🎸 最爱曲风：${topGenre}\n👨‍🎤 最爱歌手：${topArtist}\n\n—— 来自「伯乐模拟器」你的AI音乐知音`;
+  // 时间段过滤（日报=今天，周报=近7天，月报=近30天）
+  const days = type === 'daily' ? 1 : type === 'weekly' ? 7 : 30;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - (days - 1));
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+  const periodSongs = diary
+    .filter((d) => d.date >= cutoffStr)
+    .reduce((sum, d) => sum + d.songs.length, 0);
+
+  let text = `🐴 伯乐模拟器 听歌${typeLabel}\n`;
+
+  // AI 风格刻画（核心：别人看到就知道你这段时间的音乐品味）
+  if (report && report.summary) {
+    text += `\n🎨 这段时间的音乐风格：\n${report.summary}\n`;
+    if (report.mood) text += `\n情绪：${report.mood}`;
+    if (report.keywords?.length) text += `\n关键词：${report.keywords.join('、')}`;
+    if (report.highlights?.length) {
+      text += `\n\n亮点：\n${report.highlights.map((h) => `• ${h}`).join('\n')}`;
+    }
+  }
+
+  text += `\n\n📊 ${typeLabel}期间听歌 ${periodSongs} 首\n🎸 最爱曲风：${topGenre}\n👨‍🎤 最爱歌手：${topArtist}`;
+
+  // 曲风分布（过滤空曲风）
+  const genres = Object.entries(stats.genreDistribution)
+    .filter(([g]) => (g || '').trim())
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([g, c]) => `${g}×${c}`)
+    .join(' ');
+  if (genres) text += `\n🎼 曲风：${genres}`;
+
+  text += `\n\n—— 来自「伯乐模拟器」你的AI音乐知音`;
 
   try {
     await navigator.clipboard.writeText(text);

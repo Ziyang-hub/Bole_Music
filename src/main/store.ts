@@ -427,13 +427,16 @@ export function getStats(): ListeningStats {
 
 export function updateStats(songName: string, artist: string, genre: string): void {
   const stats = getStats();
+  // 防御：空曲风/歌手统一兜底为"未知"，避免产生空字符串统计项
+  const g = (genre || '').trim() || '未知';
+  const a = (artist || '').trim() || '未知';
   stats.totalSongs += 1;
 
   // 曲风统计
-  stats.genreDistribution[genre] = (stats.genreDistribution[genre] || 0) + 1;
+  stats.genreDistribution[g] = (stats.genreDistribution[g] || 0) + 1;
 
   // 歌手统计
-  stats.artistCounts[artist] = (stats.artistCounts[artist] || 0) + 1;
+  stats.artistCounts[a] = (stats.artistCounts[a] || 0) + 1;
 
   // 每日统计
   const d = new Date();

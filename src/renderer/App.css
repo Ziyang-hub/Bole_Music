@@ -2363,3 +2363,10 @@ textarea {
 .humming-wave .wave-bars {
   height: 20px;
 }
+
+/* 日记小结操作按钮 */
+.diary-summary-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
