@@ -2486,12 +2486,29 @@ textarea {
 
 
 /* h1 与导航文字：max-width 由内联精确控制（收起=0），opacity 归零 */
+/* 文字慢速淡入淡出（占位由 overflow hidden 裁剪，不影响图标布局） */
+.sidebar h1,
+.sidebar .nav-item span:last-child,
+.sidebar .conv-name,
+.sidebar .conv-msg-count,
+.sidebar .conv-delete-btn {
+  transition: opacity 0.5s ease;
+}
+
 .sidebar.collapsed h1,
 .sidebar.collapsed .nav-item span:last-child,
 .sidebar.collapsed .conv-name,
 .sidebar.collapsed .conv-msg-count,
 .sidebar.collapsed .conv-delete-btn {
-  display: none; /* 立即移除占位：图标位置稳定，无向左拉/无收缩过程 */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.45s ease, visibility 0s linear 0.45s; /* 淡出后隐藏（不占位） */
+}
+
+/* 收起时图标容器裁剪占位文字（文字透明但占位，图标布局稳定不被撑破） */
+.sidebar.collapsed .nav-item,
+.sidebar.collapsed .sidebar-header {
+  overflow: hidden;
 }
 
 /* 收起时 logo 直线微调居中（布局8px→居中6px，仅-2px） */
