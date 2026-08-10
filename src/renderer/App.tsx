@@ -163,6 +163,8 @@ export default function App() {
   const [allowCapture, setAllowCapture] = useState(false);
   // 实时音量（0~1 RMS，用于采集可视化）
   const [audioLevel, setAudioLevel] = useState(0);
+  // 波形动画相位（rAF 驱动，形成流动波浪效果）
+  const [wavePhase, setWavePhase] = useState(0);
 
   // 主题 + 头像
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -276,6 +278,18 @@ export default function App() {
       setAudioLevel(rms);
     });
   }, []);
+
+  // 波形动画：rAF 驱动相位，形成流动的波浪效果
+  useEffect(() => {
+    if (!isListening) return;
+    let raf: number;
+    const tick = () => {
+      setWavePhase((p) => (p + 0.08) % (Math.PI * 2));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isListening]);
 
   // 订阅音频检测事件（自动采集识别到歌曲时）
   useEffect(() => {
@@ -1216,17 +1230,21 @@ export default function App() {
                 <div className={`listening-hint ${audioLevel > 0.003 ? 'has-sound' : 'no-sound'}`}>
                   {audioLevel > 0.003 ? (
                     <>
-                      🎧 正在监听系统音频
-                      <span className="level-bars">
-                        {Array.from({ length: 5 }, (_, i) => (
-                          <span
-                            key={i}
-                            className="level-bar"
-                            style={{ opacity: audioLevel > 0.004 + i * 0.02 ? 1 : 0.25 }}
-                          />
-                        ))}
+                      <span className="wave-bars">
+                        {Array.from({ length: 12 }, (_, i) => {
+                          // 波形：RMS 作为振幅，相位差形成流动波浪
+                          const amp = Math.min(1, audioLevel * 5);
+                          const h = amp * (0.3 + 0.7 * Math.abs(Math.sin(wavePhase + i * 0.55)));
+                          return (
+                            <span
+                              key={i}
+                              className="wave-bar"
+                              style={{ height: `${Math.max(8, Math.min(100, h * 100))}%` }}
+                            />
+                          );
+                        })}
                       </span>
-                      <span className="level-value">{Math.round(audioLevel * 100)}%</span>
+                      🎧 正在监听系统音频
                     </>
                   ) : (
                     <>⚠️ 未检测到声音——请播放音乐（正在采集，等待音频...）</>

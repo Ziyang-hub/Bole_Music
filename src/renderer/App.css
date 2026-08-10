@@ -2187,25 +2187,20 @@ textarea {
   color: var(--color-danger);
 }
 
-/* 实时音量条 */
-.level-bars {
+/* 实时波形（灵动波浪） */
+.wave-bars {
   display: inline-flex;
   align-items: flex-end;
-  gap: 2px;
-  height: 12px;
+  gap: 3px;
+  height: 14px;
 }
 
-.level-bar {
+.wave-bar {
   width: 3px;
-  height: 100%;
-  border-radius: 1px;
-  background: var(--color-accent);
-  transition: opacity 0.15s ease;
-}
-
-.level-value {
-  font-variant-numeric: tabular-nums;
-  opacity: 0.8;
+  border-radius: 1.5px;
+  background: linear-gradient(180deg, var(--color-accent-light), var(--color-accent));
+  box-shadow: 0 0 4px rgba(240, 160, 80, 0.4);
+  transition: height 0.09s ease;
 }
 
 /* ============================================================
