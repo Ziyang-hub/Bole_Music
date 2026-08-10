@@ -118,7 +118,7 @@ export default function ReportPage() {
       <h2 className="page-title">📊 听歌报告</h2>
       <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
         <button className="report-export-btn" onClick={() => copyReport(stats, diary, reportType, report)}>
-          📤 复制报告
+          📤 复制听歌记录
         </button>
       </div>
 
@@ -147,7 +147,25 @@ export default function ReportPage() {
         <div className="section-card ai-report-card">
           <div className="ai-report-header">
             <span>🐴 伯乐{reportType === 'daily' ? '今日' : reportType === 'weekly' ? '本周' : '本月'}报告</span>
-            <span className="ai-report-mood">情绪：{report.mood}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="ai-report-mood">情绪：{report.mood}</span>
+              <button
+                className="diary-action-btn"
+                onClick={async () => {
+                  let t = `🐴 伯乐${reportType === 'daily' ? '今日' : reportType === 'weekly' ? '本周' : '本月'}报告\n\n${report.summary}\n`;
+                  if (report.mood) t += `情绪：${report.mood}\n`;
+                  if (report.keywords?.length) t += `关键词：${report.keywords.join('、')}\n`;
+                  if (report.highlights?.length) t += `\n亮点：\n${report.highlights.map((h) => `• ${h}`).join('\n')}\n`;
+                  try {
+                    await navigator.clipboard.writeText(t);
+                    alert('报告已复制到剪贴板 📋');
+                  } catch {
+                    alert('复制失败，请手动复制');
+                  }
+                }}
+                title="复制这份报告"
+              >📋</button>
+            </div>
           </div>
           <p className="ai-report-summary">{report.summary}</p>
           {report.keywords.length > 0 && (

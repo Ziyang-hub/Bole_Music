@@ -226,36 +226,8 @@ app.whenReady().then(() => {
     }
   });
 
-  // 恢复自动采集（如果用户之前开启过）
-  const settings = getSettings();
-  if (settings.autoListen) {
-    const onChunk = async (audioPath: string, createdAt?: number) => {
-      // 跳过超过 60 秒的过期 chunk
-      const age = createdAt ? Date.now() - createdAt : 0;
-      if (age > 60000) {
-        console.log('[audio] Auto-restore: skipped stale chunk (age:', Math.round(age / 1000), 's)');
-        return;
-      }
-      if (!isMaybeMusic(audioPath)) return;
-      console.log('[audio] Auto-restore: recognizing:', path.basename(audioPath));
-      const result = await recognizeSong(audioPath);
-      if (result && result.confidence > 50) {
-        const key = `${result.title}|${result.artist}`;
-        const now = Date.now();
-        if (key === lastDetectedSong && now - lastDetectedTime < 2 * 60 * 1000) {
-          console.log('[audio] Auto-restore: dedup skipped:', key);
-          return;
-        }
-        lastDetectedSong = key;
-        lastDetectedTime = now;
-        if (mainWindow) {
-          console.log('[audio] Auto-restore: detected:', result.title);
-          mainWindow.webContents.send('audio:songDetected', result);
-        }
-      }
-    };
-    startCapture(onChunk);
-  }
+  // 注意：不再自动恢复采集——「允许音频采集」只是许可，
+  // 实际采集由用户点击对话工具栏 🎧 按钮开启
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
