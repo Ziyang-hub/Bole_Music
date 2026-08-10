@@ -589,11 +589,14 @@ ipcMain.handle('image:fetch', async (_e, url: string) => {
       return null;
     }
     const resp = await fetch(url, {
+      redirect: 'manual', // 不跟随重定向：防止开放重定向将主进程导向内网/云元数据
       headers: {
         'Referer': 'https://music.163.com/',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
       },
     });
+    // 重定向响应（3xx）不返回内容——图片代理只需直连图床，无需跟随跳转
+    if (resp.status >= 300 && resp.status < 400) return null;
     if (!resp.ok) return null;
     const buffer = Buffer.from(await resp.arrayBuffer());
     const contentType = resp.headers.get('content-type') || 'image/jpeg';
