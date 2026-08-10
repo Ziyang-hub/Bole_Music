@@ -136,6 +136,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSongDetected: (callback: (result: any) => void) => {
     ipcRenderer.on('audio:songDetected', (_event, result) => callback(result));
   },
+  onAudioLevel: (callback: (rms: number) => void) => {
+    ipcRenderer.on('audio:level', (_event, rms) => callback(rms));
+  },
   removeSongDetectedListener: () => {
     ipcRenderer.removeAllListeners('audio:songDetected');
   },

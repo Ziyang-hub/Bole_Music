@@ -161,6 +161,8 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   // 音频采集许可（设置页「允许音频采集」，仅许可不启动）
   const [allowCapture, setAllowCapture] = useState(false);
+  // 实时音量（0~1 RMS，用于采集可视化）
+  const [audioLevel, setAudioLevel] = useState(0);
 
   // 主题 + 头像
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -265,6 +267,14 @@ export default function App() {
     }
 
     init();
+  }, []);
+
+  // 订阅实时音量（采集可视化）
+  useEffect(() => {
+    if (!window.electronAPI?.onAudioLevel) return;
+    window.electronAPI.onAudioLevel((rms: number) => {
+      setAudioLevel(rms);
+    });
   }, []);
 
   // 订阅音频检测事件（自动采集识别到歌曲时）
@@ -1203,8 +1213,24 @@ export default function App() {
                 </button>
               </div>
               {isListening && (
-                <div className="listening-hint">
-                  🎧 正在监听系统音频... 播放音乐后会自动识别和分析
+                <div className={`listening-hint ${audioLevel > 0.003 ? 'has-sound' : 'no-sound'}`}>
+                  {audioLevel > 0.003 ? (
+                    <>
+                      🎧 正在监听系统音频
+                      <span className="level-bars">
+                        {Array.from({ length: 5 }, (_, i) => (
+                          <span
+                            key={i}
+                            className="level-bar"
+                            style={{ opacity: audioLevel > 0.004 + i * 0.02 ? 1 : 0.25 }}
+                          />
+                        ))}
+                      </span>
+                      <span className="level-value">{Math.round(audioLevel * 100)}%</span>
+                    </>
+                  ) : (
+                    <>⚠️ 未检测到声音——请播放音乐（正在采集，等待音频...）</>
+                  )}
                 </div>
               )}
               <div className="input-hint">

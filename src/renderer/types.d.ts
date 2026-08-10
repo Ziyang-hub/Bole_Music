@@ -179,6 +179,7 @@ interface ElectronAPI {
   diagnoseAudio: () => Promise<{ ok: string[]; issues: string[]; ready: boolean }>;
   openScreenRecordingSettings: () => Promise<void>;
   onSongDetected: (callback: (result: RecognitionResult) => void) => void;
+  onAudioLevel: (callback: (rms: number) => void) => void;
   removeSongDetectedListener?: () => void;
 
   // macOS 系统音频采集

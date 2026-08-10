@@ -48,6 +48,7 @@ import {
   openScreenRecordingSettings,
   waitNativeCaptureReady,
   switchNativeToFallback,
+  registerLevelCallback,
 } from './audio-capture';
 import { recognizeSong, isMaybeMusic } from './song-recognition';
 import {
@@ -217,6 +218,13 @@ app.whenReady().then(() => {
 
   // 注册 macOS 音频采集的 IPC
   registerAudioIpcHandlers();
+
+  // 实时音量 → 渲染进程（音量可视化）
+  registerLevelCallback((rms: number) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('audio:level', rms);
+    }
+  });
 
   // 恢复自动采集（如果用户之前开启过）
   const settings = getSettings();

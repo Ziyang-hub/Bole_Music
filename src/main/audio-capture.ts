@@ -21,6 +21,7 @@ import {
   openScreenRecordingSettings as macOpenScreenSettings,
   waitHelperReady as macWaitHelperReady,
   switchToFallback as macSwitchToFallback,
+  setLevelCallback as macSetLevelCallback,
 } from './mac-audio-capture';
 
 const execFileAsync = promisify(execFile);
@@ -40,6 +41,11 @@ export async function waitNativeCaptureReady(timeoutMs = 8000): Promise<boolean>
 /** macOS：原生采集失败时切换到 getUserMedia 降级模式（保持 chunk 管道可用） */
 export function switchNativeToFallback(): void {
   if (process.platform === 'darwin') macSwitchToFallback();
+}
+
+/** 注册实时音量回调（渲染进程音量可视化） */
+export function registerLevelCallback(cb: (rms: number) => void): void {
+  if (process.platform === 'darwin') macSetLevelCallback(cb);
 }
 
 const AUDIO_DIR = path.join(os.tmpdir(), 'bole-simulator-audio');

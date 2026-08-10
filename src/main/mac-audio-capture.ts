@@ -29,6 +29,13 @@ let isRunning = false;
 let onChunk: AudioChunkCallback | null = null;
 let helperProc: ChildProcess | null = null;
 let fallbackMode = false; // true = helper 缺失，走 getUserMedia 降级路径
+// 实时音量回调（0~1 RMS），用于 UI 可视化
+let onLevel: ((rms: number) => void) | null = null;
+
+/** 注册实时音量回调（渲染进程音量条） */
+export function setLevelCallback(cb: (rms: number) => void): void {
+  onLevel = cb;
+}
 
 // ============================================================
 // helper 二进制定位（缺失时自动编译，用户无感）
@@ -150,7 +157,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
     onChunk = callback;
     isRunning = true;
 
-    // stdout：READY 表示启动成功；CHUNK:<path> 表示一块音频就绪
+    // stdout：READY 表示启动成功；CHUNK:<path> 表示一块音频就绪；LVL:0.xxxx 实时音量
     const rl = readline.createInterface({ input: helperProc.stdout! });
     rl.on('line', (line: string) => {
       line = line.trim();
@@ -161,6 +168,9 @@ export function startCapture(callback: AudioChunkCallback): boolean {
           onChunk(p, Date.now());
           cleanupOldChunks();
         }
+      } else if (line.startsWith('LVL:')) {
+        const rms = parseFloat(line.slice(4));
+        if (!isNaN(rms) && onLevel) onLevel(rms);
       } else if (line === 'READY') {
         console.log('[mac-audio] Helper READY');
         _notifyReady(true);

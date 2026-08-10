@@ -155,6 +155,10 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
 
     private var frameLogCount = 0
     private var lastErrorLog = 0
+    // 实时音量（LVL 上报）：每 500ms 计算一次 RMS
+    private var levelSumSq: Double = 0
+    private var levelCount = 0
+    private var lastLevelTime = CFAbsoluteTimeGetCurrent()
 
     // 读取一个 AudioBuffer 的采样（支持 Float32 / Int16），统一转为 Int16
     private func readFrames(buf: AudioBuffer, isFloat32: Bool) -> [Int16] {
@@ -268,6 +272,21 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
                     monoBuffer.append(Int16((l + r) / 2))
                 }
             }
+        }
+
+        // 累积音量采样
+        for s in monoBuffer {
+            let v = Double(s) / 32768.0
+            levelSumSq += v * v
+        }
+        levelCount += monoBuffer.count
+        let now = CFAbsoluteTimeGetCurrent()
+        if now - lastLevelTime >= 0.5 {
+            let rms = levelCount > 0 ? sqrt(levelSumSq / Double(levelCount)) : 0
+            FileHandle.standardOutput.write(String(format: "LVL:%.4f\n", rms).data(using: .utf8)!)
+            levelSumSq = 0
+            levelCount = 0
+            lastLevelTime = now
         }
 
         // chunk 满 → 写出
