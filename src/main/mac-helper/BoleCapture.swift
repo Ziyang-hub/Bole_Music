@@ -163,6 +163,8 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
         )
         defer { memory.deallocate() }
         let audioBufferList = memory.bindMemory(to: AudioBufferList.self, capacity: 1)
+        // 必须预置 mNumberBuffers（立体声=2），否则 API 返回 -12737 InvalidEntryCount
+        audioBufferList.pointee.mNumberBuffers = 2
 
         var blockBuffer: CMBlockBuffer?
         let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
