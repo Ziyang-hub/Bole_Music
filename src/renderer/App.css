@@ -2482,10 +2482,9 @@ textarea {
 /* 收起/展开：标题与导航文字用 max-width 过渡——宽度平滑收缩/展开，图标随布局连续居中 */
 .sidebar h1,
 .sidebar .nav-item span:last-child {
-  max-width: 80px; /* 更贴近实际文字宽度（最宽4字≈70px），文字生长/收缩与图标移动全程同步 */
+  /* max-width 由内联 style 精确控制（=文字实际宽度），动画范围精确、与图标移动严格同步 */
   overflow: hidden;
   white-space: nowrap;
-  /* 出缓曲线：图标缓缓滑出后自然停下；0.4s 从容节奏 */
   transition: max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
 }
 
@@ -2499,12 +2498,16 @@ textarea {
   transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
 }
 
-.sidebar.collapsed h1,
 .sidebar.collapsed .conv-name,
 .sidebar.collapsed .conv-msg-count,
-.sidebar.collapsed .conv-delete-btn,
-.sidebar.collapsed .nav-item span:last-child {
+.sidebar.collapsed .conv-delete-btn {
   max-width: 0;
+  opacity: 0;
+}
+
+/* h1 与导航文字：max-width 由内联精确控制（收起=0），opacity 归零 */
+.sidebar.collapsed h1,
+.sidebar.collapsed .nav-item span:last-child {
   opacity: 0;
 }
 
