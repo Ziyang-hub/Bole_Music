@@ -2456,6 +2456,7 @@ textarea {
   justify-content: center;
   gap: 0;
   padding: 6px 0;
+  overflow: hidden; /* 防止占位元素溢出影响居中 */
 }
 
 
@@ -2499,10 +2500,15 @@ textarea {
 }
 
 .sidebar.collapsed .conv-name,
-.sidebar.collapsed .conv-msg-count,
 .sidebar.collapsed .conv-delete-btn {
   max-width: 0;
   opacity: 0;
+}
+
+.sidebar.collapsed .conv-msg-count {
+  max-width: 0;
+  opacity: 0;
+  padding: 0; /* 消除padding残留占位（表情后空格+图标偏移） */
 }
 
 /* h1 与导航文字：max-width 由内联精确控制（收起=0），opacity 归零 */
