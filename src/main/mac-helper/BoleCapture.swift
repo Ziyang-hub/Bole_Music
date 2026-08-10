@@ -163,8 +163,21 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
         )
         defer { memory.deallocate() }
         let audioBufferList = memory.bindMemory(to: AudioBufferList.self, capacity: 1)
-        // 必须预置 mNumberBuffers（立体声=2），否则 API 返回 -12737 InvalidEntryCount
-        audioBufferList.pointee.mNumberBuffers = 2
+        // 按 sampleBuffer 的真实格式设置 mNumberBuffers（非交错=通道数，交错=1），
+        // 否则 API 返回 -12737 InvalidEntryCount
+        if let asbd = sampleBuffer.formatDescription?.audioStreamBasicDescription {
+            let nonInterleaved = (asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0
+            audioBufferList.pointee.mNumberBuffers = nonInterleaved
+                ? UInt32(asbd.mChannelsPerFrame) : 1
+            // 诊断：首次打印实际音频格式
+            if frameLogCount == 1 {
+                FileHandle.standardError.write(
+                    "AUDIO format: rate=\(asbd.mSampleRate) ch=\(asbd.mChannelsPerFrame) nonInterleaved=\(nonInterleaved) bits=\(asbd.mBitsPerChannel)\n"
+                    .data(using: .utf8)!)
+            }
+        } else {
+            audioBufferList.pointee.mNumberBuffers = 2
+        }
 
         var blockBuffer: CMBlockBuffer?
         let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
