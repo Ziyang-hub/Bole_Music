@@ -307,7 +307,7 @@ textarea {
   gap: 2px;
   padding: 0 var(--space-sm);
   max-height: 28vh;
-  min-height: 60px;
+  min-height: 0; /* 对话少时列表收缩，新建按钮紧贴对话下方 */
   overflow-y: auto;
   flex-shrink: 1;
 }
@@ -331,6 +331,18 @@ textarea {
   color: var(--color-text-secondary);
   font-size: 13px;
   transition: background-color 0.15s ease, color 0.15s ease;
+  animation: convSlideIn 0.3s ease; /* 新建对话时从上方自然滑入 */
+}
+
+@keyframes convSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .conv-item:hover {

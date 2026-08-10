@@ -244,13 +244,12 @@ export default function App() {
             return true;
           }));
         } else if (activeId === 'default') {
-          // 仅首次启动的默认对话显示欢迎消息——
-          // 用户自己创建的新对话不会被污染（它们有自己的人格欢迎语）
+          // 默认对话首次使用：写人格欢迎语（与新建对话完全一致，无"默认欢迎语"概念）
+          const info = PERSONA_INFO[defaultPersona] || PERSONA_INFO.literary;
           const welcome: ChatMessage = {
-            id: 'welcome-1',
+            id: 'welcome-default',
             role: 'bole',
-            content:
-              '你好，我是伯乐 🎵\n\n我是你的AI音乐知音。当你听到一首好歌，输入歌名告诉我，我来帮你分析和品味。\n\n比如你可以试试输入：「周杰伦 晴天」 或者 「Coldplay Yellow」\n\n💡 提示：在使用之前，请先去「设置」页面配置 AI 服务的 API Key。',
+            content: `你好，我是伯乐 🎵（${info.icon} ${info.label}）\n\n${info.desc}。\n\n从现在开始，我们就以这个身份聊天吧～直接输入歌名或随便聊聊都行！`,
             timestamp: nowISO(),
           };
           setMessages([welcome]);

@@ -187,6 +187,19 @@ export function getConversations(): Conversation[] {
     store.set('messages', []);
     console.log('[store] migrated legacy messages to default conversation:', legacyMessages.length, 'msgs');
   }
+
+  // 清理历史残留的旧默认欢迎语（welcome-1）——已废弃，避免污染新对话
+  let cleaned = false;
+  conversations.forEach((c) => {
+    if (c.messages && c.messages.some((m) => m.id === 'welcome-1')) {
+      c.messages = c.messages.filter((m) => m.id !== 'welcome-1');
+      cleaned = true;
+    }
+  });
+  if (cleaned) {
+    store.set('conversations', conversations);
+    console.log('[store] cleaned legacy welcome-1 messages');
+  }
   return conversations;
 }
 
