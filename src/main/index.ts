@@ -581,27 +581,80 @@ ipcMain.handle('audio:recognizeFile', async (_e, audioPath: string) => {
 
 // 图片代理：绕过网易云防盗链（主进程带 Referer 下载 → data URI）
 // 安全：仅允许网易云图床域名（防止 SSRF 访问内网/云元数据服务）
+// 网易云图床白名单判定（含子域）
+function isAllowlistedImageHost(hostname: string): boolean {
+  return hostname === 'music.126.net' || hostname.endsWith('.music.126.net');
+}
+
+// 图片请求头（统一）
+const IMAGE_FETCH_HEADERS = {
+  'Referer': 'https://music.163.com/',
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+};
+
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024; // 5MB 上限
+
 ipcMain.handle('image:fetch', async (_e, url: string) => {
   try {
     const u = new URL(url);
-    if (u.protocol !== 'https:' || !u.hostname.endsWith('music.126.net')) {
+    if (u.protocol !== 'https:' || !isAllowlistedImageHost(u.hostname)) {
       console.warn('[ipc:imageFetch] Rejected non-allowlisted URL:', url.slice(0, 120));
       return null;
     }
-    const resp = await fetch(url, {
-      redirect: 'manual', // 不跟随重定向：防止开放重定向将主进程导向内网/云元数据
-      headers: {
-        'Referer': 'https://music.163.com/',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      },
-    });
-    // 重定向响应（3xx）不返回内容——图片代理只需直连图床，无需跟随跳转
-    if (resp.status >= 300 && resp.status < 400) return null;
-    if (!resp.ok) return null;
-    const buffer = Buffer.from(await resp.arrayBuffer());
-    const contentType = resp.headers.get('content-type') || 'image/jpeg';
-    return `data:${contentType};base64,${buffer.toString('base64')}`;
-  } catch {
+
+    const fetchImage = async (target: string): Promise<string | null> => {
+      const resp = await fetch(target, {
+        redirect: 'manual', // 不自动跟随：每次跳转都重新校验白名单
+        signal: AbortSignal.timeout(8000), // 8 秒超时，避免挂起主进程
+        headers: IMAGE_FETCH_HEADERS,
+      });
+
+      // 重定向：仅允许跳转到白名单内的同源图床（CDN p1↔p2 互跳是正常行为）
+      if (resp.status >= 300 && resp.status < 400) {
+        const loc = resp.headers.get('location');
+        if (loc) {
+          try {
+            const lu = new URL(loc, target);
+            if (lu.protocol === 'https:' && isAllowlistedImageHost(lu.hostname)) {
+              console.log('[ipc:imageFetch] Following allowlisted redirect:', lu.hostname);
+              return fetchImage(lu.toString());
+            }
+          } catch {}
+        }
+        console.warn('[ipc:imageFetch] Redirect rejected (non-allowlisted target):', target.slice(0, 120));
+        return null;
+      }
+
+      if (!resp.ok) {
+        console.warn('[ipc:imageFetch] HTTP', resp.status, 'for', target.slice(0, 120));
+        return null;
+      }
+
+      // content-type 必须是图片
+      const contentType = (resp.headers.get('content-type') || '').split(';')[0].trim();
+      if (!contentType.startsWith('image/')) {
+        console.warn('[ipc:imageFetch] Non-image content-type:', contentType, 'for', target.slice(0, 120));
+        return null;
+      }
+
+      // 响应大小上限（content-length 预检 + 实际缓冲校验）
+      const declaredLen = Number(resp.headers.get('content-length') || 0);
+      if (declaredLen > IMAGE_MAX_BYTES) {
+        console.warn('[ipc:imageFetch] Response too large:', declaredLen, 'bytes');
+        return null;
+      }
+      const buffer = Buffer.from(await resp.arrayBuffer());
+      if (buffer.length === 0 || buffer.length > IMAGE_MAX_BYTES) {
+        console.warn('[ipc:imageFetch] Empty or oversized body:', buffer.length, 'bytes');
+        return null;
+      }
+
+      return `data:${contentType};base64,${buffer.toString('base64')}`;
+    };
+
+    return await fetchImage(url);
+  } catch (err: any) {
+    console.warn('[ipc:imageFetch] Error:', err?.message || err, 'for', String(url).slice(0, 120));
     return null;
   }
 });
