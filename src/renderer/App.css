@@ -2431,6 +2431,14 @@ textarea {
   margin-bottom: 32px;
 }
 
+.sidebar.collapsed .conv-item {
+  gap: 0;
+}
+
+.sidebar .conv-item {
+  transition: gap 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* 收起时容器收起高度（不占位，图标布局整齐） */
 .sidebar .conversation-list,
 .sidebar .new-conv-btn {
@@ -2450,11 +2458,7 @@ textarea {
   padding: 6px 0;
 }
 
-.sidebar.collapsed .conv-name,
-.sidebar.collapsed .conv-msg-count,
-.sidebar.collapsed .conv-delete-btn {
-  display: none;
-}
+
 
 .sidebar.collapsed .new-conv-btn {
   font-size: 0; /* 隐藏文字，只显示 ＋ */
@@ -2477,23 +2481,34 @@ textarea {
 
 /* 收起/展开：标题与导航文字用 max-width 过渡——宽度平滑收缩/展开，图标随布局连续居中 */
 .sidebar h1,
+.sidebar .conv-name,
+.sidebar .conv-msg-count,
+.sidebar .conv-delete-btn,
 .sidebar .nav-item span:last-child {
-  opacity: 0;
-  animation: sidebarTextIn 0.2s ease 0.3s forwards; /* 展开：宽度展开后文字淡入 */
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap; /* 收起时文字横向裁剪，绝不换行竖排 */
+  /* max-width 与 opacity 同步过渡：图标从展开位置连续移动到居中（无停顿/无靠左） */
+  transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
 }
 
 .sidebar.collapsed h1,
+.sidebar.collapsed .conv-name,
+.sidebar.collapsed .conv-msg-count,
+.sidebar.collapsed .conv-delete-btn,
 .sidebar.collapsed .nav-item span:last-child {
-  display: none; /* 收起：立即移除占位，图标直接居中（无靠左动作） */
+  max-width: 0;
+  opacity: 0;
 }
 
-@keyframes sidebarTextIn {
-  to { opacity: 1; }
+.sidebar .nav-item,
+.sidebar .sidebar-header {
+  transition: gap 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar.collapsed .nav-item {
   justify-content: center;
-  gap: 0; /* 文字宽度为0时消除空隙，图标精确居中 */
+  gap: 0; /* gap 同步过渡到0，图标连续精确居中 */
   padding: 6px 0;
 }
 
