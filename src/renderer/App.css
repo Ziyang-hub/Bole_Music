@@ -2436,7 +2436,7 @@ textarea {
 }
 
 .sidebar .conv-item {
-  transition: gap 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: gap 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* 收起时容器收起高度（不占位，图标布局整齐） */
@@ -2482,10 +2482,11 @@ textarea {
 /* 收起/展开：标题与导航文字用 max-width 过渡——宽度平滑收缩/展开，图标随布局连续居中 */
 .sidebar h1,
 .sidebar .nav-item span:last-child {
-  max-width: 100px; /* 贴近实际文字宽度，生长/收缩与图标移动同步自然 */
+  max-width: 80px; /* 更贴近实际文字宽度（最宽4字≈70px），文字生长/收缩与图标移动全程同步 */
   overflow: hidden;
   white-space: nowrap;
-  transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+  /* 出缓曲线：图标缓缓滑出后自然停下；0.4s 从容节奏 */
+  transition: max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
 }
 
 /* 对话条目文字：弹性宽度（展开不受限），收起收缩为0 */
@@ -2509,7 +2510,7 @@ textarea {
 
 .sidebar .nav-item,
 .sidebar .sidebar-header {
-  transition: gap 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: gap 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .sidebar.collapsed .nav-item {
