@@ -1017,13 +1017,6 @@ export default function App() {
         <div className="sidebar-header">
           <div className="logo">🐴</div>
           <h1>伯乐模拟器</h1>
-          <button
-            className="sidebar-toggle-btn"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
-          >
-            {sidebarCollapsed ? '»' : '«'}
-          </button>
         </div>
 
         {/* 对话列表 */}
@@ -1082,6 +1075,15 @@ export default function App() {
             <span>v{appInfo.version}</span>
           </div>
         )}
+
+        {/* 收起/展开按钮（置于侧边栏底部） */}
+        <button
+          className="sidebar-toggle-btn"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+        >
+          {sidebarCollapsed ? '» 展开' : '« 收起'}
+        </button>
       </aside>
 
       {/* 主内容区 */}

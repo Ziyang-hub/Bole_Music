@@ -2389,13 +2389,14 @@ textarea {
   padding: 6px 10px;
   font-size: 12px;
   white-space: normal;
+  width: max-content; /* 忽略包含块宽度（按钮40px），按内容横排，避免竖条 */
   max-width: 240px;
   line-height: 1.5;
   box-shadow: var(--shadow-md);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
-  z-index: 60;
+  z-index: 100;
 }
 
 .search-toggle-btn:hover::after {
@@ -2417,6 +2418,7 @@ textarea {
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
   padding: var(--space-sm) 0;
+  margin-bottom: var(--space-lg);
 }
 
 .sidebar.collapsed .sidebar-header h1,
@@ -2434,16 +2436,14 @@ textarea {
 }
 
 .sidebar-toggle-btn {
-  margin-left: auto;
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  margin-top: var(--space-sm);
+  padding: 7px 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
-  font-size: 13px;
-  line-height: 1;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -2454,5 +2454,15 @@ textarea {
 }
 
 .sidebar.collapsed .sidebar-toggle-btn {
-  margin-left: 0;
+  font-size: 0; /* 收起时只显示箭头 */
+  padding: 7px 0;
+}
+
+.sidebar.collapsed .sidebar-toggle-btn::after {
+  content: '»';
+  font-size: 14px;
+}
+
+.sidebar:not(.collapsed) .sidebar-toggle-btn::after {
+  content: '';
 }
