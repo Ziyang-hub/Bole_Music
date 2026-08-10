@@ -134,6 +134,18 @@ final class CaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
 
     private func flushChunk() {
         guard !monoBuffer.isEmpty else { return }
+        // 诊断：计算本块音频能量（RMS）——区分"静音"与"有声音但识别失败"
+        var sumSq: Double = 0
+        for s in monoBuffer {
+            let v = Double(s) / 32768.0
+            sumSq += v * v
+        }
+        let rms = sqrt(sumSq / Double(monoBuffer.count))
+        let peak = Double(monoBuffer.map { abs(Int($0)) }.max() ?? 0) / 32768.0
+        FileHandle.standardError.write(
+            "CHUNK #\(chunkIndex) samples=\(monoBuffer.count) rms=\(String(format: "%.4f", rms)) peak=\(String(format: "%.3f", peak))\n"
+            .data(using: .utf8)!)
+
         let path = (outDir as NSString).appendingPathComponent("chunk_\(chunkIndex).wav")
         writeWav(monoBuffer, to: path)
         monoBuffer.removeAll(keepingCapacity: true)
