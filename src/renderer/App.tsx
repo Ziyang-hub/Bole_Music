@@ -476,9 +476,11 @@ export default function App() {
   /** 切换对话 */
   async function handleSwitchConversation(convId: string) {
     if (!window.electronAPI || convId === activeConvId) return;
-    // 先保存当前对话的滚动位置（下次切回该对话时恢复）
-    const curEl = messagesContainerRef.current;
-    if (curEl) chatScrollTopsRef.current[activeConvId] = curEl.scrollTop;
+    // 先保存当前对话的滚动位置（下次切回该对话时恢复）；仅聊天页可见时保存（hidden 容器 scrollTop 恒为 0）
+    if (currentView === 'chat') {
+      const curEl = messagesContainerRef.current;
+      if (curEl) chatScrollTopsRef.current[activeConvId] = curEl.scrollTop;
+    }
     setActiveConvId(convId);
     await window.electronAPI.switchConversation(convId).catch(() => {});
     await loadConversationMessages(convId);
@@ -503,6 +505,11 @@ export default function App() {
   /** 新建对话（带人格选择） */
   async function handleCreateConversation(name: string, persona: string) {
     if (!window.electronAPI) return;
+    // 创建新对话前保存当前对话的滚动位置（切回时仍停留在原处）
+    if (currentView === 'chat') {
+      const curEl = messagesContainerRef.current;
+      if (curEl) chatScrollTopsRef.current[activeConvId] = curEl.scrollTop;
+    }
     const conv = await window.electronAPI.createConversation(name, persona);
     setConversations(await window.electronAPI.getConversations());
     setActiveConvId(conv.id);
