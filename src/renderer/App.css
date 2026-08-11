@@ -194,7 +194,7 @@ textarea {
    ============================================================ */
 .sidebar {
   width: 240px;
-  min-width: 240px;
+  min-width: 60px; /* 宽度动画由 motion 控制，min-width 只做下限保护 */
   background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-card) 100%);
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -222,6 +222,8 @@ textarea {
   font-weight: 700;
   color: var(--color-text-primary);
   letter-spacing: 1px;
+  min-width: 0; /* 允许随标题文字揭幕动画收缩 */
+  overflow: hidden;
 }
 
 /* 导航 */
@@ -362,8 +364,19 @@ textarea {
 
 .conv-name {
   flex: 1;
+  min-width: 0; /* 收起时 flex:none + 内层文字 0 宽，图标可居中 */
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 文字揭幕元素：单行 + 裁剪（width/opacity 由 motion 动画，永不竖排） */
+.sidebar-title,
+.conv-name-text,
+.nav-label,
+.new-conv-label {
+  display: inline-block;
+  overflow: hidden;
   white-space: nowrap;
 }
 
@@ -403,6 +416,10 @@ textarea {
 .new-conv-btn {
   margin: 6px var(--space-sm) var(--space-sm);
   padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-sm);
   background: transparent;
@@ -410,6 +427,11 @@ textarea {
   font-size: 13px;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.new-conv-icon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .new-conv-btn:hover {
@@ -1110,12 +1132,12 @@ textarea {
    响应式设计
    ============================================================ */
 
-/* 窗口较小时收缩侧边栏 */
+/* 窗口较小时收缩侧边栏（!important 覆盖 motion 的内联宽度，静态布局不走动画） */
 @media (max-width: 800px) {
   .sidebar {
-    width: 60px;
+    width: 60px !important;
     min-width: 60px;
-    padding: var(--space-md) var(--space-xs);
+    padding: var(--space-md) var(--space-xs) !important;
   }
 
   .sidebar-header h1,
@@ -2414,112 +2436,41 @@ textarea {
 }
 
 /* ----- 侧边栏收起/展开 ----- */
-.sidebar {
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* ============================================================
+   侧边栏收起/展开（Framer Motion 驱动）
+   容器宽度/内边距与文字揭幕由 motion 内联样式动画；
+   CSS 只负责收起态的静态对齐——图标位置变化由 motion layout FLIP 平滑
+   ============================================================ */
 
-.sidebar.collapsed {
-  width: 60px;
-  min-width: 60px;
-  padding: var(--space-lg) var(--space-sm);
-}
-
-.sidebar.collapsed .sidebar-header {
-  justify-content: flex-start;
-  gap: var(--space-sm);
-  padding: var(--space-sm);
-  margin-bottom: 32px;
-}
-
-.sidebar.collapsed .conv-item {
+/* 收起态：各区域内容居中对齐 + 去除间距（图标 FLIP 平滑滑到居中位） */
+.sidebar.collapsed .sidebar-header,
+.sidebar.collapsed .conv-item,
+.sidebar.collapsed .nav-item,
+.sidebar.collapsed .new-conv-btn {
+  justify-content: center;
   gap: 0;
-}
-
-.sidebar .conv-item {
-  transition: gap 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* 收起时容器收起高度（不占位，图标布局整齐） */
-.sidebar .conversation-list,
-.sidebar .new-conv-btn {
-  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease,
-    padding 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-}
-
-.sidebar.collapsed .conversation-list {
-  padding: 0 var(--space-sm);
 }
 
 /* 收起时对话条目只显示图标，可点击切换 */
 .sidebar.collapsed .conv-item {
-  justify-content: center;
-  gap: 0;
   padding: 6px 0;
   overflow: hidden;
 }
 
-
-
-.sidebar.collapsed .new-conv-btn {
-  font-size: 0; /* 隐藏文字，只显示 ＋ */
-  padding: 6px 0;
-  margin: 6px var(--space-sm) var(--space-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* 收起时对话名不撑满剩余空间（内层文字 0 宽，图标可居中） */
+.sidebar.collapsed .conv-name {
+  flex: none;
 }
 
-.sidebar.collapsed .new-conv-btn::after {
-  content: '＋';
-  font-size: 16px;
+/* 收起时消息数/删除按钮立即隐藏（小元素，不参与动画） */
+.sidebar.collapsed .conv-msg-count,
+.sidebar.collapsed .conv-delete-btn {
+  display: none;
 }
 
 .sidebar.collapsed .sidebar-section-label,
 .sidebar.collapsed .sidebar-footer {
   display: none;
-}
-
-/* 收起/展开：标题与导航文字用 max-width 过渡——宽度平滑收缩/展开，图标随布局连续居中 */
-
-
-
-
-/* h1 与导航文字：max-width 由内联精确控制（收起=0），opacity 归零 */
-.sidebar.collapsed h1,
-.sidebar.collapsed .nav-item span:last-child,
-.sidebar.collapsed .conv-name,
-.sidebar.collapsed .conv-msg-count,
-.sidebar.collapsed .conv-delete-btn {
-  display: none; /* 立即移除占位：图标位置稳定，无向左拉/无收缩过程 */
-}
-
-/* 收起时 logo 直线微调居中（布局8px→居中6px，仅-2px） */
-.sidebar .sidebar-header .logo {
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.sidebar.collapsed .sidebar-header .logo {
-  transform: translateX(-2px);
-}
-
-.sidebar .nav-item,
-.sidebar .sidebar-header {
-  transition: gap 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.sidebar.collapsed .nav-item {
-  /* 布局保持 flex-start（图标位置稳定，无向左拉动作）*/
-  padding: 8px 16px;
-}
-
-.sidebar .nav-icon {
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.sidebar.collapsed .nav-icon {
-  /* 图标从展开位置(16px)直线平移到居中位(10px)，仅6px微调 */
-  transform: translateX(-6px);
 }
 
 /* 收起时图标组垂直居中、间距一致 */
