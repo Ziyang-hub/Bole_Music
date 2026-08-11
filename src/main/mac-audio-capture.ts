@@ -138,6 +138,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
   if (!bin) {
     // 降级模式：注册 chunk 管道（getUserMedia 路径会通过 audio:chunk 发数据），
     // 但返回 false，让渲染进程继续启动 getUserMedia
+    _setLastError('音频采集组件缺失或不可执行（将尝试自动编译/降级）');
     console.warn('[mac-audio] Helper unavailable, falling back to getUserMedia');
     fallbackMode = true;
     onChunk = callback;
@@ -187,12 +188,17 @@ export function startCapture(callback: AudioChunkCallback): boolean {
 
     helperProc.on('error', (err) => {
       console.error('[mac-audio] Helper spawn error:', err.message);
+      _setLastError('采集组件启动失败：' + err.message);
       isRunning = false;
       helperProc = null;
     });
 
     helperProc.on('exit', (code, signal) => {
       console.log(`[mac-audio] Helper exited code=${code} signal=${signal} after ${Date.now() - helperStartTime}ms`);
+      if (!helperReady) {
+        _setLastError('采集组件异常退出（code=' + code + ' signal=' + signal + '）——' +
+          '很可能是屏幕录制权限未生效，请检查系统设置中的授权并重启应用');
+      }
       helperProc = null;
       isRunning = false;
       _notifyReady(false);
@@ -201,6 +207,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
     return true;
   } catch (err: any) {
     console.error('[mac-audio] startCapture error:', err.message);
+    _setLastError('采集启动异常：' + err.message);
     isRunning = false;
     helperProc = null;
     return false;
@@ -243,17 +250,31 @@ export function switchToFallback(): void {
 let readyWaiters: ((ok: boolean) => void)[] = [];
 let helperReady = false;
 
+// 最近一次原生采集启动失败的原因（供上层 IPC 带回渲染进程显示，便于定位）
+let lastStartError = '';
+export function getLastStartError(): string { return lastStartError; }
+function _setLastError(msg: string): void {
+  lastStartError = msg;
+  console.warn('[mac-audio] start error:', msg);
+}
+
 /**
  * 等待 helper 发出 READY（或超时/退出）。
  * @returns true = 原生采集真正启动；false = 需要降级
  */
 export function waitHelperReady(timeoutMs = 8000): Promise<boolean> {
   if (helperReady) return Promise.resolve(true);
-  if (!isRunning || !helperProc) return Promise.resolve(false);
+  if (!isRunning || !helperProc) {
+    _setLastError('helper 未运行（可能二进制缺失或启动失败）');
+    return Promise.resolve(false);
+  }
 
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       readyWaiters = readyWaiters.filter((w) => w !== onReady);
+      _setLastError('等待采集组件就绪超时（' + (timeoutMs / 1000) + 's）——' +
+        '若系统弹出过权限请求，可能未点击允许；' +
+        '若已授权，请在系统设置中确认勾选的是正在运行的「伯乐模拟器」并重启应用');
       resolve(false);
     }, timeoutMs);
     const onReady = (ok: boolean) => {

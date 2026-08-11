@@ -168,7 +168,7 @@ interface ElectronAPI {
   getUsageStats: () => Promise<UsageData>;
 
   // 音频采集
-  startAudioCapture: () => Promise<{ success: boolean; native?: boolean }>;
+  startAudioCapture: () => Promise<{ success: boolean; native?: boolean; error?: string }>;
   stopAudioCapture: () => Promise<{ success: boolean }>;
   isAudioCapturing: () => Promise<boolean>;
   checkCaptureCapability: () => Promise<{
@@ -186,7 +186,8 @@ interface ElectronAPI {
   // macOS 系统音频采集
   getScreenSources: () => Promise<{
     sources: { id: string; name: string }[];
-    status: string; // 'granted' | 'denied' | 'restricted' | 'not-determined' | 'error'
+    status: string; // 'granted' | 'denied' | 'restricted' | 'not-determined' | 'status-query-error' | 'unknown'
+    error?: string; // 系统 API 抛错时的真实错误信息
   }>;
   relaunchApp: () => Promise<{ success: boolean }>;
   sendAudioChunk: (data: ArrayBuffer) => void;

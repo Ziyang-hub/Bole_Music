@@ -22,6 +22,7 @@ import {
   waitHelperReady as macWaitHelperReady,
   switchToFallback as macSwitchToFallback,
   setLevelCallback as macSetLevelCallback,
+  getLastStartError as macGetLastStartError,
 } from './mac-audio-capture';
 
 const execFileAsync = promisify(execFile);
@@ -41,6 +42,12 @@ export async function waitNativeCaptureReady(timeoutMs = 8000): Promise<boolean>
 /** macOS：原生采集失败时切换到 getUserMedia 降级模式（保持 chunk 管道可用） */
 export function switchNativeToFallback(): void {
   if (process.platform === 'darwin') macSwitchToFallback();
+}
+
+/** macOS：最近一次原生采集启动失败的原因（非 macOS 返回空） */
+export function getLastStartError(): string {
+  if (process.platform !== 'darwin') return '';
+  return macGetLastStartError();
 }
 
 /** 注册实时音量回调（渲染进程音量可视化） */

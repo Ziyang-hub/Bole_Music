@@ -50,6 +50,7 @@ import {
   waitNativeCaptureReady,
   switchNativeToFallback,
   registerLevelCallback,
+  getLastStartError,
 } from './audio-capture';
 import { recognizeSong, isMaybeMusic } from './song-recognition';
 import {
@@ -504,13 +505,13 @@ let lastDetectedTime = 0;
 
 ipcMain.handle('audio:startCapture', async () => {
   // 请求采集前把主窗口置前：首次触发系统录屏权限弹窗时，弹窗不会被应用窗口压住
+  // TCC 权限弹窗通常在 helper 启动后 1-2 秒才出现，延迟 1.5s 再置前一次覆盖该时机
   if (mainWindow) {
     mainWindow.show();
     mainWindow.focus();
-    // 弹窗出现的瞬间窗口可能被重新抢占焦点，延迟再置前一次
     setTimeout(() => {
       if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
-    }, 600);
+    }, 1500);
   }
   const onChunk = async (audioPath: string, createdAt?: number) => {
     // 跳过超过 60 秒的过期 chunk，避免识别队列积压
@@ -562,9 +563,9 @@ ipcMain.handle('audio:startCapture', async () => {
       // 切换到降级模式（保持 chunk 管道可用），不是停止采集
       switchNativeToFallback();
     }
-    return { success: true, native: ready };
+    return { success: true, native: ready, error: ready ? undefined : getLastStartError() };
   }
-  return { success: true, native: false };
+  return { success: true, native: false, error: getLastStartError() };
 });
 
 ipcMain.handle('audio:stopCapture', async () => {
@@ -681,23 +682,29 @@ ipcMain.handle('audio:recognizeBlob', async (_e, data: Buffer) => {
 });
 
 ipcMain.handle('desktop-capturer:getSources', async () => {
+  // 1. 查询权限状态（独立 try，权限查询本身也可能抛错）
+  let status = 'unknown';
   try {
-    // 检测屏幕录制权限状态（'granted' | 'denied' | 'restricted' | 'not-determined'）
-    const status = process.platform === 'darwin'
+    status = process.platform === 'darwin'
       ? systemPreferences.getMediaAccessStatus('screen')
       : 'granted';
     console.log('[main] screen recording status:', status);
+  } catch (err: any) {
+    console.error('[main] getMediaAccessStatus error:', err.message);
+    status = 'status-query-error';
+  }
+
+  // 2. 获取屏幕源（独立 try，带真实错误信息返回给渲染进程）
+  try {
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: { width: 1, height: 1 },
     });
     console.log('[main] desktopCapturer sources:', sources.length);
-    return { sources: sources.map(s => ({ id: s.id, name: s.name })), status };
+    return { sources: sources.map(s => ({ id: s.id, name: s.name })), status, error: '' };
   } catch (err: any) {
-    console.error('[main] desktopCapturer error type:', typeof err);
-    console.error('[main] desktopCapturer error keys:', Object.keys(err || {}));
-    console.error('[main] desktopCapturer raw error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-    return { sources: [], status: 'error' };
+    console.error('[main] desktopCapturer.getSources error:', err.message);
+    return { sources: [], status, error: err.message || String(err) };
   }
 });
 

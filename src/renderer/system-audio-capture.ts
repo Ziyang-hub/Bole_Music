@@ -42,10 +42,18 @@ export async function startSystemAudioCapture(): Promise<void> {
     }
   }
 
-  // 1. 通过主进程获取屏幕源（附带屏幕录制权限状态）
-  const { sources, status } = await window.electronAPI.getScreenSources();
-  console.log('[system-audio] Sources:', sources, '| status:', status);
+  // 1. 通过主进程获取屏幕源（附带屏幕录制权限状态与真实错误）
+  const { sources, status, error } = await window.electronAPI.getScreenSources();
+  console.log('[system-audio] Sources:', sources, '| status:', status, '| error:', error);
   if (!sources || sources.length === 0) {
+    // 系统 API 抛错（如 macOS 新版与 Electron 兼容问题）——显示真实错误便于定位
+    if (error) {
+      throw new Error(
+        '获取屏幕源失败：' + error + '\n\n' +
+        '若系统设置中有多个「伯乐模拟器」条目，请全部勾选并重启应用。\n' +
+        '若仍失败，请把此错误信息反馈给开发者。'
+      );
+    }
     // 按权限状态给出针对性提示（macOS 屏幕录制权限授权后必须重启应用才生效）
     if (status === 'granted') {
       throw new Error(
@@ -58,7 +66,7 @@ export async function startSystemAudioCapture(): Promise<void> {
       throw new Error(
         '屏幕录制权限被拒绝。\n\n' +
         '请前往 系统设置 → 隐私与安全性 → 屏幕录制，\n' +
-        '勾选「伯乐模拟器」，然后重启应用。'
+        '勾选「伯乐模拟器」（如有多个条目请全部勾选），然后重启应用。'
       );
     }
     if (status === 'not-determined') {
