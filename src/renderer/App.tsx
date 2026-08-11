@@ -476,13 +476,28 @@ export default function App() {
   /** 切换对话 */
   async function handleSwitchConversation(convId: string) {
     if (!window.electronAPI || convId === activeConvId) return;
+    // 先保存当前对话的滚动位置（下次切回该对话时恢复）
+    const curEl = messagesContainerRef.current;
+    if (curEl) chatScrollTopsRef.current[activeConvId] = curEl.scrollTop;
     setActiveConvId(convId);
     await window.electronAPI.switchConversation(convId).catch(() => {});
     await loadConversationMessages(convId);
-    setIsNearBottom(true);
+    // 目标对话有记忆 → 恢复到上次停留位置；无记忆 → 定位到最新消息
+    const saved = chatScrollTopsRef.current[convId];
+    if (saved != null) {
+      requestAnimationFrame(() => {
+        const container = messagesContainerRef.current;
+        if (container) {
+          container.scrollTop = saved;
+          const dist = container.scrollHeight - container.scrollTop - container.clientHeight;
+          setIsNearBottom(dist < 80);
+          calcActiveMsg();
+        }
+      });
+    } else {
+      setIsNearBottom(true);
+    }
     setIsLoading(false);
-    // 切换对话 → 重置滚动记忆（新对话直接定位到最新消息）
-    chatScrollTopRef.current = null;
   }
 
   /** 新建对话（带人格选择） */
@@ -492,7 +507,6 @@ export default function App() {
     setConversations(await window.electronAPI.getConversations());
     setActiveConvId(conv.id);
     setMessages([]);
-    chatScrollTopRef.current = null;
     const info = PERSONA_INFO[persona] || PERSONA_INFO.literary;
     const welcome: ChatMessage = {
       id: 'welcome-' + conv.id,
@@ -521,6 +535,8 @@ export default function App() {
     setActiveConvId(nextId);
     await loadConversationMessages(nextId);
     setIsNearBottom(true);
+    // 清理被删对话的滚动记忆
+    delete chatScrollTopsRef.current[convId];
   }
 
   /** 当前对话的人格 */
@@ -538,7 +554,7 @@ export default function App() {
     const cur = currentViewRef.current;
     if (cur === 'chat' && view !== 'chat') {
       const el = messagesContainerRef.current;
-      if (el) chatScrollTopRef.current = el.scrollTop;
+      if (el) chatScrollTopsRef.current[activeConvId] = el.scrollTop;
     }
     currentViewRef.current = view;
     setCurrentView(view);
@@ -585,22 +601,23 @@ export default function App() {
     }
   }, [messages, isNearBottom]);
 
-  // 聊天窗口滚动位置记忆：
-  // 首次进入/加载完成 → 滚到最新消息；离开时保存位置，切回时恢复原位置
-  const chatScrollTopRef = useRef<number | null>(null);
+  // 聊天窗口滚动位置记忆（按对话保存）：
+  // 离开聊天页/切换对话时保存该对话的位置；切回聊天页时恢复对应对话的位置
+  const chatScrollTopsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     if (currentView === 'chat' && messagesLoaded) {
       const el = messagesContainerRef.current;
       if (!el) return;
-      const saved = chatScrollTopRef.current;
+      const saved = activeConvId ? chatScrollTopsRef.current[activeConvId] : null;
       if (saved != null) {
-        // 切回：恢复之前停留的位置
+        // 切回：恢复该对话上次停留的位置
         el.scrollTop = saved;
-        chatScrollTopRef.current = null;
+        const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+        setIsNearBottom(dist < 80);
         calcActiveMsg();
       } else {
-        // 首次进入：直接定位到最新消息
+        // 首次进入（无记忆）：直接定位到最新消息
         el.scrollTop = el.scrollHeight;
         setIsNearBottom(true);
       }
