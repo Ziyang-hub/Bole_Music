@@ -3,10 +3,15 @@ name: 构建安装包
 permissions:
   contents: write
 
+# 说明：不使用 release 事件触发——release 触发的工作流 GITHUB_TOKEN
+# 无权修改该 release（上传会报 Resource not accessible）。
+# 改为 push tag 触发：网页创建 release 会自动创建 tag，触发本工作流，
+# 此时 token 有完整权限，可正常上传安装包。
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   # ============================================================
@@ -17,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
+        with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npx vite build
       - run: npx tsc -p tsconfig.main.json
@@ -26,8 +31,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: win, path: release/*.exe, retention-days: 7 }
       - name: 上传 GitHub Release
-        if: github.event_name == 'release'
-        run: gh release upload ${{ github.ref_name }} release/*.exe --clobber
+        if: github.event_name == 'push'
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release upload "$TAG" release/*.exe --clobber 2>/dev/null || {
+            gh release create "$TAG" --generate-notes
+            gh release upload "$TAG" release/*.exe --clobber
+          }
         env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
 
   # ============================================================
@@ -38,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
+        with: { node-version: 22, cache: npm }
       - run: npm ci
       # 编译 ScreenCaptureKit 音频捕获组件（arm64 + x64），自动随包分发
       - name: 编译 macOS 音频捕获组件
@@ -60,8 +70,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: mac-zip-x64, path: release/*-x64.zip, retention-days: 7 }
       - name: 上传 GitHub Release
-        if: github.event_name == 'release'
-        run: gh release upload ${{ github.ref_name }} release/*.dmg release/*.zip --clobber
+        if: github.event_name == 'push'
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release upload "$TAG" release/*.dmg release/*.zip --clobber 2>/dev/null || {
+            gh release create "$TAG" --generate-notes
+            gh release upload "$TAG" release/*.dmg release/*.zip --clobber
+          }
         env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
 
   # ============================================================
@@ -72,7 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
+        with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npx vite build
       - run: npx tsc -p tsconfig.main.json
@@ -80,8 +95,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: linux, path: release/*.AppImage, retention-days: 7 }
       - name: 上传 GitHub Release
-        if: github.event_name == 'release'
-        run: gh release upload ${{ github.ref_name }} release/*.AppImage --clobber
+        if: github.event_name == 'push'
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release upload "$TAG" release/*.AppImage --clobber 2>/dev/null || {
+            gh release create "$TAG" --generate-notes
+            gh release upload "$TAG" release/*.AppImage --clobber
+          }
         env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
 
   # ============================================================
@@ -90,7 +110,7 @@ jobs:
   mirror-gitee:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release'
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
