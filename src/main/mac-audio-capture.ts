@@ -181,10 +181,10 @@ export function startCapture(callback: AudioChunkCallback): boolean {
       }
     });
 
-    // stderr：错误信息（含 helper 的音频回调/静音诊断日志）
+    // stderr：helper 诊断日志（AUDIO cb/CHUNK 能量等正常信息，也有真错误）
     helperProc.stderr?.on('data', (d: Buffer) => {
       const msg = d.toString().trim();
-      if (msg) logErr('[mac-audio] Helper stderr: ' + msg);
+      if (msg) log('[mac-audio] Helper stderr: ' + msg);
     });
 
     helperProc.on('error', (err) => {

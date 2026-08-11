@@ -209,6 +209,15 @@ function showNotification(title: string, body: string): void {
 // 初始化文件日志（打包版 console 不可见，关键链路写入 userData/logs/main.log）
 try { initLog(); } catch {}
 
+// 切换工作目录到可写目录：node-shazam 转码用相对路径输出 node_shazam_temp.pcm，
+// 双击 .app 启动时 cwd 为根目录 /（只读）→ 写文件失败 → 识别永远失败
+try {
+  process.chdir(require('os').tmpdir());
+  log('[main] cwd → ' + process.cwd());
+} catch (e: any) {
+  logErr('[main] chdir failed: ' + (e?.message || e));
+}
+
 // 打包版修复：ffmpeg-static 返回的路径在 app.asar 内（asar 是文件不是目录），
 // spawn 会报 ENOTDIR 导致主进程崩溃（node-shazam 依赖的 fluent-ffmpeg 启动时探测 ffmpeg）。
 // asarUnpack 已把 ffmpeg-static 解包到 app.asar.unpacked，这里把路径重写过去。
