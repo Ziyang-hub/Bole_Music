@@ -37,6 +37,7 @@ const PERSONA_INFO: Record<string, { icon: string; label: string; desc: string }
 
 // 缓动曲线
 const EASE_OUT = [0.22, 1, 0.36, 1] as [number, number, number, number]; // 先快后慢，收尾干脆
+const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]; // 淡出：先慢后快
 const EASE_SPRING = [0.34, 1.56, 0.64, 1] as [number, number, number, number]; // 轻微过冲回弹（灵动）
 
 export default function Sidebar({
@@ -52,15 +53,24 @@ export default function Sidebar({
   // 收起/展开状态：组件内部管理（App 不重渲染，过渡流畅）
   const [collapsed, setCollapsed] = useState(false);
 
-  // 错峰编排：展开时图标先动、文字稍后揭幕；收起时文字先收、图标稍后归位
+  // 错峰编排：
+  // 展开时图标先动、文字稍后揭幕（快速利落）；
+  // 收起时文字先慢速卷走（宽度 0.5s）+ 缓速淡出（延迟 0.12s 起，先慢后快），图标稍后归位
   const textTransition = {
-    duration: collapsed ? 0.28 : 0.34,
-    delay: collapsed ? 0 : 0.05,
-    ease: EASE_OUT,
+    width: {
+      duration: collapsed ? 0.5 : 0.34,
+      delay: collapsed ? 0 : 0.05,
+      ease: EASE_OUT,
+    },
+    opacity: {
+      duration: collapsed ? 0.45 : 0.3,
+      delay: collapsed ? 0.12 : 0.05,
+      ease: collapsed ? EASE_IN : EASE_OUT,
+    },
   };
   const iconTransition = {
     duration: 0.4,
-    delay: collapsed ? 0.08 : 0,
+    delay: collapsed ? 0.12 : 0,
     ease: EASE_SPRING,
   };
 
