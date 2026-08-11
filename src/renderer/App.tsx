@@ -424,6 +424,30 @@ export default function App() {
       }
 
       if (isMacOS) {
+        // 权限前置引导：首次（未决定）→ 先提示用户注意系统弹窗；被拒 → 引导去设置
+        // （解决系统权限弹窗被窗口压住的问题：用户提前知道要留意弹窗/Dock）
+        const perm = await window.electronAPI.getScreenPermissionStatus();
+        if (perm.status === 'not-determined') {
+          const go = window.confirm(
+            '🎧 首次使用需要屏幕录制权限\n\n' +
+            '系统将弹出「伯乐模拟器想要录制此电脑的屏幕和音频」提示，请点击「允许」。\n\n' +
+            '如果弹窗被应用窗口遮挡，请点击 Dock 中的伯乐模拟器图标查看。\n\n' +
+            '点击「确定」继续'
+          );
+          if (!go) return;
+        } else if (perm.status === 'denied' || perm.status === 'restricted') {
+          const goSettings = window.confirm(
+            '⚠️ 屏幕录制权限未授予\n\n' +
+            '请前往 系统设置 → 隐私与安全性 → 屏幕录制，\n' +
+            '勾选「伯乐模拟器」（如有多个条目请全部勾选），然后重启应用。\n\n' +
+            '点击「确定」打开系统设置'
+          );
+          if (goSettings) {
+            try { await window.electronAPI.openScreenRecordingSettings(); } catch {}
+          }
+          return;
+        }
+
         const { startSystemAudioCapture } = await import('./system-audio-capture');
         await window.electronAPI.startAudioCapture();
         await startSystemAudioCapture();

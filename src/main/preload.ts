@@ -88,6 +88,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ----- 音频采集 -----
   startAudioCapture: () => ipcRenderer.invoke('audio:startCapture'),
+  getScreenPermissionStatus: () => ipcRenderer.invoke('audio:getScreenPermissionStatus'),
   stopAudioCapture: () => ipcRenderer.invoke('audio:stopCapture'),
   isAudioCapturing: () => ipcRenderer.invoke('audio:isCapturing'),
   checkCaptureCapability: () => ipcRenderer.invoke('audio:checkCapability'),

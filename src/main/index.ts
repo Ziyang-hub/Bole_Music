@@ -6,6 +6,7 @@
 
 import './ffmpeg-patch'; // ⚠️ 必须第一个 import：在 node-shazam 加载前重写 ffmpeg 路径（打包版 ENOTDIR 修复）
 import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage, desktopCapturer, systemPreferences } from 'electron';
+import { initLog, log, logErr } from './log';
 import { MUSIC_HEADERS } from './http-common';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -204,6 +205,9 @@ function showNotification(title: string, body: string): void {
 }
 
 // ----- 应用生命周期 -----
+
+// 初始化文件日志（打包版 console 不可见，关键链路写入 userData/logs/main.log）
+try { initLog(); } catch {}
 
 // 打包版修复：ffmpeg-static 返回的路径在 app.asar 内（asar 是文件不是目录），
 // spawn 会报 ENOTDIR 导致主进程崩溃（node-shazam 依赖的 fluent-ffmpeg 启动时探测 ffmpeg）。
@@ -522,6 +526,19 @@ ipcMain.handle(
 let lastDetectedSong = '';
 let lastDetectedTime = 0;
 
+// 查询屏幕录制权限状态（渲染进程采集前做前置引导）
+ipcMain.handle('audio:getScreenPermissionStatus', async () => {
+  try {
+    const status = process.platform === 'darwin'
+      ? systemPreferences.getMediaAccessStatus('screen')
+      : 'granted';
+    log('[audio] Screen permission status: ' + status);
+    return { status };
+  } catch (err: any) {
+    return { status: 'unknown', error: err?.message || String(err) };
+  }
+});
+
 ipcMain.handle('audio:startCapture', async () => {
   // 请求采集前把主窗口置前：首次触发系统录屏权限弹窗时，弹窗不会被应用窗口压住
   // TCC 权限弹窗通常在 helper 启动后 1-2 秒才出现，延迟 1.5s 再置前一次覆盖该时机
@@ -541,16 +558,16 @@ ipcMain.handle('audio:startCapture', async () => {
     }
 
     if (!isMaybeMusic(audioPath)) {
-      console.log('[audio] Skipped non-music:', path.basename(audioPath));
+      log('[audio] Skipped non-music: ' + path.basename(audioPath));
       return;
     }
 
-    console.log('[audio] Recognizing:', path.basename(audioPath), age > 0 ? `(age: ${Math.round(age / 1000)}s)` : '');
+    log('[audio] Recognizing: ' + path.basename(audioPath) + (age > 0 ? ` (age: ${Math.round(age / 1000)}s)` : ''));
     const result = await recognizeSong(audioPath);
     if (result) {
-      console.log('[audio] ✅ Matched:', result.title, '-', result.artist);
+      log('[audio] ✅ Matched: ' + result.title + ' - ' + result.artist);
     } else {
-      console.log('[audio] ❌ No match for:', path.basename(audioPath));
+      log('[audio] ❌ No match for: ' + path.basename(audioPath));
       return;
     }
 

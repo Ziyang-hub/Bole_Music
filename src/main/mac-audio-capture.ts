@@ -20,6 +20,7 @@ import * as fs from 'fs';
 import { spawn, ChildProcess } from 'child_process';
 import * as readline from 'readline';
 import { cleanupOldChunks } from './audio-capture';
+import { log, logErr } from './log';
 
 export type AudioChunkCallback = (audioPath: string, createdAt?: number) => void;
 
@@ -165,7 +166,7 @@ export function startCapture(callback: AudioChunkCallback): boolean {
       if (line.startsWith('CHUNK:')) {
         const p = line.slice(6);
         if (onChunk && fs.existsSync(p)) {
-          console.log('[mac-audio] Chunk ready:', p);
+          log('[mac-audio] Chunk ready: ' + p);
           onChunk(p, Date.now());
           cleanupOldChunks();
         }
@@ -173,28 +174,28 @@ export function startCapture(callback: AudioChunkCallback): boolean {
         const rms = parseFloat(line.slice(4));
         if (!isNaN(rms) && onLevel) onLevel(rms);
       } else if (line === 'READY') {
-        console.log('[mac-audio] Helper READY');
+        log('[mac-audio] Helper READY');
         _notifyReady(true);
       } else {
-        console.log('[mac-audio] Helper stdout:', line);
+        log('[mac-audio] Helper stdout: ' + line);
       }
     });
 
-    // stderr：错误信息
+    // stderr：错误信息（含 helper 的音频回调/静音诊断日志）
     helperProc.stderr?.on('data', (d: Buffer) => {
       const msg = d.toString().trim();
-      if (msg) console.error('[mac-audio] Helper stderr:', msg);
+      if (msg) logErr('[mac-audio] Helper stderr: ' + msg);
     });
 
     helperProc.on('error', (err) => {
-      console.error('[mac-audio] Helper spawn error:', err.message);
+      logErr('[mac-audio] Helper spawn error: ' + err.message);
       _setLastError('采集组件启动失败：' + err.message);
       isRunning = false;
       helperProc = null;
     });
 
     helperProc.on('exit', (code, signal) => {
-      console.log(`[mac-audio] Helper exited code=${code} signal=${signal} after ${Date.now() - helperStartTime}ms`);
+      log(`[mac-audio] Helper exited code=${code} signal=${signal} after ${Date.now() - helperStartTime}ms`);
       if (!helperReady) {
         _setLastError('采集组件异常退出（code=' + code + ' signal=' + signal + '）——' +
           '很可能是屏幕录制权限未生效，请检查系统设置中的授权并重启应用');

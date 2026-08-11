@@ -169,6 +169,7 @@ interface ElectronAPI {
 
   // 音频采集
   startAudioCapture: () => Promise<{ success: boolean; native?: boolean; error?: string }>;
+  getScreenPermissionStatus: () => Promise<{ status: string; error?: string }>;
   stopAudioCapture: () => Promise<{ success: boolean }>;
   isAudioCapturing: () => Promise<boolean>;
   checkCaptureCapability: () => Promise<{
