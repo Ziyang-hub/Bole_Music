@@ -204,6 +204,24 @@ function showNotification(title: string, body: string): void {
 
 // ----- 应用生命周期 -----
 
+// 打包版修复：ffmpeg-static 返回的路径在 app.asar 内（asar 是文件不是目录），
+// spawn 会报 ENOTDIR 导致主进程崩溃（node-shazam 依赖的 fluent-ffmpeg 启动时探测 ffmpeg）。
+// asarUnpack 已把 ffmpeg-static 解包到 app.asar.unpacked，这里把路径重写过去。
+try {
+  const ffmpegStatic = require('ffmpeg-static');
+  if (typeof ffmpegStatic === 'string' && ffmpegStatic.includes('app.asar')) {
+    process.env.FFMPEG_PATH = ffmpegStatic.replace('app.asar', 'app.asar.unpacked');
+    console.log('[main] FFMPEG_PATH →', process.env.FFMPEG_PATH);
+  }
+} catch (e: any) {
+  console.warn('[main] ffmpeg-static unavailable:', e?.message || e);
+}
+
+// 主进程兜底：未捕获异常只记录日志，不弹崩溃框退出（识别/采集链路异常不应杀死应用）
+process.on('uncaughtException', (err) => {
+  console.error('[main] uncaughtException:', err);
+});
+
 app.whenReady().then(() => {
   createWindow();
   createTray();

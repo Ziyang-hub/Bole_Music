@@ -27,9 +27,14 @@ import {
 
 const execFileAsync = promisify(execFile);
 
-// 内置 ffmpeg
+// 内置 ffmpeg（打包版：asar 内路径 spawn 会 ENOTDIR，重写为 app.asar.unpacked）
 let ffmpegPath = 'ffmpeg';
-try { ffmpegPath = require('ffmpeg-static'); } catch {}
+try {
+  const p = require('ffmpeg-static');
+  if (typeof p === 'string') {
+    ffmpegPath = p.includes('app.asar') ? p.replace('app.asar', 'app.asar.unpacked') : p;
+  }
+} catch {}
 
 export type AudioChunkCallback = (audioPath: string, createdAt?: number) => void;
 
