@@ -484,18 +484,11 @@ export default function App() {
     setActiveConvId(convId);
     await window.electronAPI.switchConversation(convId).catch(() => {});
     await loadConversationMessages(convId);
-    // 目标对话有记忆 → 恢复到上次停留位置；无记忆 → 定位到最新消息
+    // 目标对话有记忆 → 交给 effect 在消息渲染完成后恢复（确定性，无 rAF 时序依赖）
     const saved = chatScrollTopsRef.current[convId];
+    console.log('[scroll] switch conv to', convId, '| saved =', saved, '| memory:', JSON.stringify(chatScrollTopsRef.current));
     if (saved != null) {
-      requestAnimationFrame(() => {
-        const container = messagesContainerRef.current;
-        if (container) {
-          container.scrollTop = saved;
-          const dist = container.scrollHeight - container.scrollTop - container.clientHeight;
-          setIsNearBottom(dist < 80);
-          calcActiveMsg();
-        }
-      });
+      pendingRestoreRef.current = { convId, scrollTop: saved };
     } else {
       setIsNearBottom(true);
     }
@@ -509,6 +502,7 @@ export default function App() {
     if (currentView === 'chat') {
       const curEl = messagesContainerRef.current;
       if (curEl) chatScrollTopsRef.current[activeConvId] = curEl.scrollTop;
+      console.log('[scroll] create conv: saved', activeConvId, '=', curEl.scrollTop, '| memory:', JSON.stringify(chatScrollTopsRef.current));
     }
     const conv = await window.electronAPI.createConversation(name, persona);
     setConversations(await window.electronAPI.getConversations());
@@ -612,11 +606,15 @@ export default function App() {
   // 离开聊天页/切换对话时保存该对话的位置；切回聊天页时恢复对应对话的位置
   const chatScrollTopsRef = useRef<Record<string, number>>({});
 
+  // 切换对话后的待恢复位置：由 effect 在消息渲染完成后确定性恢复（避免 rAF 时序竞态）
+  const pendingRestoreRef = useRef<{ convId: string; scrollTop: number } | null>(null);
+
   useEffect(() => {
     if (currentView === 'chat' && messagesLoaded) {
       const el = messagesContainerRef.current;
       if (!el) return;
       const saved = activeConvId ? chatScrollTopsRef.current[activeConvId] : null;
+      console.log('[scroll] back to chat view, conv =', activeConvId, '| saved =', saved, '| memory:', JSON.stringify(chatScrollTopsRef.current));
       if (saved != null) {
         // 切回：恢复该对话上次停留的位置
         el.scrollTop = saved;
@@ -631,6 +629,21 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, messagesLoaded]);
+
+  // 切换对话后的位置恢复：消息渲染完成后执行（此时 DOM 已是目标对话的消息）
+  useEffect(() => {
+    const pending = pendingRestoreRef.current;
+    if (!pending || pending.convId !== activeConvId) return;
+    pendingRestoreRef.current = null;
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    console.log('[scroll] restore pending', pending.convId, '→', pending.scrollTop);
+    el.scrollTop = pending.scrollTop;
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setIsNearBottom(dist < 80);
+    calcActiveMsg();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, activeConvId]);
 
   // 计算当前视口位置对应的用户消息（"—"粗体跟随）
   const calcActiveMsg = () => {
