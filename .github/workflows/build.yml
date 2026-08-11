@@ -32,6 +32,7 @@ jobs:
         with: { name: win, path: release/*.exe, retention-days: 7 }
       - name: 上传 GitHub Release
         if: github.event_name == 'push'
+        shell: bash
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           gh release upload "$TAG" release/*.exe --clobber 2>/dev/null || {
