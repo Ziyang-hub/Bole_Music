@@ -4,7 +4,7 @@
  * 负责：窗口管理、IPC 通信、调用存储服务和 AI 服务
  */
 
-import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage, desktopCapturer } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage, desktopCapturer, systemPreferences } from 'electron';
 import { MUSIC_HEADERS } from './http-common';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -503,6 +503,15 @@ let lastDetectedSong = '';
 let lastDetectedTime = 0;
 
 ipcMain.handle('audio:startCapture', async () => {
+  // 请求采集前把主窗口置前：首次触发系统录屏权限弹窗时，弹窗不会被应用窗口压住
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+    // 弹窗出现的瞬间窗口可能被重新抢占焦点，延迟再置前一次
+    setTimeout(() => {
+      if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
+    }, 600);
+  }
   const onChunk = async (audioPath: string, createdAt?: number) => {
     // 跳过超过 60 秒的过期 chunk，避免识别队列积压
     const age = createdAt ? Date.now() - createdAt : 0;
@@ -673,20 +682,30 @@ ipcMain.handle('audio:recognizeBlob', async (_e, data: Buffer) => {
 
 ipcMain.handle('desktop-capturer:getSources', async () => {
   try {
-    console.log('[main] desktopCapturer type:', typeof desktopCapturer);
-    console.log('[main] desktopCapturer.getSources type:', typeof desktopCapturer.getSources);
+    // 检测屏幕录制权限状态（'granted' | 'denied' | 'restricted' | 'not-determined'）
+    const status = process.platform === 'darwin'
+      ? systemPreferences.getMediaAccessStatus('screen')
+      : 'granted';
+    console.log('[main] screen recording status:', status);
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: { width: 1, height: 1 },
     });
     console.log('[main] desktopCapturer sources:', sources.length);
-    return sources.map(s => ({ id: s.id, name: s.name }));
+    return { sources: sources.map(s => ({ id: s.id, name: s.name })), status };
   } catch (err: any) {
     console.error('[main] desktopCapturer error type:', typeof err);
     console.error('[main] desktopCapturer error keys:', Object.keys(err || {}));
     console.error('[main] desktopCapturer raw error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-    return [];
+    return { sources: [], status: 'error' };
   }
+});
+
+// 重启应用（屏幕录制权限授权后必须重启进程才生效）
+ipcMain.handle('app:relaunch', async () => {
+  app.relaunch();
+  app.exit(0);
+  return { success: true };
 });
 
 ipcMain.handle('audio:openScreenSettings', async () => {

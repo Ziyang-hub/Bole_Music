@@ -96,6 +96,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // macOS 系统音频采集（renderer ↔ main IPC）
   getScreenSources: () => ipcRenderer.invoke('desktop-capturer:getSources'),
+  relaunchApp: () => ipcRenderer.invoke('app:relaunch'),
   sendAudioChunk: (data: ArrayBuffer) =>
     ipcRenderer.send('audio:chunk', Buffer.from(data)),
   notifyCaptureStarted: () => ipcRenderer.send('audio:captureStarted'),

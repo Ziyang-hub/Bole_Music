@@ -433,18 +433,32 @@ export default function App() {
     } catch (err: any) {
       const errMsg = err.message || err.name || '未知错误';
       const isDenied = err.name === 'NotAllowedError' || errMsg.includes('permission');
-      if (isDenied) {
+
+      // 已授权但进程内未生效 → 重启应用
+      if (errMsg.includes('重启应用')) {
+        const doRelaunch = window.confirm(
+          '⚠️ ' + errMsg + '\n\n点击「确定」立即重启应用'
+        );
+        if (doRelaunch) {
+          try { await window.electronAPI.relaunchApp(); } catch {}
+        }
+        return;
+      }
+
+      // 权限被拒绝/未请求 → 打开系统设置
+      if (isDenied || errMsg.includes('被拒绝') || errMsg.includes('未检测到')) {
         const goSettings = window.confirm(
-          '⚠️ 屏幕录制权限未授权\n\n' +
-          '请前往系统设置中开启权限。\n\n' +
-          '点击「确定」自动打开系统设置 → 隐私与安全性 → 屏幕录制 → 勾选「伯乐模拟器」'
+          '⚠️ 屏幕录制权限未生效\n\n' + errMsg + '\n\n' +
+          '点击「确定」自动打开系统设置 → 隐私与安全性 → 屏幕录制 → 勾选「伯乐模拟器」，\n' +
+          '然后重启应用。'
         );
         if (goSettings) {
           try { await window.electronAPI.openScreenRecordingSettings(); } catch {}
         }
-      } else {
-        alert('❌ 采集启动失败:\n\n' + errMsg);
+        return;
       }
+
+      alert('❌ 采集启动失败:\n\n' + errMsg);
     }
   }
 

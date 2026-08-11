@@ -184,7 +184,11 @@ interface ElectronAPI {
   removeSongDetectedListener?: () => void;
 
   // macOS 系统音频采集
-  getScreenSources: () => Promise<{ id: string; name: string }[]>;
+  getScreenSources: () => Promise<{
+    sources: { id: string; name: string }[];
+    status: string; // 'granted' | 'denied' | 'restricted' | 'not-determined' | 'error'
+  }>;
+  relaunchApp: () => Promise<{ success: boolean }>;
   sendAudioChunk: (data: ArrayBuffer) => void;
   notifyCaptureStarted: () => void;
   notifyCaptureStopped: () => void;

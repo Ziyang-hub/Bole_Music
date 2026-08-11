@@ -42,11 +42,33 @@ export async function startSystemAudioCapture(): Promise<void> {
     }
   }
 
-  // 1. 通过主进程获取屏幕源
-  const sources = await window.electronAPI.getScreenSources();
-  console.log('[system-audio] Sources:', sources);
+  // 1. 通过主进程获取屏幕源（附带屏幕录制权限状态）
+  const { sources, status } = await window.electronAPI.getScreenSources();
+  console.log('[system-audio] Sources:', sources, '| status:', status);
   if (!sources || sources.length === 0) {
-    throw new Error('未找到可录制的屏幕源');
+    // 按权限状态给出针对性提示（macOS 屏幕录制权限授权后必须重启应用才生效）
+    if (status === 'granted') {
+      throw new Error(
+        '权限已授权，但需要重启应用才能生效。\n\n' +
+        'macOS 的屏幕录制权限在授权后必须重启应用才会生效。\n' +
+        '请重启「伯乐模拟器」后重试。'
+      );
+    }
+    if (status === 'denied' || status === 'restricted') {
+      throw new Error(
+        '屏幕录制权限被拒绝。\n\n' +
+        '请前往 系统设置 → 隐私与安全性 → 屏幕录制，\n' +
+        '勾选「伯乐模拟器」，然后重启应用。'
+      );
+    }
+    if (status === 'not-determined') {
+      throw new Error(
+        '未检测到屏幕录制权限请求。\n\n' +
+        '如果系统弹出了权限请求窗口，请点击「允许」；\n' +
+        '如果弹窗被遮挡，请点击 Dock 中的伯乐模拟器图标查看。'
+      );
+    }
+    throw new Error('未找到可录制的屏幕源（状态：' + status + '）');
   }
 
   const sourceId = sources[0].id;
