@@ -4,6 +4,7 @@
  * 负责：窗口管理、IPC 通信、调用存储服务和 AI 服务
  */
 
+import './ffmpeg-patch'; // ⚠️ 必须第一个 import：在 node-shazam 加载前重写 ffmpeg 路径（打包版 ENOTDIR 修复）
 import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage, desktopCapturer, systemPreferences } from 'electron';
 import { MUSIC_HEADERS } from './http-common';
 import * as path from 'path';
