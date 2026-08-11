@@ -9,7 +9,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-ARCH="${1:-$(uname -m)}"
+# 兼容两种调用方式：--arch x86_64 或直接传 x86_64
+ARCH=""
+if [ "$1" = "--arch" ]; then
+  ARCH="$2"
+else
+  ARCH="${1:-}"
+fi
+ARCH="${ARCH:-$(uname -m)}"
 case "$ARCH" in
   x86_64) BIN_NAME="bole-capture-x64" ;;
   arm64)  BIN_NAME="bole-capture-arm64" ;;
