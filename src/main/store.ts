@@ -13,6 +13,8 @@
  */
 
 import Store from 'electron-store';
+import { safeStorage } from 'electron';
+import * as fs from 'fs';
 
 // 定义存储的数据结构
 interface StoredData {
@@ -141,9 +143,12 @@ const defaultStats: ListeningStats = {
 };
 
 // ----- 初始化存储 -----
+// configFileMode 0o600：数据文件仅当前用户可读写（含聊天记录/日记/API Key，
+// 默认 0o666 会让同机其他用户可读可改）
 
 const store = new Store<StoredData>({
   name: 'bole-data',
+  configFileMode: 0o600,
   defaults: {
     messages: [],
     conversations: [],
@@ -154,6 +159,74 @@ const store = new Store<StoredData>({
     stats: defaultStats,
   },
 });
+
+// 旧版数据文件权限可能是 666/644，启动时收紧一次
+try { fs.chmodSync(store.path, 0o600); } catch {}
+
+// ============================================================
+// API 密钥加密（safeStorage：macOS Keychain / Windows DPAPI）
+// 存储格式：'enc:' + base64(safeStorage.encryptString(明文))
+// ============================================================
+
+const ENC_PREFIX = 'enc:';
+
+function encryptKey(plain: string): string {
+  if (!plain) return '';
+  try {
+    if (!safeStorage.isEncryptionAvailable()) {
+      // Linux 无系统钥匙串时无法加密，保持明文并警告
+      console.warn('[store] safeStorage 不可用，API Key 以明文存储');
+      return plain;
+    }
+    return ENC_PREFIX + safeStorage.encryptString(plain).toString('base64');
+  } catch (e: any) {
+    console.warn('[store] encryptKey failed:', e?.message || e);
+    return plain;
+  }
+}
+
+function decryptKey(v: string): string {
+  if (!v || !v.startsWith(ENC_PREFIX)) return v;
+  try {
+    return safeStorage.decryptString(Buffer.from(v.slice(ENC_PREFIX.length), 'base64')).toString();
+  } catch (e: any) {
+    console.warn('[store] decryptKey failed（钥匙串可能已变更）:', e?.message || e);
+    return v;
+  }
+}
+
+/** 加密 settings 中的 apiKeys（存储前调用） */
+function encryptApiKeys(apiKeys: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(apiKeys || {})) {
+    out[k] = encryptKey(v);
+  }
+  return out;
+}
+
+/** 解密 settings 中的 apiKeys（返回给渲染进程前调用）+ 迁移旧明文 */
+function decryptApiKeys(apiKeys: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  let migrated = false;
+  for (const [k, v] of Object.entries(apiKeys || {})) {
+    if (v && v.startsWith(ENC_PREFIX)) {
+      out[k] = decryptKey(v);
+    } else {
+      // 旧版明文 → 加密回写（迁移）
+      out[k] = v;
+      if (v) migrated = true;
+    }
+  }
+  if (migrated) {
+    try {
+      const s = store.get('settings', defaultSettings);
+      s.apiKeys = encryptApiKeys(apiKeys);
+      store.set('settings', s);
+      console.log('[store] API keys encrypted (migrated from plaintext)');
+    } catch {}
+  }
+  return out;
+}
 
 // ============================================================
 // 对话（多会话）存储
@@ -357,12 +430,19 @@ export function getSettings(): UserSettings {
   }
   if (!settings.apiKeys) settings.apiKeys = {};
   if (!settings.models) settings.models = {};
+  // 解密 apiKeys（内部含旧明文迁移：加密回写）
+  settings.apiKeys = decryptApiKeys(settings.apiKeys);
   return settings;
 }
 
 export function updateSettings(partial: Partial<UserSettings>): UserSettings {
   const current = getSettings();
   const updated = { ...current, ...partial };
+  // API 密钥写入前统一用系统钥匙串加密（current 是解密后的明文，
+  // 即使本次没改 apiKeys 也必须加密后落盘，防止明文回写）
+  if (updated.apiKeys) {
+    updated.apiKeys = encryptApiKeys(updated.apiKeys);
+  }
   store.set('settings', updated);
   return updated;
 }

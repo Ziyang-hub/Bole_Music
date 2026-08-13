@@ -899,7 +899,14 @@ ipcMain.handle('update:getStatus', async () => {
 
 // ----- 数据管理 -----
 
-ipcMain.handle('store:getAllData', async () => getAllData());
+ipcMain.handle('store:getAllData', async () => {
+  const data = getAllData();
+  // 脱敏：不向渲染进程返回 API 密钥（防 XSS 窃取；调试不需要密钥）
+  if (data.settings && data.settings.apiKeys) {
+    data.settings.apiKeys = {};
+  }
+  return data;
+});
 ipcMain.handle('store:resetAllData', async () => resetAllData());
 
 // 清除缓存
